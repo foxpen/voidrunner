@@ -13,28 +13,28 @@ const BG = (() => {
 
   // Per-round BH scales — BH roste s každým kolem
   const ROUND_SCALES = [
-    0.06,  // round 1  — jen záblesk v dáli
-    0.13,  // 2
-    0.20,  // 3
-    0.30,  // 4
-    0.42,  // 5  — jasně viditelná
-    0.56,  // 6
-    0.70,  // 7
-    0.85,  // 8
-    1.00,  // 9  — dominuje obrazovce
-    1.40,  // 10 BOSS — uvnitř BH
+    0.28,  // round 1  — jasně viditelná v dáli
+    0.40,  // 2
+    0.54,  // 3
+    0.68,  // 4
+    0.82,  // 5  — dominantní
+    0.96,  // 6
+    1.10,  // 7
+    1.28,  // 8
+    1.50,  // 9  — vyplňuje obrazovku
+    2.00,  // 10 BOSS — uvnitř BH
   ];
 
   function setRound(round) {
-    const target = ROUND_SCALES[Math.min(round - 1, ROUND_SCALES.length - 1)] || 0.06;
+    const target = ROUND_SCALES[Math.min(round - 1, ROUND_SCALES.length - 1)] || 0.28;
     // Na začátku kola skočí na novou hodnotu okamžitě (bez lerpu)
-    if (Math.abs(bhBgTarget - target) > 0.05) bhBgScale = target * 0.85;
+    if (Math.abs(bhBgTarget - target) > 0.05) bhBgScale = target * 0.88;
     bhBgTarget = target;
   }
 
   function update(frameCount, W, H) {
-    // Rychlejší lerp
-    bhBgScale += (bhBgTarget - bhBgScale) * 0.008;
+    // Lerp
+    bhBgScale += (bhBgTarget - bhBgScale) * 0.012;
     dustAngle += 0.0003;
 
     // Debris flying past
@@ -99,10 +99,10 @@ const BG = (() => {
     const cx = W * 0.5, cy = H * 0.35; // BH sits in upper half
 
     // ── Outer nebula / glow ──
-    const glowR = Math.min(W, H) * 1.4 * s;
+    const glowR = Math.min(W, H) * 1.6 * s;
     for (let i = 3; i >= 0; i--) {
       const r     = glowR * (0.5 + i * 0.2);
-      const alpha = (0.06 - i * 0.01) * Math.min(1, s * 3);
+      const alpha = (0.10 - i * 0.015) * Math.min(1, s * 2);
       const grad  = ctx.createRadialGradient(cx, cy, r * 0.2, cx, cy, r);
       grad.addColorStop(0,   `rgba(255,120,0,${alpha})`);
       grad.addColorStop(0.5, `rgba(180,50,0,${alpha * 0.5})`);
@@ -113,7 +113,7 @@ const BG = (() => {
 
     // ── Accretion disk (ellipse, background version) ──
     if (s > 0.05) {
-      const diskR   = 220 * s;
+      const diskR   = 300 * s;
       const flatten = 0.25 + (1 - s) * 0.1;
       ctx.save();
       ctx.translate(cx, cy);
@@ -121,7 +121,7 @@ const BG = (() => {
       // Outer glow ring
       for (let pass = 0; pass < 3; pass++) {
         const r     = diskR * (1 + pass * 0.3);
-        const alpha = (0.08 - pass * 0.02) * Math.min(1, s * 2);
+        const alpha = (0.14 - pass * 0.03) * Math.min(1, s * 1.5);
         const grad  = ctx.createRadialGradient(0, 0, diskR * 0.5, 0, 0, r);
         grad.addColorStop(0,   `rgba(255,160,40,${alpha})`);
         grad.addColorStop(1,   'rgba(0,0,0,0)');
@@ -134,12 +134,12 @@ const BG = (() => {
       }
 
       // Rotating dust streaks
-      for (let i = 0; i < 60; i++) {
-        const a     = dustAngle + (i / 60) * Math.PI * 2;
+      for (let i = 0; i < 80; i++) {
+        const a     = dustAngle + (i / 80) * Math.PI * 2;
         const r     = diskR * (0.7 + Math.sin(a * 3 + frameCount * 0.001) * 0.3);
         const px    = Math.cos(a) * r;
         const py    = Math.sin(a) * r * flatten;
-        const alpha = 0.06 * Math.min(1, s * 4) * (0.5 + 0.5 * Math.sin(a * 7));
+        const alpha = 0.10 * Math.min(1, s * 2.5) * (0.5 + 0.5 * Math.sin(a * 7));
         ctx.globalAlpha = alpha;
         ctx.fillStyle   = `hsl(${25 + Math.sin(a) * 15}, 90%, 60%)`;
         ctx.beginPath(); ctx.arc(px, py, 2 * s, 0, Math.PI * 2); ctx.fill();
@@ -150,7 +150,7 @@ const BG = (() => {
 
     // ── Event horizon (black circle) ──
     if (s > 0.03) {
-      const bhR  = 80 * s;
+      const bhR  = 110 * s;
       const bhGr = ctx.createRadialGradient(cx, cy, 0, cx, cy, bhR * 1.3);
       bhGr.addColorStop(0,   '#000000');
       bhGr.addColorStop(0.6, '#000005');
@@ -159,12 +159,12 @@ const BG = (() => {
       ctx.beginPath(); ctx.arc(cx, cy, bhR * 1.3, 0, Math.PI * 2); ctx.fill();
 
       // Photon ring
-      if (s > 0.08) {
-        const ringAlpha = Math.min(0.6, s * 1.5);
+      if (s > 0.03) {
+        const ringAlpha = Math.min(0.85, s * 1.2);
         ctx.strokeStyle = `rgba(255,200,80,${ringAlpha})`;
-        ctx.lineWidth   = 1.5 * Math.min(1, s * 2);
+        ctx.lineWidth   = 2.5 * Math.min(1, s * 1.5);
         ctx.shadowColor = '#ff8800';
-        ctx.shadowBlur  = 15 * s;
+        ctx.shadowBlur  = 20 * s;
         ctx.beginPath(); ctx.arc(cx, cy, bhR, 0, Math.PI * 2); ctx.stroke();
         ctx.shadowBlur  = 0;
       }
@@ -220,7 +220,7 @@ const BG = (() => {
     ctx.globalAlpha = 1;
   }
 
-  function clear() { debris = []; bhBgScale = 0; bhBgTarget = 0; }
+  function clear() { debris = []; bhBgScale = ROUND_SCALES[0]; bhBgTarget = ROUND_SCALES[0]; }
 
   return { setRound, update, draw, clear, get scale() { return bhBgScale; } };
 })();
