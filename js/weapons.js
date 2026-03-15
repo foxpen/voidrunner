@@ -163,6 +163,7 @@ const Weapons = (() => {
   }
 
   function _fireWeapon(id, px, py, enemies, W, H) {
+    if (typeof Audio !== 'undefined') Audio.sfx('shoot');
     const wCfg = CFG.WEAPONS[id];
     const damage  = _getStat(id, 'damage');
     const speed   = _getStat(id, 'speed');

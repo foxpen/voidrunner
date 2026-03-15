@@ -50,6 +50,13 @@ function startGame() {
   Rounds.reset();
   Upgrades.reset();
   Boss.clear();
+  BG.clear();
+  BG.setRound(1);
+
+  // Audio — init on first user gesture
+  Audio.init();
+  Audio.resume();
+  if (!Audio.playing) Audio.startMusic(0);
 
   UI.showGame();
   UI.updateHighScore(highScore);
@@ -81,6 +88,7 @@ function takeDamage() {
 
 function die() {
   state = STATE.DEAD;
+  Audio.sfx('death');
   Particles.spawn(Player.x, Player.y, '#ff3355', 50);
   Particles.spawn(Player.x, Player.y, '#00ffc8', 30);
   shakeTime = 30; shakeIntensity = 12; slowmo = 20;
@@ -105,6 +113,14 @@ function update() {
 
   // Tick rounds state machine (only while playing)
   Rounds.tick(W, H);
+
+  // Update background — BH proximity based on round
+  BG.setRound(Rounds.current);
+  BG.update(frameCount, W, H);
+
+  // Music intensity — higher near boss
+  const intensity = (Rounds.current - 1) / 9;
+  if (frameCount % 300 === 0) Audio.setMusicIntensity(Rounds.isBossRound() ? 1 : intensity);
 
   // Power-up timers
   for (const key of Object.keys(activePU)) {
@@ -162,9 +178,11 @@ function update() {
       empFlash = 30;
       shakeTime = 15; shakeIntensity = 8;
       UI.showNotify('⚡ EMP IMPULS ⚡', '#ff44ff');
+      Audio.sfx('emp');
     } else {
       activePU[item.type] = def.duration;
       UI.showNotify(`${def.icon} ${def.name}`, def.color);
+      Audio.sfx('pickup');
     }
   });
 
@@ -211,6 +229,9 @@ function draw() {
   bg.addColorStop(1, '#0a0a0f');
   ctx.fillStyle = bg;
   ctx.fillRect(-20, -20, W+40, H+40);
+
+  // Dynamic background (BH approaching)
+  BG.draw(ctx, W, H, frameCount, Rounds.isBossRound());
 
   // Stars
   Particles.drawStars(ctx, frameCount);
