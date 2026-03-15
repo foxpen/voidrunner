@@ -476,8 +476,8 @@ function tickApproach(dt) {
         fade.style.background = '#000';
         fade.style.transition = 'opacity 1.2s ease';
         fade.classList.remove('black');
-        // Start story
-        document.getElementById('screen-intro').classList.add('active');
+        // Start story — use showScreen so currentScreen is tracked
+        showScreen('screen-intro');
         storyStarted = true;
         // Letterbox open after flash
         setTimeout(() => {
