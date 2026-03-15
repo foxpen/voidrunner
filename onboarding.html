@@ -665,6 +665,7 @@ function tickStory(dt) {
 
   const line = storyLines[storyIndex];
   if (charIndex < line.length) {
+    _sfxType(line[charIndex]);
     charIndex++;
   } else {
     // Pause at end of line
@@ -706,6 +707,64 @@ function loop(now) {
 resize();
 requestAnimationFrame(loop);
 
+// ── SCI-FI TERMINAL AUDIO ──────────────────────────────────────────────────
+let _ac = null;
+let _acReady = false;
+let _typeCount = 0;
+
+function _initAC() {
+  if (_ac) return;
+  try { _ac = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+}
+function _unlockAC() {
+  _initAC();
+  if (_ac && _ac.state === 'suspended') _ac.resume();
+  _acReady = true;
+}
+// Odemkni AudioContext při první interakci
+document.addEventListener('pointerdown', _unlockAC, { once: true });
+document.addEventListener('keydown',     _unlockAC, { once: true });
+
+function _sfxType(ch) {
+  if (!_ac || !_acReady) return;
+  try {
+    const t   = _ac.currentTime;
+    const dur = 0.038;
+    _typeCount++;
+
+    // ── Noise click (mechanický zvuk klávesy) ──
+    const bufLen = Math.floor(_ac.sampleRate * dur);
+    const buf    = _ac.createBuffer(1, bufLen, _ac.sampleRate);
+    const data   = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufLen, 1.8);
+    }
+    const src  = _ac.createBufferSource();
+    const filt = _ac.createBiquadFilter();
+    const gn   = _ac.createGain();
+    filt.type            = 'bandpass';
+    filt.frequency.value = 900 + (_typeCount % 7) * 120; // variace frekvence
+    filt.Q.value         = 3;
+    gn.gain.setValueAtTime(0.09, t);
+    gn.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    src.buffer = buf;
+    src.connect(filt); filt.connect(gn); gn.connect(_ac.destination);
+    src.start(t);
+
+    // ── Krátký elektronický tón (typický retro terminal beep) ──
+    if (ch && ch !== ' ' && ch !== '') {
+      const osc = _ac.createOscillator();
+      const og  = _ac.createGain();
+      osc.type            = 'square';
+      osc.frequency.value = 680 + (_typeCount % 5) * 80;
+      og.gain.setValueAtTime(0.028, t);
+      og.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
+      osc.connect(og); og.connect(_ac.destination);
+      osc.start(t); osc.stop(t + 0.032);
+    }
+  } catch(e) {}
+}
+
 // ── SCREEN MANAGER ─────────────────────────────────────────────────────────
 let currentScreen = null;
 let selectedShip  = null;
@@ -745,7 +804,8 @@ document.getElementById('btn-continue').addEventListener('click', () => {
 // ── NAME ───────────────────────────────────────────────────────────────────
 document.getElementById('btn-name-next').addEventListener('click', goToShip);
 document.getElementById('name-input').addEventListener('keydown', e => {
-  if (e.key === 'Enter') goToShip();
+  if (e.key === 'Enter') { goToShip(); return; }
+  if (e.key.length === 1) _sfxType(e.key); // zvuk při psaní jména
 });
 function goToShip() {
   const val = document.getElementById('name-input').value.trim().toUpperCase();
