@@ -128,21 +128,54 @@ const UI = (() => {
     }
   }
 
+  // Zprávy pro každé kolo — co přichází dál
+  const ROUND_MSGS = [
+    '',
+    'PRÁZDNOTA TĚ VOLÁ...',           // po kole 1
+    'NEBEZPEČÍ ROSTE',                // 2
+    'GRAVITACE SE ZVYŠUJE',           // 3
+    'HVĚZDNÉ TROSKY HOUSTNOU',        // 4
+    'JSME V DOSAHU ČERNÉ DÍRY',       // 5
+    'NÁVRAT JIŽ NENÍ MOŽNÝ',          // 6
+    'ČASOPROSTOR SE DEFORMUJE',       // 7
+    'SPAGHETTIFIKACE ZAČÍNÁ',         // 8
+    'BOSS SE PROBOUZÍ Z TEMNOTY',     // 9
+  ];
+
   function drawIntermissionOverlay(ctx, W, H, round, totalRounds, frameCount) {
-    ctx.fillStyle = `rgba(10, 10, 15, ${0.7})`;
+    ctx.fillStyle = 'rgba(10, 10, 15, 0.78)';
     ctx.fillRect(0, 0, W, H);
     ctx.textAlign = 'center';
-    const pulse = 0.7 + 0.3 * Math.sin(frameCount * 0.1);
+
+    const pulse = 0.8 + 0.2 * Math.sin(frameCount * 0.08);
     ctx.globalAlpha = pulse;
-    ctx.font = 'bold 36px Orbitron, monospace';
+
+    // Hlavní nadpis — kolo dokončeno
+    const mainText = round >= totalRounds ? 'KONEČNÝ BOSS SE BLÍŽÍ...' : `KOLO ${round} — DOKONČENO`;
+    ctx.font = `900 clamp(32px, 5vw, 62px) Orbitron, monospace`;
+    ctx.font = 'bold 58px Orbitron, monospace';
     ctx.fillStyle = '#00ffc8';
     ctx.shadowColor = '#00ffc8';
-    ctx.shadowBlur = 30;
-    ctx.fillText(round >= totalRounds ? 'KONEČNÝ BOSS SE BLÍŽÍ...' : `KOLO ${round} DOKONČENO`, W / 2, H / 2 - 20);
-    ctx.font = '16px Rajdhani, sans-serif';
-    ctx.fillStyle = '#ffffff88';
+    ctx.shadowBlur = 40;
+    ctx.fillText(mainText, W / 2, H / 2 - 48);
+
+    // Intro text příštího kola
+    const nextRound = round + 1;
+    const msg = round >= totalRounds ? '' : (ROUND_MSGS[round] || `KOLO ${nextRound}`);
+    if (msg) {
+      ctx.font = 'bold 28px Rajdhani, sans-serif';
+      ctx.fillStyle = '#ff8c00';
+      ctx.shadowColor = '#ff8c0066';
+      ctx.shadowBlur = 20;
+      ctx.fillText(msg, W / 2, H / 2 + 10);
+    }
+
+    // Podtitulek
+    ctx.font = '20px Rajdhani, sans-serif';
+    ctx.fillStyle = '#ffffff55';
     ctx.shadowBlur = 0;
-    ctx.fillText('připravuju vylepšení...', W / 2, H / 2 + 20);
+    ctx.fillText('— vyber vylepšení —', W / 2, H / 2 + 52);
+
     ctx.globalAlpha = 1;
   }
 
@@ -150,7 +183,7 @@ const UI = (() => {
     ctx.fillStyle = 'rgba(10,10,15,0.3)';
     ctx.fillRect(0, 0, W, H);
     const pulse = 0.85 + 0.15 * Math.sin(frameCount * 0.25);
-    const sz    = Math.floor(140 * pulse);
+    const sz    = Math.floor(Math.min(200, W * 0.18) * pulse);
     ctx.textAlign = 'center';
     ctx.font = `900 ${sz}px Orbitron, monospace`;
     ctx.globalAlpha = pulse;
