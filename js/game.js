@@ -28,8 +28,17 @@ let empFlash = 0;
 
 Particles.initStars(W, H);
 
-// Auto-start is intentionally removed — AudioContext requires a user gesture.
-// The start screen stays visible; pressing Enter/Start triggers startGame().
+// ─── MENU MUSIC — spustí se při první interakci uživatele ──────────────────
+let _audioReady = false;
+function _initAudioOnGesture() {
+  if (_audioReady) return;
+  _audioReady = true;
+  Audio.init();
+  Audio.resume();
+  Audio.startMusic();
+}
+document.addEventListener('keydown',     _initAudioOnGesture, { once: true });
+document.addEventListener('pointerdown', _initAudioOnGesture, { once: true });
 
 // ─── START GAME ────────────────────────────────────────────────────────────
 function startGame() {
@@ -51,11 +60,13 @@ function startGame() {
   BG.setRound(1);
   Hazards.clear();
 
-  // Audio — init + spustit hudbu JEN při letu
+  // Audio — pokud ještě nehraje (po game over), restartuj hudbu
   Audio.init();
   Audio.resume();
-  Audio.stopMusic();
-  setTimeout(() => Audio.startMusic(), 600);
+  if (!Audio.playing) {
+    Audio.stopMusic();
+    setTimeout(() => Audio.startMusic(), 400);
+  }
 
   UI.showGame();
   UI.updateHighScore(highScore);
