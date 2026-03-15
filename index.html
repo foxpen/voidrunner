@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VOID RUNNER</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<canvas id="game"></canvas>
+
+<div id="ui-overlay">
+
+  <div id="score-display">
+    <span class="label">SKÓRE</span>
+    <span class="value" id="score-value">0</span>
+  </div>
+
+  <div id="highscore-display">
+    <span class="label">REKORD</span>
+    <span class="value" id="highscore-value">0</span>
+  </div>
+
+  <div id="round-display">
+    <span class="label">KOLO</span>
+    <span class="value">1 <span style="font-size:18px;color:#ffffff55">/ 10</span></span>
+    <span id="round-timer"></span>
+  </div>
+
+  <!-- Boss HP bar -->
+  <div id="boss-bar-wrap">
+    <div id="boss-label">BOSS</div>
+    <div id="boss-bar-bg">
+      <div id="boss-hp-fill"></div>
+    </div>
+  </div>
+
+  <!-- Power-up HUD -->
+  <div id="powerup-hud">
+    <div class="pu-slot" id="pu-shield" style="--pu-color:#00aaff;--pu-glow:#00aaff66">
+      <span class="pu-icon">🛡</span>
+      <div class="pu-timer"></div>
+    </div>
+    <div class="pu-slot" id="pu-emp" style="--pu-color:#ff44ff;--pu-glow:#ff44ff66">
+      <span class="pu-icon">⚡</span>
+      <div class="pu-timer"></div>
+    </div>
+    <div class="pu-slot" id="pu-slow" style="--pu-color:#ffcc00;--pu-glow:#ffcc0066">
+      <span class="pu-icon">⏳</span>
+      <div class="pu-timer"></div>
+    </div>
+    <div class="pu-slot" id="pu-speed" style="--pu-color:#00ff88;--pu-glow:#00ff8866">
+      <span class="pu-icon">🚀</span>
+      <div class="pu-timer"></div>
+    </div>
+    <div class="pu-slot" id="pu-magnet" style="--pu-color:#ff8800;--pu-glow:#ff880066">
+      <span class="pu-icon">🧲</span>
+      <div class="pu-timer"></div>
+    </div>
+    <div class="pu-slot" id="pu-double" style="--pu-color:#ff3388;--pu-glow:#ff338866">
+      <span class="pu-icon">×2</span>
+      <div class="pu-timer"></div>
+    </div>
+  </div>
+
+  <div id="pickup-notify"></div>
+
+  <div id="gamepad-indicator">
+    <span class="dot"></span>
+    <span id="gamepad-text">GAMEPAD NEPŘIPOJEN</span>
+  </div>
+
+</div>
+
+<!-- START SCREEN -->
+<div id="start-screen">
+  <h1>VOID RUNNER</h1>
+  <div class="subtitle">naviguj prázdnotou</div>
+  <div class="mode-badge">10 KOL · VÝBĚR KARET · BOSS FIGHT</div>
+  <div class="prompt">STISKNI ENTER / START</div>
+  <div class="controls-info">
+    ŠIPKY nebo WASD — pohyb &nbsp;|&nbsp; GAMEPAD podporován<br>
+    Přežij 10 kol · mezi koly vyber vylepšení · poraz bosse
+  </div>
+  <div class="powerup-legend">
+    <div class="pu-item"><span class="icon">🛡</span> Štít — ochrana</div>
+    <div class="pu-item"><span class="icon">⚡</span> EMP — vyčistí mapu</div>
+    <div class="pu-item"><span class="icon">⏳</span> Slow-Mo — zpomalení</div>
+    <div class="pu-item"><span class="icon">🚀</span> Turbo — rychlost</div>
+    <div class="pu-item"><span class="icon">🧲</span> Magnet — přitahuje</div>
+    <div class="pu-item"><span class="icon" style="font-size:14px;font-weight:700">×2</span> Double — dvojité skóre</div>
+  </div>
+</div>
+
+<!-- GAME OVER -->
+<div id="game-over-screen">
+  <h2>KONEC</h2>
+  <div class="final-score" id="final-score">0</div>
+  <div class="stats-row" id="stats-row"></div>
+  <div class="new-record" id="new-record"></div>
+  <div class="retry">STISKNI ENTER / START</div>
+</div>
+
+<div class="scanlines"></div>
+<div class="vignette"></div>
+
+<!-- Scripts — pořadí je důležité! -->
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/input.js"></script>
+<script src="js/particles.js"></script>
+<script src="js/player.js"></script>
+<script src="js/weapons.js"></script>
+<script src="js/enemies.js"></script>
+<script src="js/boss.js"></script>
+<script src="js/upgrades.js"></script>
+<script src="js/rounds.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/game.js"></script>
+
+</body>
+</html>

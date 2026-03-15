@@ -1,0 +1,144 @@
+// ─── VOID RUNNER — CONFIG ───────────────────────────────────────────────────
+
+const CFG = {
+  // Canvas / general
+  BG_COLOR: '#0a0a0f',
+
+  // Player
+  PLAYER: {
+    W: 18, H: 26,
+    SPEED: 5,
+    ACCEL: 0.4,
+    FRICTION: 0.85,
+    TRAIL_LEN: 20,
+    TRAIL_LEN_BOOST: 35,
+    INVINCIBLE_START: 120,   // frames po spawnu
+  },
+
+  // Rounds
+  ROUNDS: {
+    TOTAL: 10,
+    ROUND_DURATION: 1800,    // frames (~30s při 60fps)
+    BOSS_ROUND: 10,
+    INTERMISSION: 180,       // frames mezi koly (3s)
+  },
+
+  // Difficulty scaling per round
+  DIFFICULTY: [
+    { round: 1,  spawnRate: 60, speed: 1.0, obstacleCount: 1 },
+    { round: 2,  spawnRate: 52, speed: 1.2, obstacleCount: 1 },
+    { round: 3,  spawnRate: 44, speed: 1.4, obstacleCount: 2 },
+    { round: 4,  spawnRate: 38, speed: 1.6, obstacleCount: 2 },
+    { round: 5,  spawnRate: 32, speed: 1.8, obstacleCount: 2 },
+    { round: 6,  spawnRate: 28, speed: 2.0, obstacleCount: 3 },
+    { round: 7,  spawnRate: 24, speed: 2.2, obstacleCount: 3 },
+    { round: 8,  spawnRate: 20, speed: 2.5, obstacleCount: 3 },
+    { round: 9,  spawnRate: 16, speed: 2.8, obstacleCount: 4 },
+    { round: 10, spawnRate: 12, speed: 3.2, obstacleCount: 4 }, // BOSS
+  ],
+
+  // Weapons
+  WEAPONS: {
+    basic: {
+      id: 'basic',
+      name: 'ZÁKLADNÍ LASER',
+      icon: '🔫',
+      color: '#00ffc8',
+      damage: 1,
+      fireRate: 15,       // frames mezi výstřely
+      speed: 12,
+      size: 4,
+      pattern: 'single',  // single | spread | orbit | beam | ring
+      unlocked: true,
+    },
+    spread: {
+      id: 'spread',
+      name: 'SPREAD SHOT',
+      icon: '🌟',
+      color: '#ffcc00',
+      damage: 1,
+      fireRate: 20,
+      speed: 10,
+      size: 3,
+      pattern: 'spread',
+      unlocked: false,
+    },
+    orbit: {
+      id: 'orbit',
+      name: 'ORBIT BOLA',
+      icon: '⚪',
+      color: '#ff8800',
+      damage: 2,
+      fireRate: 0,        // continuous orbit
+      speed: 0,
+      size: 8,
+      pattern: 'orbit',
+      unlocked: false,
+    },
+    missile: {
+      id: 'missile',
+      name: 'NAVÁDĚCÍ STŘELA',
+      icon: '🚀',
+      color: '#ff3355',
+      damage: 3,
+      fireRate: 60,
+      speed: 6,
+      size: 6,
+      pattern: 'homing',
+      unlocked: false,
+    },
+    ring: {
+      id: 'ring',
+      name: 'PLAZMOVÝ PRSTEN',
+      icon: '💥',
+      color: '#ff44ff',
+      damage: 2,
+      fireRate: 90,
+      speed: 4,
+      size: 5,
+      pattern: 'ring',
+      unlocked: false,
+    },
+  },
+
+  // Upgrade cards — appear between rounds
+  UPGRADE_CARDS: [
+    // Weapon unlocks
+    { id: 'unlock_spread',   type: 'weapon',  name: 'SPREAD SHOT',      desc: 'Vystřelí 3 projektily najednou',      icon: '🌟', color: '#ffcc00', weaponId: 'spread'  },
+    { id: 'unlock_orbit',    type: 'weapon',  name: 'ORBIT BOLA',       desc: 'Kuličky obíhají kolem lodi',          icon: '⚪', color: '#ff8800', weaponId: 'orbit'   },
+    { id: 'unlock_missile',  type: 'weapon',  name: 'NAVÁDĚCÍ STŘELA',  desc: 'Sleduje nejbližšího nepřítele',       icon: '🚀', color: '#ff3355', weaponId: 'missile' },
+    { id: 'unlock_ring',     type: 'weapon',  name: 'PLAZMOVÝ PRSTEN',  desc: 'Výbuch ve vlně kolem lodi',           icon: '💥', color: '#ff44ff', weaponId: 'ring'    },
+
+    // Weapon upgrades
+    { id: 'dmg_up',    type: 'stat', name: 'VYŠŠÍ DAMAGE',    desc: '+1 poškození všem zbraním',           icon: '⬆️', color: '#ff3355', stat: 'damage',   value: 1  },
+    { id: 'fire_up',   type: 'stat', name: 'RYCHLÁ PALBA',    desc: '-20% čas mezi výstřely',              icon: '🔥', color: '#ff6b00', stat: 'fireRate', value: -0.2 },
+    { id: 'speed_up',  type: 'stat', name: 'RYCHLEJŠÍ LOĎ',   desc: '+15% rychlost pohybu',                icon: '💨', color: '#00ff88', stat: 'shipSpeed', value: 0.15 },
+    { id: 'hp_up',     type: 'stat', name: 'ŠTÍTOVÝ MODUL',   desc: '+1 extra život',                      icon: '❤️', color: '#ff0055', stat: 'lives',    value: 1  },
+    { id: 'proj_up',   type: 'stat', name: 'DUAL FIRE',       desc: 'Základní laser střílí dvojitě',        icon: '🔱', color: '#00aaff', stat: 'dualFire', value: true },
+    { id: 'magnet_p',  type: 'stat', name: 'PERMANENTNÍ MAGNET', desc: 'Stálý přitažlivý efekt',           icon: '🧲', color: '#ff8800', stat: 'permMagnet', value: true },
+    { id: 'score_up',  type: 'stat', name: 'SCORE BOOSTER',   desc: '+50% skóre trvale',                   icon: '×1.5', color: '#ff3388', stat: 'scoreMult', value: 0.5 },
+    { id: 'orbit_cnt', type: 'stat', name: 'VÍCE BOLAS',      desc: '+2 orbit kuličky',                    icon: '🔵', color: '#ff8800', stat: 'orbitCount', value: 2  },
+  ],
+
+  // Power-ups (pickups during game)
+  POWERUPS: {
+    shield:  { icon: '🛡', name: 'ŠTÍT',          color: '#00aaff', duration: 600 },
+    emp:     { icon: '⚡', name: 'EMP IMPULS',     color: '#ff44ff', duration: 0   },
+    slow:    { icon: '⏳', name: 'SLOW-MO',        color: '#ffcc00', duration: 300 },
+    speed:   { icon: '🚀', name: 'TURBO',          color: '#00ff88', duration: 360 },
+    magnet:  { icon: '🧲', name: 'MAGNET',         color: '#ff8800', duration: 480 },
+    double:  { icon: '×2', name: 'DOUBLE SKÓRE',  color: '#ff3388', duration: 420 },
+  },
+
+  // Boss
+  BOSS: {
+    HP: 200,
+    PHASE2_HP: 100,
+    SPEED: 1.5,
+    SIZE: 60,
+    COLOR_P1: '#ff3355',
+    COLOR_P2: '#ff8800',
+    ATTACK_RATE: 80,
+    REWARD_CARDS: 3,      // kolik karet po porážce bosse
+  },
+};
