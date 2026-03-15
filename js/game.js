@@ -272,6 +272,7 @@ function draw() {
   if (state === STATE.PLAYING) {
     Player.draw(ctx, frameCount, activePU);
     Player.drawLivesHUD(ctx, W);
+    Weapons.drawMagHUD(ctx, W, H, frameCount);
   }
 
   // Particles

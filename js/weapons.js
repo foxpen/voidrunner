@@ -1,12 +1,19 @@
 // ─── VOID RUNNER — WEAPONS ──────────────────────────────────────────────────
 
 const Weapons = (() => {
-  let equipped = [];       // pole aktivních weapon ID
-  let stats = {};          // per-weapon override stats
+  let equipped = [];
+  let stats = {};
   let projectiles = [];
   let orbitBalls = [];
   let fireCooldowns = {};
   let orbitCount = 2;
+
+  // ── ZÁSOBNÍK / RELOAD ──
+  const MAG_SIZE        = 12;   // výstřelů než se musí nabít
+  const RELOAD_FRAMES   = 300;  // 5s při 60fps
+  let magShots    = MAG_SIZE;   // zbývající výstřely
+  let reloading   = false;
+  let reloadTimer = 0;
 
   function reset() {
     equipped = ['basic'];
@@ -15,6 +22,9 @@ const Weapons = (() => {
     orbitBalls = [];
     fireCooldowns = {};
     orbitCount = 2;
+    magShots  = MAG_SIZE;
+    reloading = false;
+    reloadTimer = 0;
     _rebuildOrbits();
   }
 
@@ -76,10 +86,21 @@ const Weapons = (() => {
   function update(px, py, enemies, W, H, frameCount, slowActive) {
     const slowMult = slowActive ? 0.5 : 1;
 
+    // ── Reload tick ──
+    if (reloading) {
+      reloadTimer--;
+      if (reloadTimer <= 0) {
+        reloading = false;
+        magShots  = MAG_SIZE;
+        if (typeof Audio !== 'undefined') Audio.sfx('pickup'); // reload done sound
+      }
+    }
+
     // Fire all equipped weapons
     for (const id of equipped) {
       const wCfg = CFG.WEAPONS[id];
-      if (wCfg.pattern === 'orbit') continue; // handled separately
+      if (wCfg.pattern === 'orbit') continue;
+      if (reloading) continue; // nelze střílet při nabíjení
 
       fireCooldowns[id] = (fireCooldowns[id] || 0);
       if (fireCooldowns[id] > 0) { fireCooldowns[id]--; continue; }
@@ -88,6 +109,16 @@ const Weapons = (() => {
       fireCooldowns[id] = fireRate;
 
       _fireWeapon(id, px, py, enemies, W, H);
+
+      // Odečti náboj (jen pro 'basic' jako hlavní zbraň)
+      if (id === 'basic') {
+        magShots--;
+        if (magShots <= 0) {
+          reloading   = true;
+          reloadTimer = RELOAD_FRAMES;
+          if (typeof Audio !== 'undefined') Audio.sfx('hit'); // prázdný zásobník click
+        }
+      }
     }
 
     // Orbit balls
@@ -264,11 +295,51 @@ const Weapons = (() => {
     });
   }
 
+  function drawMagHUD(ctx, W, H, frameCount) {
+    const barW  = 120;
+    const barH  = 6;
+    const x     = W / 2 - barW / 2;
+    const y     = H - 72;
+
+    if (reloading) {
+      // Reload progress bar
+      const pct = 1 - reloadTimer / RELOAD_FRAMES;
+      ctx.fillStyle = '#1a1a2e';
+      ctx.fillRect(x, y, barW, barH);
+      ctx.fillStyle = '#ff6600';
+      ctx.shadowColor = '#ff6600'; ctx.shadowBlur = 8;
+      ctx.fillRect(x, y, barW * pct, barH);
+      ctx.shadowBlur = 0;
+
+      // NABÍJÍ text — bliká
+      ctx.globalAlpha = 0.6 + 0.4 * Math.sin(frameCount * 0.15);
+      ctx.font = 'bold 11px Orbitron, monospace';
+      ctx.fillStyle = '#ff6600';
+      ctx.textAlign = 'center';
+      ctx.fillText('NABÍJÍ...', W / 2, y - 6);
+      ctx.globalAlpha = 1;
+    } else {
+      // Bullet pips
+      const pipW = Math.floor(barW / MAG_SIZE) - 2;
+      for (let i = 0; i < MAG_SIZE; i++) {
+        const px = x + i * (pipW + 2);
+        ctx.fillStyle = i < magShots ? '#00ffc8' : '#1a1a2e';
+        ctx.shadowColor = i < magShots ? '#00ffc8' : 'transparent';
+        ctx.shadowBlur  = i < magShots ? 4 : 0;
+        ctx.fillRect(px, y, pipW, barH);
+      }
+      ctx.shadowBlur = 0;
+    }
+  }
+
   function clearProjectiles() { projectiles = []; }
 
   return {
-    reset, unlockWeapon, applyUpgrade, update, draw, clearProjectiles,
-    get equipped() { return equipped; },
+    reset, unlockWeapon, applyUpgrade, update, draw, drawMagHUD, clearProjectiles,
+    get equipped()   { return equipped; },
     get orbitBalls() { return orbitBalls; },
+    get reloading()  { return reloading; },
+    get magShots()   { return magShots; },
+    get magSize()    { return MAG_SIZE; },
   };
 })();
