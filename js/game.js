@@ -28,6 +28,12 @@ let empFlash = 0;
 
 Particles.initStars(W, H);
 
+// ─── AUTO-START FROM ONBOARDING ────────────────────────────────────────────
+window.addEventListener('load', () => {
+  const vr = localStorage.getItem('vr_player');
+  if (vr) setTimeout(() => startGame(), 150);
+});
+
 // ─── START GAME ────────────────────────────────────────────────────────────
 function startGame() {
   state = STATE.PLAYING;
@@ -89,16 +95,16 @@ function die() {
 function update() {
   frameCount++;
 
-  // Tick rounds state machine
-  Rounds.tick(W, H);
-
-  // If upgrade screen is showing — skip game update
-  if (Upgrades.showing) return;
+  // If upgrade screen is showing — only tick upgrades, nothing else
+  if (Upgrades.showing) { Upgrades.update(); return; }
 
   if (state !== STATE.PLAYING) {
     Particles.update(state, frameCount, W, H, 1, false);
     return;
   }
+
+  // Tick rounds state machine (only while playing)
+  Rounds.tick(W, H);
 
   // Power-up timers
   for (const key of Object.keys(activePU)) {
