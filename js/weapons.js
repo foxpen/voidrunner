@@ -135,7 +135,7 @@ const Weapons = (() => {
         const e = enemies[i];
         for (const b of orbitBalls) {
           if (Utils.dist(b.x, b.y, e.x, e.y) < b.size + e.size * 0.5) {
-            e.hp -= b.damage;
+            if (e.takeDmg) e.takeDmg(b.damage); else e.hp -= b.damage;
             Particles.spawn(e.x, e.y, CFG.WEAPONS.orbit.color, 6);
           }
         }
@@ -171,17 +171,16 @@ const Weapons = (() => {
         const e = enemies[ei];
         const hitDist = proj.ring ? proj.radius : proj.size + e.size * 0.5;
         if (proj.ring) {
-          // Ring hits once at expansion boundary
           const d = Utils.dist(proj.x, proj.y, e.x, e.y);
           if (Math.abs(d - proj.radius) < 8 && !proj.hitSet?.has(ei)) {
             proj.hitSet = proj.hitSet || new Set();
             proj.hitSet.add(ei);
-            e.hp -= proj.damage;
+            if (e.takeDmg) e.takeDmg(proj.damage); else e.hp -= proj.damage;
             Particles.spawn(e.x, e.y, proj.color, 8);
           }
         } else {
           if (Utils.dist(proj.x, proj.y, e.x, e.y) < hitDist) {
-            e.hp -= proj.damage;
+            if (e.takeDmg) e.takeDmg(proj.damage); else e.hp -= proj.damage;
             Particles.spawn(e.x, e.y, proj.color, 8);
             if (!proj.piercing) { proj.dead = true; break; }
           }
