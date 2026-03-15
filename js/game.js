@@ -83,7 +83,7 @@ function takeDamage() {
     shakeTime = 10; shakeIntensity = 6;
     Particles.spawn(Player.x, Player.y, '#00aaff', 25);
     UI.showNotify('ŠTÍT ABSORBOVAL NÁRAZ', '#00aaff');
-    screenFlash = { a: 0.45, r: 0, g: 170, b: 255 };
+    screenFlash = { a: 0.18, r: 0, g: 170, b: 255 };
     return;
   }
 
@@ -96,7 +96,7 @@ function takeDamage() {
     shakeTime = 15; shakeIntensity = 8;
     Particles.spawn(Player.x, Player.y, '#ff3355', 20);
     UI.showNotify(`♥ ŽIVOTY: ${Player.lives}`, '#ff3355');
-    screenFlash = { a: 0.55, r: 255, g: 30, b: 50 };
+    screenFlash = { a: 0.22, r: 255, g: 30, b: 50 };
   }
 }
 
@@ -312,7 +312,7 @@ function draw() {
   if (screenFlash.a > 0) {
     ctx.fillStyle = `rgba(${screenFlash.r},${screenFlash.g},${screenFlash.b},${screenFlash.a})`;
     ctx.fillRect(0, 0, W, H);
-    screenFlash.a = Math.max(0, screenFlash.a - 0.045);
+    screenFlash.a = Math.max(0, screenFlash.a - 0.08);
   }
 
   // Overlay screens (drawn outside shake)
