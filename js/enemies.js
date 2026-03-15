@@ -10,22 +10,33 @@ const Enemies = (() => {
   function spawnObstacle(W, H, difficulty, slowActive) {
     const side = Math.random();
     let x, y, vx, vy;
-    const spd = (1.5 + Math.random() * 2) * difficulty;
     const slowMult = slowActive ? 0.35 : 1;
 
-    if (side < 0.6)       { x = Math.random() * W; y = -40; vx = (Math.random()-0.5)*spd; vy = spd; }
-    else if (side < 0.8)  { x = -40; y = Math.random()*H*0.7; vx = spd; vy = (Math.random()-0.3)*spd*0.5; }
-    else                  { x = W+40; y = Math.random()*H*0.7; vx = -spd; vy = (Math.random()-0.3)*spd*0.5; }
+    // ── 3 typy asteroidů: modrý (malý), červený (střední), velký (tmavý) ──
+    const roll = Math.random();
+    let tier, size, hp, hue, spd;
+    if (roll < 0.50) {
+      tier = 1; size = 10 + Math.random() * 10; hp = 1;   hue = 195 + Math.random() * 30; // modrý
+      spd = (2.0 + Math.random() * 2.5) * difficulty;
+    } else if (roll < 0.82) {
+      tier = 2; size = 20 + Math.random() * 12; hp = 2 + Math.floor(Math.random() * 2); hue = 0 + Math.random() * 20; // červený
+      spd = (1.4 + Math.random() * 1.8) * difficulty;
+    } else {
+      tier = 3; size = 32 + Math.random() * 14; hp = 4 + Math.floor(Math.random() * 2); hue = 340 + Math.random() * 15; // tmavě červený
+      spd = (0.9 + Math.random() * 1.2) * difficulty;
+    }
 
-    vx *= slowMult;
-    vy *= slowMult;
+    if (side < 0.6)      { x = Math.random() * W; y = -50; vx = (Math.random()-0.5)*spd; vy = spd; }
+    else if (side < 0.8) { x = -50; y = Math.random()*H*0.7; vx = spd; vy = (Math.random()-0.3)*spd*0.5; }
+    else                 { x = W+50; y = Math.random()*H*0.7; vx = -spd; vy = (Math.random()-0.3)*spd*0.5; }
 
-    const size = 12 + Math.random() * 28;
+    vx *= slowMult; vy *= slowMult;
+
+    const nv = 5 + Math.floor(Math.random() * 4) + tier;
     const vertices = [];
-    const nv = 5 + Math.floor(Math.random() * 4);
     for (let i = 0; i < nv; i++) {
       const a = (i / nv) * Math.PI * 2;
-      const r = size * (0.6 + Math.random() * 0.4);
+      const r = size * (0.55 + Math.random() * 0.45);
       vertices.push({ x: Math.cos(a)*r, y: Math.sin(a)*r });
     }
 
@@ -33,12 +44,10 @@ const Enemies = (() => {
       x, y, vx, vy,
       baseVx: vx / slowMult,
       baseVy: vy / slowMult,
-      size, vertices,
+      size, vertices, tier, hue,
       rot: Math.random() * Math.PI * 2,
       rotSpeed: (Math.random() - 0.5) * 0.04,
-      hue: Math.random() < 0.3 ? 340 : (180 + Math.random() * 40),
-      hp: 1,
-      maxHp: 1,
+      hp, maxHp: hp,
     });
   }
 
@@ -133,16 +142,20 @@ const Enemies = (() => {
       ctx.translate(o.x, o.y);
       ctx.rotate(o.rot);
 
-      ctx.shadowColor = `hsl(${o.hue}, 100%, 60%)`;
-      ctx.shadowBlur = 20;
-      ctx.strokeStyle = `hsl(${o.hue}, 80%, 55%)`;
-      ctx.lineWidth = 2;
+      const sat  = o.tier === 1 ? 90 : o.tier === 2 ? 100 : 80;
+      const lit  = o.tier === 1 ? 58 : o.tier === 2 ? 52  : 40;
+      const glow = o.tier === 3 ? 28 : 18;
+      const lw   = o.tier === 3 ? 2.5 : 1.5;
+      ctx.shadowColor = `hsl(${o.hue}, ${sat}%, ${lit}%)`;
+      ctx.shadowBlur = glow;
+      ctx.strokeStyle = `hsl(${o.hue}, ${sat}%, ${lit}%)`;
+      ctx.lineWidth = lw;
       ctx.beginPath();
       ctx.moveTo(o.vertices[0].x, o.vertices[0].y);
       for (let i = 1; i < o.vertices.length; i++) ctx.lineTo(o.vertices[i].x, o.vertices[i].y);
       ctx.closePath();
       ctx.stroke();
-      ctx.fillStyle = `hsla(${o.hue}, 60%, 30%, 0.15)`;
+      ctx.fillStyle = `hsla(${o.hue}, 50%, 20%, ${o.tier === 3 ? 0.3 : 0.12})`;
       ctx.fill();
       ctx.shadowBlur = 0;
       ctx.restore();
