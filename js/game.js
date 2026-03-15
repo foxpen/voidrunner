@@ -25,6 +25,7 @@ let frameCount = 0;
 // Active power-up timers (frames)
 let activePU = { shield: 0, slow: 0, speed: 0, magnet: 0, double: 0, emp: 0 };
 let empFlash = 0;
+let screenFlash = { a: 0, r: 255, g: 51, b: 85 };
 
 Particles.initStars(W, H);
 
@@ -47,6 +48,7 @@ function startGame() {
   shakeTime = 0; slowmo = 0;
   activePU = { shield: 0, slow: 0, speed: 0, magnet: 0, double: 0, emp: 0 };
   empFlash = 0;
+  screenFlash = { a: 0, r: 255, g: 51, b: 85 };
 
   Player.resetStats();
   Player.reset(W, H);
@@ -81,6 +83,7 @@ function takeDamage() {
     shakeTime = 10; shakeIntensity = 6;
     Particles.spawn(Player.x, Player.y, '#00aaff', 25);
     UI.showNotify('ŠTÍT ABSORBOVAL NÁRAZ', '#00aaff');
+    screenFlash = { a: 0.45, r: 0, g: 170, b: 255 };
     return;
   }
 
@@ -93,6 +96,7 @@ function takeDamage() {
     shakeTime = 15; shakeIntensity = 8;
     Particles.spawn(Player.x, Player.y, '#ff3355', 20);
     UI.showNotify(`♥ ŽIVOTY: ${Player.lives}`, '#ff3355');
+    screenFlash = { a: 0.55, r: 255, g: 30, b: 50 };
   }
 }
 
@@ -161,6 +165,9 @@ function update() {
 
   // Enemy update
   Enemies.update(W, H, activePU);
+  if (Enemies.recentKills > 0) {
+    screenFlash = { a: Math.max(screenFlash.a, 0.1), r: 255, g: 255, b: 255 };
+  }
 
   // Weapons update — pass enemy list + boss target
   const allTargets = [...Enemies.list];
@@ -304,9 +311,18 @@ function draw() {
 
   ctx.restore();
 
+  // Screen flash overlay (damage / kill feedback)
+  if (screenFlash.a > 0) {
+    ctx.fillStyle = `rgba(${screenFlash.r},${screenFlash.g},${screenFlash.b},${screenFlash.a})`;
+    ctx.fillRect(0, 0, W, H);
+    screenFlash.a = Math.max(0, screenFlash.a - 0.045);
+  }
+
   // Overlay screens (drawn outside shake)
   if (Upgrades.showing) {
     Upgrades.draw(ctx, W, H, frameCount);
+  } else if (Rounds.isCountdown() && state === STATE.PLAYING) {
+    UI.drawCountdownOverlay(ctx, W, H, Rounds.countdownValue, frameCount);
   } else if (Rounds.isIntermission() && state === STATE.PLAYING) {
     UI.drawIntermissionOverlay(ctx, W, H, Rounds.current, CFG.ROUNDS.TOTAL, frameCount);
   } else if (Rounds.isGameDone()) {

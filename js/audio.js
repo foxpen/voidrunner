@@ -97,7 +97,7 @@ const Audio = (() => {
   function _startDrone() {
     const dg = ctx.createGain();
     dg.gain.value = 0.18;
-    dg.connect(reverb);
+    if (reverb) dg.connect(reverb);
     dg.connect(master);
 
     // Sub-bass drone A1 (55 Hz)
@@ -132,7 +132,8 @@ const Audio = (() => {
 
     const chordG = ctx.createGain();
     chordG.gain.value = 1;
-    chordG.connect(reverb);
+    if (reverb) chordG.connect(reverb);
+    chordG.connect(master);
 
     chord.forEach((freq, i) => {
       const vol = i === 0 ? 0.10 : 0.055 - i * 0.008;
@@ -198,6 +199,7 @@ const Audio = (() => {
       case 'death':    _sfxDeath();   break;
       case 'hit':      _sfxHit();     break;
       case 'round':    _sfxRound();   break;
+      case 'upgrade':  _sfxUpgrade(); break;
     }
   }
 
@@ -276,6 +278,19 @@ const Audio = (() => {
       g.gain.linearRampToValueAtTime(0.18, t + 0.05);
       g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
       o.start(t); o.stop(t + 0.5);
+    });
+  }
+
+  function _sfxUpgrade() {
+    [330, 550, 880, 1320].forEach((f, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(master);
+      o.type = 'sine'; o.frequency.value = f;
+      const t = ctx.currentTime + i * 0.08;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.16, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+      o.start(t); o.stop(t + 0.3);
     });
   }
 

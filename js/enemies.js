@@ -3,6 +3,7 @@
 const Enemies = (() => {
   let list = [];
   let pickups = [];
+  let recentKills = 0;
 
   function clear() { list = []; pickups = []; }
 
@@ -65,6 +66,7 @@ const Enemies = (() => {
   }
 
   function update(W, H, activePU) {
+    recentKills = 0;
     const slowMult = activePU.slow > 0 ? 0.35 : 1;
 
     list.forEach(o => {
@@ -94,8 +96,10 @@ const Enemies = (() => {
     });
     pickups = pickups.filter(p => p.y < H + 60);
 
-    // Remove dead enemies
+    // Remove dead enemies — track kill count for juice
+    const beforeKill = list.length;
     list = list.filter(o => o.hp > 0);
+    recentKills = beforeKill - list.length;
   }
 
   function checkPlayerCollision(activePU) {
@@ -185,7 +189,8 @@ const Enemies = (() => {
   }
 
   return {
-    get list() { return list; },
+    get list()        { return list; },
+    get recentKills() { return recentKills; },
     clear, spawnObstacle, spawnPickupItem, triggerEMP,
     update, checkPlayerCollision, checkPickupCollision, draw,
   };

@@ -2,9 +2,10 @@
 
 const Rounds = (() => {
   let current = 1;
-  let timer = 0;           // frames remaining this round
+  let timer = 0;
   let intermissionTimer = 0;
-  let phase = 'PLAYING';   // PLAYING | INTERMISSION | UPGRADE | BOSS | BOSS_DEAD | DONE
+  let countdownTimer = 0;
+  let phase = 'PLAYING';   // PLAYING | INTERMISSION | UPGRADE | COUNTDOWN | BOSS | BOSS_DEAD | DONE
   let frameCount = 0;
 
   const TOTAL = CFG.ROUNDS.TOTAL;
@@ -44,18 +45,15 @@ const Rounds = (() => {
         phase = 'UPGRADE';
         Upgrades.show(W, H, card => {
           _applyCard(card);
-          if (gameMode === 'endless') {
-            current++;
-            timer = Infinity;
-            phase = 'PLAYING';
-          } else if (current >= TOTAL) {
+          if (current >= TOTAL && gameMode !== 'endless') {
             phase = 'BOSS';
-            Boss.spawn(W);
+            Boss.spawn(W, H);
             Enemies.clear();
           } else {
             current++;
-            timer = DUR * (gameMode === 'hardcore' ? 0.7 : 1);
-            phase = 'PLAYING';
+            timer = gameMode === 'endless' ? Infinity : DUR * (gameMode === 'hardcore' ? 0.7 : 1);
+            countdownTimer = 180; // 3 sekundy
+            phase = 'COUNTDOWN';
           }
         });
       }
@@ -64,6 +62,15 @@ const Rounds = (() => {
 
     if (phase === 'UPGRADE') {
       Upgrades.update();
+      return;
+    }
+
+    if (phase === 'COUNTDOWN') {
+      countdownTimer--;
+      if (countdownTimer <= 0) {
+        phase = 'PLAYING';
+        Audio.sfx('round');
+      }
       return;
     }
 
@@ -134,12 +141,15 @@ const Rounds = (() => {
     return Math.max(0, Math.ceil(timer / 60));
   }
 
+  function isCountdown() { return phase === 'COUNTDOWN'; }
+
   return {
     reset, tick, getDifficulty, getSpawnRate,
-    shouldSpawnEnemies, isBossRound, isUpgradeScreen, isGameDone, isIntermission,
+    shouldSpawnEnemies, isBossRound, isUpgradeScreen, isGameDone, isIntermission, isCountdown,
     progress, timeLeft,
-    get current() { return current; },
-    get phase()   { return phase; },
-    get frameCount() { return frameCount; },
+    get current()        { return current; },
+    get phase()          { return phase; },
+    get frameCount()     { return frameCount; },
+    get countdownValue() { return Math.max(1, Math.ceil(countdownTimer / 60)); },
   };
 })();

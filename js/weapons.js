@@ -16,7 +16,7 @@ const Weapons = (() => {
   let reloadTimer = 0;
 
   function reset() {
-    equipped = ['basic'];
+    equipped = []; // zbraně jsou upgrade — hráč začíná bez střelby
     stats = {};
     projectiles = [];
     orbitBalls = [];
@@ -296,6 +296,7 @@ const Weapons = (() => {
   }
 
   function drawMagHUD(ctx, W, H, frameCount) {
+    if (equipped.length === 0) return; // žádné zbraně, žádný HUD
     const barW  = 120;
     const barH  = 6;
     const x     = W / 2 - barW / 2;

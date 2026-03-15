@@ -146,6 +146,22 @@ const UI = (() => {
     ctx.globalAlpha = 1;
   }
 
+  function drawCountdownOverlay(ctx, W, H, value, frameCount) {
+    ctx.fillStyle = 'rgba(10,10,15,0.3)';
+    ctx.fillRect(0, 0, W, H);
+    const pulse = 0.85 + 0.15 * Math.sin(frameCount * 0.25);
+    const sz    = Math.floor(140 * pulse);
+    ctx.textAlign = 'center';
+    ctx.font = `900 ${sz}px Orbitron, monospace`;
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = '#ffffff';
+    ctx.shadowColor = '#00ffc8';
+    ctx.shadowBlur = 80;
+    ctx.fillText(value, W / 2, H / 2 + sz * 0.35);
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+  }
+
   function drawDoneOverlay(ctx, W, H, frameCount) {
     ctx.fillStyle = `rgba(10, 10, 15, 0.85)`;
     ctx.fillRect(0, 0, W, H);
@@ -164,6 +180,6 @@ const UI = (() => {
   return {
     showGame, showMenu, showGameOver, updateScore, updateHighScore,
     updateRound, updateBossBar, hideBossBar, updatePowerups,
-    showNotify, setGamepad, drawIntermissionOverlay, drawDoneOverlay,
+    showNotify, setGamepad, drawIntermissionOverlay, drawDoneOverlay, drawCountdownOverlay,
   };
 })();
