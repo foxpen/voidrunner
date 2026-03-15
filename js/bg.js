@@ -14,15 +14,15 @@ const BG = (() => {
   // Per-round BH scales — BH roste s každým kolem
   const ROUND_SCALES = [
     0.28,  // round 1  — jasně viditelná v dáli
-    0.40,  // 2
-    0.54,  // 3
-    0.68,  // 4
-    0.82,  // 5  — dominantní
-    0.96,  // 6
-    1.10,  // 7
-    1.28,  // 8
-    1.50,  // 9  — vyplňuje obrazovku
-    2.00,  // 10 BOSS — uvnitř BH
+    0.42,  // 2
+    0.58,  // 3
+    0.76,  // 4
+    0.95,  // 5
+    1.15,  // 6
+    1.40,  // 7
+    1.70,  // 8
+    2.10,  // 9  — obrovská, skoro uvnitř
+    2.80,  // 10 BOSS — pohltí celou obrazovku
   ];
 
   function setRound(round) {
