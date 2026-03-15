@@ -28,11 +28,8 @@ let empFlash = 0;
 
 Particles.initStars(W, H);
 
-// ─── AUTO-START FROM ONBOARDING ────────────────────────────────────────────
-window.addEventListener('load', () => {
-  const vr = localStorage.getItem('vr_player');
-  if (vr) setTimeout(() => startGame(), 150);
-});
+// Auto-start is intentionally removed — AudioContext requires a user gesture.
+// The start screen stays visible; pressing Enter/Start triggers startGame().
 
 // ─── START GAME ────────────────────────────────────────────────────────────
 function startGame() {
@@ -123,7 +120,7 @@ function update() {
 
   // Music intensity — higher near boss
   const intensity = (Rounds.current - 1) / 9;
-  if (frameCount % 300 === 0) Audio.setMusicIntensity(Rounds.isBossRound() ? 1 : intensity);
+  if (frameCount % 300 === 0) Audio.setIntensity(Rounds.isBossRound() ? 1 : intensity);
 
   // Power-up timers
   for (const key of Object.keys(activePU)) {
