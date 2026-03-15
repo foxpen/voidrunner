@@ -1,290 +1,269 @@
-// ─── VOID RUNNER — AUDIO (Web Audio API) ────────────────────────────────────
+// ─── VOID RUNNER — AUDIO ────────────────────────────────────────────────────
+// Hudba: Interstellar styl — varhany, hlubokáé drony, reverb, pomalé akordy
+// Spouští se JEN při hraní (ne na menu/onboardingu)
 
 const Audio = (() => {
   let ctx = null;
-  let masterGain = null;
-  let musicNodes = [];
+  let master = null;
+  let reverb = null;
   let musicPlaying = false;
-  let sfxEnabled = true;
+  let allNodes = [];
+  let fadeGain = null;
 
+  // Chord progression — Am, F, C, G (Hans Zimmer vibes)
+  const CHORDS = [
+    [110, 130.81, 164.81, 220],      // Am  — A2 C3 E3 A3
+    [87.31, 130.81, 174.61, 261.63], // F   — F2 C3 F3 C4
+    [65.41, 130.81, 164.81, 196],    // C   — C2 C3 E3 G3
+    [98, 123.47, 146.83, 196],       // G   — G2 B2 D3 G3
+  ];
+  let chordIdx = 0;
+  let chordTimer = null;
+
+  // ── INIT ──────────────────────────────────────────────────────────────────
   function init() {
     if (ctx) return;
     ctx = new (window.AudioContext || window.webkitAudioContext)();
-    masterGain = ctx.createGain();
-    masterGain.gain.value = 0.7;
-    masterGain.connect(ctx.destination);
+    master = ctx.createGain();
+    master.gain.value = 0.55;
+    master.connect(ctx.destination);
+    reverb = _makeReverb(4.5);
   }
 
   function resume() {
-    if (ctx && ctx.state === 'suspended') ctx.resume();
+    ctx?.state === 'suspended' && ctx.resume();
   }
 
-  // ── SFX ─────────────────────────────────────────────────────────────────
-
-  function sfx(type) {
-    if (!ctx || !sfxEnabled) return;
-    switch (type) {
-      case 'shoot':    _shootSfx();    break;
-      case 'hit':      _hitSfx();      break;
-      case 'pickup':   _pickupSfx();   break;
-      case 'death':    _deathSfx();    break;
-      case 'emp':      _empSfx();      break;
-      case 'boss_hit': _bossHitSfx();  break;
-      case 'round':    _roundSfx();    break;
+  // Impulse reverb simulation
+  function _makeReverb(duration) {
+    const len    = ctx.sampleRate * duration;
+    const buf    = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let c = 0; c < 2; c++) {
+      const data = buf.getChannelData(c);
+      for (let i = 0; i < len; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5);
+      }
     }
+    const conv = ctx.createConvolver();
+    conv.buffer = buf;
+    conv.connect(master);
+    return conv;
   }
 
-  function _shootSfx() {
-    const osc = ctx.createOscillator();
-    const g   = ctx.createGain();
-    osc.connect(g); g.connect(masterGain);
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(880, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(220, ctx.currentTime + 0.08);
-    g.gain.setValueAtTime(0.08, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
-    osc.start(); osc.stop(ctx.currentTime + 0.1);
+  // ── ORGAN NOTE ─────────────────────────────────────────────────────────────
+  // Pipe organ = sum of sine harmonics
+  function _organ(freq, gainVal, startTime, dur, target) {
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, startTime);
+    g.gain.linearRampToValueAtTime(gainVal, startTime + 0.8);
+    g.gain.setValueAtTime(gainVal, startTime + dur - 1.5);
+    g.gain.linearRampToValueAtTime(0, startTime + dur);
+    g.connect(target);
+    allNodes.push(g);
+
+    // Harmonics: 1, 2, 3, 4, 5 (organ character)
+    const harmonics = [1, 2, 3, 4, 6];
+    const amps      = [1, 0.5, 0.25, 0.12, 0.06];
+    harmonics.forEach((h, i) => {
+      const osc = ctx.createOscillator();
+      const hg  = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq * h;
+      hg.gain.value = amps[i];
+      osc.connect(hg); hg.connect(g);
+      osc.start(startTime); osc.stop(startTime + dur + 0.1);
+      allNodes.push(osc, hg);
+    });
+    return g;
   }
 
-  function _hitSfx() {
-    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.15, ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
-    const src = ctx.createBufferSource();
-    const g   = ctx.createGain();
-    const filt = ctx.createBiquadFilter();
-    filt.type = 'bandpass'; filt.frequency.value = 300;
-    src.buffer = buf;
-    src.connect(filt); filt.connect(g); g.connect(masterGain);
-    g.gain.setValueAtTime(0.4, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
-    src.start(); src.stop(ctx.currentTime + 0.15);
-  }
+  // ── DRONE ─────────────────────────────────────────────────────────────────
+  function _startDrone() {
+    const dg = ctx.createGain();
+    dg.gain.value = 0.18;
+    dg.connect(reverb);
+    dg.connect(master);
 
-  function _pickupSfx() {
-    const freqs = [523, 659, 784];
-    freqs.forEach((f, i) => {
+    // Sub-bass drone A1 (55 Hz)
+    const lfo = ctx.createOscillator();
+    const lfoG = ctx.createGain();
+    lfo.type = 'sine'; lfo.frequency.value = 0.05;
+    lfoG.gain.value = 3;
+    lfo.connect(lfoG); lfo.start();
+    allNodes.push(lfo, lfoG);
+
+    [55, 82.41, 110].forEach((f, i) => {
       const osc = ctx.createOscillator();
       const g   = ctx.createGain();
-      osc.connect(g); g.connect(masterGain);
-      osc.type = 'sine';
+      const filt = ctx.createBiquadFilter();
+      filt.type = 'lowpass'; filt.frequency.value = 400;
+
+      osc.type = i === 0 ? 'sine' : 'triangle';
       osc.frequency.value = f;
-      const t = ctx.currentTime + i * 0.06;
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.15, t + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
-      osc.start(t); osc.stop(t + 0.15);
+      lfoG.connect(osc.frequency); // subtle wobble
+
+      g.gain.value = i === 0 ? 0.6 : 0.15 - i * 0.04;
+      osc.connect(filt); filt.connect(g); g.connect(dg);
+      osc.start(); allNodes.push(osc, g, filt);
     });
   }
 
-  function _deathSfx() {
-    // Deep explosion
-    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.8, ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 0.5);
-    const src = ctx.createBufferSource();
-    const g   = ctx.createGain();
-    const filt = ctx.createBiquadFilter();
-    filt.type = 'lowpass'; filt.frequency.value = 200;
-    src.buffer = buf;
-    src.connect(filt); filt.connect(g); g.connect(masterGain);
-    g.gain.setValueAtTime(0.8, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
-    src.start(); src.stop(ctx.currentTime + 0.8);
-  }
+  // ── CHORD PLAYER ──────────────────────────────────────────────────────────
+  function _playChord(idx) {
+    const now    = ctx.currentTime;
+    const dur    = 12; // každý akord trvá 12 sekund
+    const chord  = CHORDS[idx % CHORDS.length];
 
-  function _empSfx() {
-    const osc  = ctx.createOscillator();
-    const osc2 = ctx.createOscillator();
-    const g    = ctx.createGain();
-    osc.connect(g); osc2.connect(g); g.connect(masterGain);
-    osc.type = 'sawtooth'; osc2.type = 'sine';
-    osc.frequency.setValueAtTime(80, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(2000, ctx.currentTime + 0.3);
-    osc2.frequency.setValueAtTime(60, ctx.currentTime);
-    g.gain.setValueAtTime(0.5, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-    osc.start(); osc.stop(ctx.currentTime + 0.5);
-    osc2.start(); osc2.stop(ctx.currentTime + 0.5);
-  }
+    const chordG = ctx.createGain();
+    chordG.gain.value = 1;
+    chordG.connect(reverb);
 
-  function _bossHitSfx() {
-    const osc = ctx.createOscillator();
-    const g   = ctx.createGain();
-    osc.connect(g); g.connect(masterGain);
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(150, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(60, ctx.currentTime + 0.2);
-    g.gain.setValueAtTime(0.25, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
-    osc.start(); osc.stop(ctx.currentTime + 0.2);
-  }
-
-  function _roundSfx() {
-    const freqs = [440, 550, 660, 880];
-    freqs.forEach((f, i) => {
-      const osc = ctx.createOscillator();
-      const g   = ctx.createGain();
-      osc.connect(g); g.connect(masterGain);
-      osc.type = 'sine';
-      osc.frequency.value = f;
-      const t = ctx.currentTime + i * 0.12;
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.2, t + 0.04);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
-      osc.start(t); osc.stop(t + 0.4);
+    chord.forEach((freq, i) => {
+      const vol = i === 0 ? 0.10 : 0.055 - i * 0.008;
+      _organ(freq, vol, now + 0.1, dur - 0.1, chordG);
     });
+
+    // Bass pedal — two octaves below root
+    _organ(chord[0] / 2, 0.13, now + 0.1, dur - 0.1, master);
   }
 
-  // ── AMBIENT MUSIC ────────────────────────────────────────────────────────
-  // Generativní procedurální ambient — 3 vrstvy:
-  // 1. Drone (nízký tón, pomalé modulace)
-  // 2. Pad (harmonické akordy)
-  // 3. Pulse (rytmický puls)
-
-  let droneOsc, droneGain;
-  let padOscs = [], padGain;
-  let pulseInterval;
-  let musicGain;
-
-  function startMusic(intensity = 0) {
+  // ── START / STOP ──────────────────────────────────────────────────────────
+  function startMusic() {
     if (!ctx || musicPlaying) return;
     musicPlaying = true;
 
-    musicGain = ctx.createGain();
-    musicGain.gain.value = 0;
-    musicGain.connect(masterGain);
+    fadeGain = ctx.createGain();
+    fadeGain.gain.setValueAtTime(0, ctx.currentTime);
+    fadeGain.gain.linearRampToValueAtTime(1, ctx.currentTime + 4); // 4s fade-in
+    fadeGain.connect(master);
 
-    // Fade in
-    musicGain.gain.linearRampToValueAtTime(0.8, ctx.currentTime + 3);
+    _startDrone();
 
-    _startDrone(intensity);
-    _startPad(intensity);
-    _startPulse(intensity);
-  }
-
-  function _startDrone(intensity) {
-    droneGain = ctx.createGain();
-    droneGain.gain.value = 0.3;
-    droneGain.connect(musicGain);
-
-    droneOsc = ctx.createOscillator();
-    const lfo = ctx.createOscillator();
-    const lfoGain = ctx.createGain();
-
-    droneOsc.type = 'sawtooth';
-    droneOsc.frequency.value = 55; // A1
-    lfo.frequency.value = 0.08;
-    lfoGain.gain.value = 4;
-
-    lfo.connect(lfoGain);
-    lfoGain.connect(droneOsc.frequency);
-
-    // Filter for warmth
-    const filt = ctx.createBiquadFilter();
-    filt.type = 'lowpass';
-    filt.frequency.value = 300 + intensity * 200;
-    filt.Q.value = 2;
-
-    droneOsc.connect(filt);
-    filt.connect(droneGain);
-
-    droneOsc.start(); lfo.start();
-    musicNodes.push(droneOsc, lfo);
-  }
-
-  function _startPad(intensity) {
-    padGain = ctx.createGain();
-    padGain.gain.value = 0.15;
-    padGain.connect(musicGain);
-
-    // Dm chord: D3, F3, A3, C4
-    const chords = [
-      [146.83, 174.61, 220, 261.63],  // Dm
-      [130.81, 164.81, 196, 246.94],  // Cm
-      [110,    138.59, 164.81, 220],  // Am
-      [123.47, 155.56, 185, 246.94],  // Bm
-    ];
-    let chordIdx = 0;
-
-    const playChord = () => {
-      padOscs.forEach(o => { try { o.stop(); } catch(e){} });
-      padOscs = [];
-      const chord = chords[chordIdx % chords.length];
-      chordIdx++;
-
-      chord.forEach(freq => {
-        const osc  = ctx.createOscillator();
-        const gain = ctx.createGain();
-        const filt = ctx.createBiquadFilter();
-        filt.type = 'lowpass'; filt.frequency.value = 800;
-
-        osc.type = 'sine';
-        osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0, ctx.currentTime);
-        gain.gain.linearRampToValueAtTime(0.25, ctx.currentTime + 2);
-        gain.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 6);
-
-        osc.connect(filt); filt.connect(gain); gain.connect(padGain);
-        osc.start();
-        padOscs.push(osc);
-        musicNodes.push(osc);
-      });
-    };
-
-    playChord();
-    const chordTimer = setInterval(playChord, 8000);
-    musicNodes.push({ stop: () => clearInterval(chordTimer) });
-  }
-
-  function _startPulse(intensity) {
-    const pulseGain = ctx.createGain();
-    pulseGain.gain.value = 0.12 + intensity * 0.08;
-    pulseGain.connect(musicGain);
-
-    const bpm = 80 + intensity * 20;
-    const beat = 60000 / bpm;
-
-    let tick = 0;
-    pulseInterval = setInterval(() => {
+    // Play chords on a loop
+    chordIdx = 0;
+    _playChord(chordIdx++);
+    chordTimer = setInterval(() => {
       if (!ctx) return;
-      const osc  = ctx.createOscillator();
-      const g    = ctx.createGain();
-      const filt = ctx.createBiquadFilter();
-      filt.type = 'bandpass'; filt.frequency.value = tick % 4 === 0 ? 80 : 160;
-
-      osc.type = 'sine';
-      osc.frequency.value = tick % 4 === 0 ? 55 : 82.5;
-      g.gain.setValueAtTime(tick % 4 === 0 ? 0.5 : 0.2, ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-
-      osc.connect(filt); filt.connect(g); g.connect(pulseGain);
-      osc.start(); osc.stop(ctx.currentTime + 0.3);
-      tick++;
-    }, beat);
-    musicNodes.push({ stop: () => clearInterval(pulseInterval) });
-  }
-
-  function setMusicIntensity(level) {
-    // 0 = calm, 1 = intense (boss)
-    if (!musicGain || !ctx) return;
-    const target = 0.5 + level * 0.5;
-    musicGain.gain.linearRampToValueAtTime(target, ctx.currentTime + 2);
+      _playChord(chordIdx++);
+    }, 12000);
   }
 
   function stopMusic() {
+    if (!musicPlaying) return;
     musicPlaying = false;
-    musicNodes.forEach(n => { try { n.stop?.(); } catch(e){} });
-    musicNodes = [];
-    padOscs = [];
+    clearInterval(chordTimer);
+
+    // Fade out
+    if (master && ctx) {
+      master.gain.linearRampToValueAtTime(0, ctx.currentTime + 2);
+      setTimeout(() => {
+        allNodes.forEach(n => { try { n.stop?.(); n.disconnect?.(); } catch(e){} });
+        allNodes = [];
+        master.gain.value = 0.55;
+      }, 2500);
+    }
   }
 
-  function setVolume(v) {
-    if (masterGain) masterGain.gain.value = v;
+  function setIntensity(level) {
+    // 0 = calm, 1 = boss
+    if (!master || !ctx) return;
+    const vol = 0.45 + level * 0.35;
+    master.gain.linearRampToValueAtTime(vol, ctx.currentTime + 3);
+  }
+
+  // ── SFX ───────────────────────────────────────────────────────────────────
+  function sfx(type) {
+    if (!ctx) return;
+    switch(type) {
+      case 'shoot':    _sfxShoot();   break;
+      case 'pickup':   _sfxPickup();  break;
+      case 'emp':      _sfxEmp();     break;
+      case 'death':    _sfxDeath();   break;
+      case 'hit':      _sfxHit();     break;
+      case 'round':    _sfxRound();   break;
+    }
+  }
+
+  function _sfxShoot() {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(master);
+    o.type = 'square';
+    o.frequency.setValueAtTime(700, ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(180, ctx.currentTime + 0.07);
+    g.gain.setValueAtTime(0.06, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+    o.start(); o.stop(ctx.currentTime + 0.08);
+  }
+
+  function _sfxPickup() {
+    [523, 659, 880].forEach((f, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(master);
+      o.type = 'sine'; o.frequency.value = f;
+      const t = ctx.currentTime + i * 0.07;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.12, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+      o.start(t); o.stop(t + 0.2);
+    });
+  }
+
+  function _sfxEmp() {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass'; f.frequency.value = 400;
+    o.connect(f); f.connect(g); g.connect(master);
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(60, ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(1800, ctx.currentTime + 0.4);
+    g.gain.setValueAtTime(0.35, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+    o.start(); o.stop(ctx.currentTime + 0.5);
+  }
+
+  function _sfxDeath() {
+    const buf  = ctx.createBuffer(1, ctx.sampleRate * 1.2, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 0.6);
+    }
+    const src = ctx.createBufferSource();
+    const g   = ctx.createGain();
+    const f   = ctx.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = 180;
+    src.buffer = buf;
+    src.connect(f); f.connect(g); g.connect(master);
+    g.gain.setValueAtTime(0.7, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.2);
+    src.start(); src.stop(ctx.currentTime + 1.2);
+  }
+
+  function _sfxHit() {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(master);
+    o.type = 'sine';
+    o.frequency.setValueAtTime(220, ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.15);
+    g.gain.setValueAtTime(0.2, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18);
+    o.start(); o.stop(ctx.currentTime + 0.2);
+  }
+
+  function _sfxRound() {
+    [330, 440, 550, 660, 880].forEach((f, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(master);
+      o.type = 'sine'; o.frequency.value = f;
+      const t = ctx.currentTime + i * 0.14;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.18, t + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+      o.start(t); o.stop(t + 0.5);
+    });
   }
 
   return {
-    init, resume, sfx, startMusic, stopMusic, setMusicIntensity, setVolume,
+    init, resume, startMusic, stopMusic, setIntensity, sfx,
     get playing() { return musicPlaying; },
   };
 })();

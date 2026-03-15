@@ -11,27 +11,30 @@ const BG = (() => {
   let bhBgTarget = 0;   // target scale for this round
   let dustAngle  = 0;
 
-  // Per-round BH scales (0 = not visible, 1 = fills screen)
+  // Per-round BH scales — BH roste s každým kolem
   const ROUND_SCALES = [
-    0,     // round 1 — prázdnota, BH neviditelná
-    0.04,  // 2
-    0.07,  // 3
-    0.12,  // 4 — první záblesk
-    0.18,  // 5
-    0.28,  // 6
-    0.40,  // 7
-    0.55,  // 8
-    0.72,  // 9
-    1.20,  // 10 BOSS — uvnitř
+    0.06,  // round 1  — jen záblesk v dáli
+    0.13,  // 2
+    0.20,  // 3
+    0.30,  // 4
+    0.42,  // 5  — jasně viditelná
+    0.56,  // 6
+    0.70,  // 7
+    0.85,  // 8
+    1.00,  // 9  — dominuje obrazovce
+    1.40,  // 10 BOSS — uvnitř BH
   ];
 
   function setRound(round) {
-    bhBgTarget = ROUND_SCALES[Math.min(round - 1, ROUND_SCALES.length - 1)] || 0;
+    const target = ROUND_SCALES[Math.min(round - 1, ROUND_SCALES.length - 1)] || 0.06;
+    // Na začátku kola skočí na novou hodnotu okamžitě (bez lerpu)
+    if (Math.abs(bhBgTarget - target) > 0.05) bhBgScale = target * 0.85;
+    bhBgTarget = target;
   }
 
   function update(frameCount, W, H) {
-    // Smoothly lerp toward target scale
-    bhBgScale += (bhBgTarget - bhBgScale) * 0.002;
+    // Rychlejší lerp
+    bhBgScale += (bhBgTarget - bhBgScale) * 0.008;
     dustAngle += 0.0003;
 
     // Debris flying past

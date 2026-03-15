@@ -54,10 +54,11 @@ function startGame() {
   BG.setRound(1);
   Hazards.clear();
 
-  // Audio — init on first user gesture
+  // Audio — init + spustit hudbu JEN při letu
   Audio.init();
   Audio.resume();
-  if (!Audio.playing) Audio.startMusic(0);
+  Audio.stopMusic();
+  setTimeout(() => Audio.startMusic(), 600);
 
   UI.showGame();
   UI.updateHighScore(highScore);
@@ -90,6 +91,7 @@ function takeDamage() {
 function die() {
   state = STATE.DEAD;
   Audio.sfx('death');
+  setTimeout(() => Audio.stopMusic(), 800);
   Particles.spawn(Player.x, Player.y, '#ff3355', 50);
   Particles.spawn(Player.x, Player.y, '#00ffc8', 30);
   shakeTime = 30; shakeIntensity = 12; slowmo = 20;
