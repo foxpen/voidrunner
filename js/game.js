@@ -165,9 +165,6 @@ function update() {
 
   // Enemy update
   Enemies.update(W, H, activePU);
-  if (Enemies.recentKills > 0) {
-    screenFlash = { a: Math.max(screenFlash.a, 0.1), r: 255, g: 255, b: 255 };
-  }
 
   // Weapons update — pass enemy list + boss target
   const allTargets = [...Enemies.list];
