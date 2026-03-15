@@ -21,33 +21,49 @@ const Audio = (() => {
   let chordTimer = null;
 
   // ── INIT ──────────────────────────────────────────────────────────────────
+  let musicEnabled = true;
+  let sfxEnabled   = true;
+
   function init() {
     if (ctx) return;
-    ctx = new (window.AudioContext || window.webkitAudioContext)();
-    master = ctx.createGain();
-    master.gain.value = 0.55;
-    master.connect(ctx.destination);
-    reverb = _makeReverb(4.5);
+    try {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      master = ctx.createGain();
+      master.gain.value = 0.55;
+      master.connect(ctx.destination);
+      // Reverb — kratší buffer aby neblokoval (1s místo 4.5s)
+      setTimeout(() => { reverb = _makeReverb(1.0); }, 0);
+    } catch(e) { console.warn('Audio init failed:', e); }
   }
 
   function resume() {
-    ctx?.state === 'suspended' && ctx.resume();
+    try { ctx?.state === 'suspended' && ctx.resume(); } catch(e) {}
   }
 
-  // Impulse reverb simulation
+  function setMusic(enabled) {
+    musicEnabled = enabled;
+    if (!enabled) stopMusic();
+    else if (!musicPlaying) startMusic();
+  }
+
+  function setSfx(enabled) { sfxEnabled = enabled; }
+
+  // Impulse reverb — krátký (1s) = malý buffer, bez freeze
   function _makeReverb(duration) {
-    const len    = ctx.sampleRate * duration;
-    const buf    = ctx.createBuffer(2, len, ctx.sampleRate);
-    for (let c = 0; c < 2; c++) {
-      const data = buf.getChannelData(c);
-      for (let i = 0; i < len; i++) {
-        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5);
+    try {
+      const len  = Math.floor(ctx.sampleRate * duration);
+      const buf  = ctx.createBuffer(2, len, ctx.sampleRate);
+      for (let c = 0; c < 2; c++) {
+        const data = buf.getChannelData(c);
+        for (let i = 0; i < len; i++) {
+          data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.0);
+        }
       }
-    }
-    const conv = ctx.createConvolver();
-    conv.buffer = buf;
-    conv.connect(master);
-    return conv;
+      const conv = ctx.createConvolver();
+      conv.buffer = buf;
+      conv.connect(master);
+      return conv;
+    } catch(e) { return null; }
   }
 
   // ── ORGAN NOTE ─────────────────────────────────────────────────────────────
@@ -129,7 +145,7 @@ const Audio = (() => {
 
   // ── START / STOP ──────────────────────────────────────────────────────────
   function startMusic() {
-    if (!ctx || musicPlaying) return;
+    if (!ctx || musicPlaying || !musicEnabled) return;
     musicPlaying = true;
 
     fadeGain = ctx.createGain();
@@ -173,7 +189,8 @@ const Audio = (() => {
 
   // ── SFX ───────────────────────────────────────────────────────────────────
   function sfx(type) {
-    if (!ctx) return;
+    if (!ctx || !sfxEnabled) return;
+    if (type === 'shoot' && !sfxEnabled) return;
     switch(type) {
       case 'shoot':    _sfxShoot();   break;
       case 'pickup':   _sfxPickup();  break;
@@ -264,6 +281,9 @@ const Audio = (() => {
 
   return {
     init, resume, startMusic, stopMusic, setIntensity, sfx,
-    get playing() { return musicPlaying; },
+    setMusic, setSfx,
+    get playing()       { return musicPlaying; },
+    get musicEnabled()  { return musicEnabled; },
+    get sfxEnabled()    { return sfxEnabled; },
   };
 })();

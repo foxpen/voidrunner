@@ -71,6 +71,12 @@
 
   <div id="pickup-notify"></div>
 
+  <!-- Audio settings -->
+  <div id="audio-settings">
+    <button id="btn-music" title="Hudba" onclick="toggleMusic()">🎵</button>
+    <button id="btn-sfx"   title="Zvuky" onclick="toggleSfx()">🔊</button>
+  </div>
+
   <div id="gamepad-indicator">
     <span class="dot"></span>
     <span id="gamepad-text">GAMEPAD NEPŘIPOJEN</span>
@@ -134,6 +140,16 @@
 <script src="js/rounds.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/game.js"></script>
+<script>
+  function toggleMusic() {
+    Audio.setMusic(!Audio.musicEnabled);
+    document.getElementById('btn-music').classList.toggle('muted', !Audio.musicEnabled);
+  }
+  function toggleSfx() {
+    Audio.setSfx(!Audio.sfxEnabled);
+    document.getElementById('btn-sfx').classList.toggle('muted', !Audio.sfxEnabled);
+  }
+</script>
 
 </body>
 </html>

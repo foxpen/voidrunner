@@ -230,6 +230,21 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
   animation: blink 1.5s ease-in-out infinite;
 }
 
+/* ─── AUDIO SETTINGS ────────────────────────────────────────────────────── */
+#audio-settings {
+  position: absolute; top: 20px; right: 140px;
+  display: flex; gap: 8px; z-index: 15;
+}
+#audio-settings button {
+  width: 34px; height: 34px;
+  background: #0a0a0f99; border: 1px solid #ffffff22;
+  border-radius: 6px; font-size: 16px; cursor: pointer;
+  transition: border-color 0.2s, opacity 0.2s;
+  pointer-events: all;
+}
+#audio-settings button:hover { border-color: #00ffc8; }
+#audio-settings button.muted { opacity: 0.3; filter: grayscale(1); }
+
 /* ─── SCANLINES / VIGNETTE ───────────────────────────────────────────────── */
 .scanlines {
   position: fixed; top: 0; left: 0;
