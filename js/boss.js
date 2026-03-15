@@ -17,7 +17,7 @@ const Boss = (() => {
     entryDone = false;
     phase = 1;
     attackTimer = 0;
-    const bh_cy = (H || window.innerHeight) * 0.35; // BH centrum (shodné s bg.js)
+    const bh_cy = (H || window.innerHeight) * 0.5; // BH centrum (shodné s bg.js)
     b = {
       x: W / 2,
       y: bh_cy,

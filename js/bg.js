@@ -96,7 +96,7 @@ const BG = (() => {
     const s = bhBgScale;
     if (s < 0.005) { _drawDebris(ctx); return; }
 
-    const cx = W * 0.5, cy = H * 0.35; // BH sits in upper half
+    const cx = W * 0.5, cy = H * 0.5; // BH centered
 
     // ── Outer nebula / glow ──
     const glowR = Math.min(W, H) * 1.6 * s;
