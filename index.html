@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VOID RUNNER</title>
 <link rel="stylesheet" href="css/style.css">
+<script>
+  // Redirect to onboarding if no player data
+  const vr = localStorage.getItem('vr_player');
+  if (!vr) window.location.replace('onboarding.html');
+</script>
 </head>
 <body>
 
@@ -77,7 +82,7 @@
 <div id="start-screen">
   <h1>VOID RUNNER</h1>
   <div class="subtitle">naviguj prázdnotou</div>
-  <div class="mode-badge">10 KOL · VÝBĚR KARET · BOSS FIGHT</div>
+  <div class="mode-badge" id="player-badge">10 KOL · VÝBĚR KARET · BOSS FIGHT</div>
   <div class="prompt">STISKNI ENTER / START</div>
   <div class="controls-info">
     ŠIPKY nebo WASD — pohyb &nbsp;|&nbsp; GAMEPAD podporován<br>
@@ -104,6 +109,14 @@
 
 <div class="scanlines"></div>
 <div class="vignette"></div>
+
+<!-- Load player data from onboarding -->
+<script>
+  const _vr = JSON.parse(localStorage.getItem('vr_player') || '{}');
+  if (_vr.name) {
+    document.getElementById('player-badge').textContent = `PILOT: ${_vr.name}  ·  ${(_vr.mode||'story').toUpperCase()}  ·  ${(_vr.ship||'fighter').toUpperCase()}`;
+  }
+</script>
 
 <!-- Scripts — pořadí je důležité! -->
 <script src="js/config.js"></script>
