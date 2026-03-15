@@ -52,6 +52,7 @@ function startGame() {
   Boss.clear();
   BG.clear();
   BG.setRound(1);
+  Hazards.clear();
 
   // Audio — init on first user gesture
   Audio.init();
@@ -142,6 +143,11 @@ function update() {
       Enemies.spawnPickupItem(W);
     }
   }
+
+  // Hazards (planets, pillars, clusters — can't be destroyed)
+  if (Rounds.shouldSpawnEnemies()) Hazards.spawnForRound(Rounds.current, W, H);
+  Hazards.update(W, H, activePU.slow > 0);
+  if (Hazards.checkPlayerCollision(activePU)) takeDamage();
 
   // Enemy update
   Enemies.update(W, H, activePU);
@@ -247,6 +253,9 @@ function draw() {
 
   // EMP waves
   Particles.drawEmpWaves(ctx);
+
+  // Hazards (planets, pillars — behind enemies)
+  Hazards.draw(ctx, frameCount);
 
   // Enemies
   Enemies.draw(ctx);
