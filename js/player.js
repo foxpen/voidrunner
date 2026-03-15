@@ -22,7 +22,17 @@ const Player = (() => {
   }
 
   function resetStats() {
+    // Base stats
     stats = { speed: p.SPEED, lives: 3, scoreMult: 1, permMagnet: false, dualFire: false };
+
+    // Apply ship selection from onboarding
+    const vr = JSON.parse(localStorage.getItem('vr_player') || '{}');
+    if (vr.ship === 'scout')   { stats.speed *= 1.35; stats.lives = 3; }
+    if (vr.ship === 'fighter') { stats.speed *= 1.0;  stats.lives = 3; }
+    if (vr.ship === 'tank')    { stats.speed *= 0.65; stats.lives = 5; }
+
+    // Apply mode
+    if (vr.mode === 'hardcore') stats.lives = 1;
   }
 
   function applyUpgrade(card) {

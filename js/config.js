@@ -18,7 +18,7 @@ const CFG = {
   // Rounds
   ROUNDS: {
     TOTAL: 10,
-    ROUND_DURATION: 1800,    // frames (~30s při 60fps)
+    ROUND_DURATION: 3600,    // frames (~60s při 60fps)
     BOSS_ROUND: 10,
     INTERMISSION: 180,       // frames mezi koly (3s)
   },

@@ -385,99 +385,239 @@ function initStars() {
   }
 }
 
-// Accretion dust
-const dustCount = 280;
+// Accretion dust — more particles, wider disk
+const dustCount = 600;
 const dust = [];
 for (let i = 0; i < dustCount; i++) {
-  const r     = 110 + Math.random() * 220;
+  const r     = 160 + Math.random() * 380;
   const angle = Math.random() * Math.PI * 2;
-  const speed = (0.0003 + Math.random() * 0.0006) * (Math.random() < 0.5 ? 1 : -1);
-  const hue   = 20 + Math.random() * 40;
+  const speed = (0.0002 + Math.random() * 0.0005) * (Math.random() < 0.5 ? 1 : -1);
+  const hue   = 15 + Math.random() * 50;
   dust.push({
     angle, r,
     baseR: r,
     speed,
-    size: Math.random() * 2.5 + 0.5,
+    size: Math.random() * 3.5 + 0.5,
     bright: Math.random(),
     hue,
     warp: Math.random() * Math.PI * 2,
     warpSpeed: (Math.random() - 0.5) * 0.002,
+    layer: i < 200 ? 'inner' : i < 420 ? 'mid' : 'outer',
+  });
+}
+
+// Relativistic jets — vertical beams like Gargantua
+const jetParticles = [];
+for (let i = 0; i < 120; i++) {
+  jetParticles.push({
+    progress: Math.random(),
+    speed: 0.003 + Math.random() * 0.005,
+    side: Math.random() < 0.5 ? 1 : -1,
+    offset: (Math.random() - 0.5) * 18,
+    size: Math.random() * 2.5 + 0.5,
+    bright: 0.3 + Math.random() * 0.7,
   });
 }
 
 let frame = 0;
-let bhScale = 0; // grows in from 0
+
+// ── APPROACH ANIMATION ──
+// Phase 0: BH appears small, distant (scale 0→0.18)
+// Phase 1: Slowly drifts closer (0.18→0.55) — 4s
+// Phase 2: Accelerates toward you (0.55→8.0) — 2.5s — fills screen
+// Phase 3: Pure black flash, then story text appears
+let bhScale    = 0.0;
+let bhPhase    = 0;      // 0|1|2|3
+let bhTime     = 0;      // ms elapsed in current phase
+let engulfDone = false;
+
+const PHASE_DUR = [1200, 4000, 2200]; // ms per phase
+
+function tickApproach(dt) {
+  if (engulfDone) return;
+  bhTime += dt;
+
+  if (bhPhase === 0) {
+    // Appear from nothing
+    const p = Math.min(1, bhTime / PHASE_DUR[0]);
+    bhScale = p * 0.18;
+    if (p >= 1) { bhPhase = 1; bhTime = 0; }
+
+  } else if (bhPhase === 1) {
+    // Slow drift closer
+    const p = Math.min(1, bhTime / PHASE_DUR[1]);
+    bhScale = 0.18 + p * 0.37;
+    if (p >= 1) { bhPhase = 2; bhTime = 0; }
+
+  } else if (bhPhase === 2) {
+    // Accelerate — exponential zoom
+    const p = Math.min(1, bhTime / PHASE_DUR[2]);
+    const eased = p * p * p; // cubic ease-in
+    bhScale = 0.55 + eased * 14;
+
+    // Camera shake as we approach
+    if (p > 0.5) {
+      const shake = (p - 0.5) * 2;
+      canvas.style.transform = `translate(${(Math.random()-0.5)*shake*12}px,${(Math.random()-0.5)*shake*8}px)`;
+    }
+
+    if (p >= 1) {
+      bhPhase = 3;
+      bhTime  = 0;
+      engulfDone = true;
+      canvas.style.transform = '';
+
+      // Flash white then trigger story
+      const fade = document.getElementById('fade');
+      fade.style.background   = '#fff';
+      fade.style.transition   = 'opacity 0.15s ease';
+      fade.classList.add('black');
+      setTimeout(() => {
+        fade.style.background = '#000';
+        fade.style.transition = 'opacity 1.2s ease';
+        fade.classList.remove('black');
+        // Start story
+        document.getElementById('screen-intro').classList.add('active');
+        storyStarted = true;
+        // Letterbox open after flash
+        setTimeout(() => {
+          document.getElementById('lt').classList.add('open');
+          document.getElementById('lb').classList.add('open');
+        }, 400);
+      }, 200);
+    }
+  }
+}
 
 function drawBlackHole(t) {
-  // Lerp scale in
-  bhScale = Math.min(1, bhScale + 0.006);
   const s = bhScale;
 
-  // Outer gravitational glow
-  for (let ring = 3; ring >= 0; ring--) {
-    const r   = (200 + ring * 60) * s;
-    const alpha = 0.04 - ring * 0.008;
-    const grad = ctx.createRadialGradient(cx, cy, r * 0.5, cx, cy, r);
-    grad.addColorStop(0, `rgba(255,140,0,${alpha})`);
-    grad.addColorStop(1, 'rgba(0,0,0,0)');
+  // ── Far outer nebula glow ──
+  for (let ring = 5; ring >= 0; ring--) {
+    const r     = (420 + ring * 90) * s;
+    const alpha = 0.025 - ring * 0.003;
+    const grad  = ctx.createRadialGradient(cx, cy, r * 0.4, cx, cy, r);
+    grad.addColorStop(0, `rgba(255,120,0,${alpha})`);
+    grad.addColorStop(0.6, `rgba(180,60,0,${alpha * 0.4})`);
+    grad.addColorStop(1,  'rgba(0,0,0,0)');
     ctx.fillStyle = grad;
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
   }
 
-  // Accretion disk — dust particles
+  // ── Relativistic jets (vertical beams) ──
+  jetParticles.forEach(jp => {
+    jp.progress += jp.speed;
+    if (jp.progress > 1) jp.progress = 0;
+    const jetLen = 340 * s;
+    const dist   = jp.progress * jetLen;
+    const px     = cx + jp.offset * s;
+    const py     = cy + jp.side * (130 * s + dist);
+    const alpha  = jp.bright * (1 - jp.progress) * 0.5 * s;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle   = `rgba(160,200,255,1)`;
+    ctx.shadowColor = '#aaddff';
+    ctx.shadowBlur  = 8;
+    ctx.beginPath();
+    ctx.arc(px, py, jp.size * (1 - jp.progress * 0.7) * s, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
+
+  // ── Accretion disk dust ──
   dust.forEach(d => {
     d.angle += d.speed;
     d.warp  += d.warpSpeed;
-    const warpR = d.baseR * (1 + 0.06 * Math.sin(d.warp));
-    const px = cx + Math.cos(d.angle) * warpR * s;
-    const py = cy + Math.sin(d.angle) * warpR * s * 0.28; // flatten to ellipse
-    const dist    = warpR * s;
-    const alpha   = d.bright * (0.3 + 0.5 * (1 - Math.abs(warpR - 160) / 200));
-    const pulse   = 0.7 + 0.3 * Math.sin(t * 0.0008 + d.angle * 3);
+    const warpR   = d.baseR * (1 + 0.07 * Math.sin(d.warp));
+    const flatten = d.layer === 'inner' ? 0.22 : d.layer === 'mid' ? 0.28 : 0.35;
+    const px      = cx + Math.cos(d.angle) * warpR * s;
+    const py      = cy + Math.sin(d.angle) * warpR * s * flatten;
+    const alpha   = d.bright * (0.4 + 0.5 * (1 - Math.abs(warpR - 220) / 340));
+    const pulse   = 0.6 + 0.4 * Math.sin(t * 0.0007 + d.angle * 4);
+    const bright  = d.layer === 'inner' ? 75 : d.layer === 'mid' ? 62 : 50;
     ctx.globalAlpha = Math.max(0, alpha * pulse * s);
-    ctx.fillStyle = `hsl(${d.hue}, 90%, 65%)`;
+    ctx.fillStyle   = `hsl(${d.hue}, 95%, ${bright}%)`;
     ctx.beginPath();
     ctx.arc(px, py, d.size * s, 0, Math.PI * 2);
     ctx.fill();
   });
   ctx.globalAlpha = 1;
 
-  // Photon ring glow
-  const ringGrad = ctx.createRadialGradient(cx, cy, 80*s, cx, cy, 110*s);
-  ringGrad.addColorStop(0, 'rgba(255,200,80,0)');
-  ringGrad.addColorStop(0.5, `rgba(255,180,60,${0.25*s})`);
-  ringGrad.addColorStop(1, 'rgba(255,100,0,0)');
-  ctx.fillStyle = ringGrad;
-  ctx.beginPath(); ctx.arc(cx, cy, 110*s, 0, Math.PI*2); ctx.fill();
+  // ── Photon sphere glow (bright orange ring) ──
+  const phR   = 150 * s;
+  const phGrad = ctx.createRadialGradient(cx, cy, phR * 0.7, cx, cy, phR * 1.2);
+  phGrad.addColorStop(0,   `rgba(255,180,40,${0.5 * s})`);
+  phGrad.addColorStop(0.4, `rgba(255,120,0,${0.35 * s})`);
+  phGrad.addColorStop(1,   'rgba(0,0,0,0)');
+  ctx.fillStyle = phGrad;
+  ctx.beginPath(); ctx.arc(cx, cy, phR * 1.2, 0, Math.PI * 2); ctx.fill();
 
-  // Event horizon — pure black
-  const bhR = 72 * s;
+  // ── Shadow disk behind BH (Interstellar style top shadow) ──
+  ctx.save();
+  ctx.globalAlpha = 0.7 * s;
+  const shadowGrad = ctx.createLinearGradient(cx, cy - 130*s, cx, cy + 30*s);
+  shadowGrad.addColorStop(0, 'rgba(0,0,0,0)');
+  shadowGrad.addColorStop(0.5, 'rgba(0,0,8,0.7)');
+  shadowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = shadowGrad;
+  ctx.beginPath(); ctx.ellipse(cx, cy, 200*s, 120*s, 0, Math.PI, Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // ── Event horizon ──
+  const bhR   = 116 * s;
   const bhGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, bhR);
   bhGrad.addColorStop(0,   '#000000');
-  bhGrad.addColorStop(0.7, '#000005');
-  bhGrad.addColorStop(1,   '#000008');
+  bhGrad.addColorStop(0.75, '#000003');
+  bhGrad.addColorStop(1,   '#00000a');
   ctx.fillStyle = bhGrad;
   ctx.beginPath(); ctx.arc(cx, cy, bhR, 0, Math.PI * 2); ctx.fill();
 
-  // Thin bright inner ring
-  ctx.strokeStyle = `rgba(255,210,100,${0.6*s})`;
-  ctx.lineWidth   = 1.5 * s;
-  ctx.shadowColor = '#ff8c00';
-  ctx.shadowBlur  = 12;
-  ctx.beginPath(); ctx.arc(cx, cy, 78 * s, 0, Math.PI * 2); ctx.stroke();
+  // ── Bright photon ring line ──
+  ctx.strokeStyle = `rgba(255,220,120,${0.75 * s})`;
+  ctx.lineWidth   = 2.5 * s;
+  ctx.shadowColor = '#ffaa00';
+  ctx.shadowBlur  = 28;
+  ctx.beginPath(); ctx.arc(cx, cy, 124 * s, 0, Math.PI * 2); ctx.stroke();
+
+  // ── Second faint ring ──
+  ctx.strokeStyle = `rgba(255,160,60,${0.25 * s})`;
+  ctx.lineWidth   = 6 * s;
+  ctx.shadowBlur  = 40;
+  ctx.beginPath(); ctx.arc(cx, cy, 138 * s, 0, Math.PI * 2); ctx.stroke();
   ctx.shadowBlur  = 0;
+
+  // ── Lens flare dot ──
+  const flareX = cx + 160 * s, flareY = cy - 80 * s;
+  const flareAlpha = 0.3 * s * (0.7 + 0.3 * Math.sin(t * 0.001));
+  ctx.globalAlpha = flareAlpha;
+  ctx.fillStyle   = '#fff8e0';
+  ctx.shadowColor = '#ffcc66';
+  ctx.shadowBlur  = 20;
+  ctx.beginPath(); ctx.arc(flareX, flareY, 3 * s, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0;
 }
 
 function drawStars(t) {
+  const lensStrength = bhScale * 18000;
   stars.forEach(s => {
-    // Gravitational lensing — warp toward center
-    const dx    = s.bx - cx, dy = s.by - cy;
-    const dist  = Math.sqrt(dx*dx + dy*dy);
-    const pull  = Math.min(0.35, 6000 / (dist * dist));
-    const px    = s.bx - dx * pull;
-    const py    = s.by - dy * pull;
+    const dx   = s.bx - cx, dy = s.by - cy;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    // Stronger lensing as BH gets closer
+    const pull = Math.min(0.7, lensStrength / (dist * dist));
+    const px   = s.bx - dx * pull;
+    const py   = s.by - dy * pull;
+    // Stars streak toward center during phase 2
+    if (bhPhase === 2 && bhTime > 800) {
+      const streak = Math.min(12, bhScale * 0.8);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth   = s.size * 0.5;
+      ctx.globalAlpha = s.bright * 0.4;
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(px + (cx - px) * 0.06 * streak, py + (cy - py) * 0.06 * streak);
+      ctx.stroke();
+    }
     const twink = 0.5 + 0.5 * Math.sin(t * 0.001 + s.twinkle);
-    ctx.globalAlpha = s.bright * twink * Math.min(1, dist / 200) * bhScale;
+    ctx.globalAlpha = s.bright * twink * Math.min(1, dist / 180) * Math.min(1, bhScale * 4);
     ctx.fillStyle = '#fff';
     ctx.beginPath();
     ctx.arc(px, py, s.size, 0, Math.PI * 2);
@@ -509,15 +649,16 @@ const storyLines = [
   "Nikdo se nevrátil. Ty jdeš jako první.",
 ];
 
-let storyDone   = false;
-let storyIndex  = 0;
-let charIndex   = 0;
-let storyTimer  = 0;
-const CHAR_DELAY = 45;
-const LINE_PAUSE = 900;
+let storyDone    = false;
+let storyStarted = false;
+let storyIndex   = 0;
+let charIndex    = 0;
+let storyTimer   = 0;
+const CHAR_DELAY  = 42;
+const LINE_PAUSE  = 800;
 
 function tickStory(dt) {
-  if (storyDone) return;
+  if (!storyStarted || storyDone) return;
   storyTimer += dt;
   if (storyTimer < CHAR_DELAY) return;
   storyTimer = 0;
@@ -557,6 +698,7 @@ function tickStory(dt) {
 let last = 0;
 function loop(now) {
   const dt = now - last; last = now; frame++;
+  tickApproach(dt);
   renderBg(now);
   tickStory(dt);
   requestAnimationFrame(loop);
@@ -585,19 +727,14 @@ function fadeTo(fn) {
   setTimeout(() => { fn(); f.style.transition = 'opacity 0.8s ease'; f.classList.remove('black'); }, 700);
 }
 
-// Fade in on load
+// Fade in on load — uncover canvas, BH approach starts immediately
 window.addEventListener('load', () => {
   const f = document.getElementById('fade');
   setTimeout(() => {
-    f.style.transition = 'opacity 1.2s ease';
+    f.style.transition = 'opacity 1s ease';
     f.classList.remove('black');
-    // Open letterbox after delay
-    setTimeout(() => {
-      document.getElementById('lt').classList.add('open');
-      document.getElementById('lb').classList.add('open');
-    }, 800);
-    showScreen('screen-intro');
-  }, 300);
+    // Letterbox opens only after engulf (handled in tickApproach)
+  }, 200);
 });
 
 // ── INTRO ──────────────────────────────────────────────────────────────────

@@ -11,9 +11,14 @@ const Rounds = (() => {
   const DUR   = CFG.ROUNDS.ROUND_DURATION;
   const INTER = CFG.ROUNDS.INTERMISSION;
 
+  let gameMode = 'story'; // story | endless | hardcore
+
   function reset() {
+    const vr = JSON.parse(localStorage.getItem('vr_player') || '{}');
+    gameMode = vr.mode || 'story';
+
     current = 1;
-    timer   = DUR;
+    timer   = gameMode === 'endless' ? Infinity : DUR * (gameMode === 'hardcore' ? 0.7 : 1);
     intermissionTimer = 0;
     phase   = 'PLAYING';
     frameCount = 0;
@@ -39,13 +44,17 @@ const Rounds = (() => {
         phase = 'UPGRADE';
         Upgrades.show(W, H, card => {
           _applyCard(card);
-          if (current >= TOTAL) {
+          if (gameMode === 'endless') {
+            current++;
+            timer = Infinity;
+            phase = 'PLAYING';
+          } else if (current >= TOTAL) {
             phase = 'BOSS';
             Boss.spawn(W);
             Enemies.clear();
           } else {
             current++;
-            timer = DUR;
+            timer = DUR * (gameMode === 'hardcore' ? 0.7 : 1);
             phase = 'PLAYING';
           }
         });
@@ -76,7 +85,7 @@ const Rounds = (() => {
     }
 
     if (phase === 'PLAYING') {
-      timer--;
+      if (timer !== Infinity) timer--;
       if (timer <= 0) {
         phase = 'INTERMISSION';
         intermissionTimer = INTER;
