@@ -100,6 +100,7 @@ const Enemies = (() => {
     const beforeKill = list.length;
     list = list.filter(o => o.hp > 0);
     recentKills = beforeKill - list.length;
+
   }
 
   function checkPlayerCollision(activePU) {
@@ -131,15 +132,6 @@ const Enemies = (() => {
       ctx.save();
       ctx.translate(o.x, o.y);
       ctx.rotate(o.rot);
-
-      // HP bar for tougher enemies
-      if (o.maxHp > 1) {
-        const pct = o.hp / o.maxHp;
-        ctx.fillStyle = '#ff3355';
-        ctx.fillRect(-o.size, -o.size - 10, o.size * 2, 4);
-        ctx.fillStyle = '#00ffc8';
-        ctx.fillRect(-o.size, -o.size - 10, o.size * 2 * pct, 4);
-      }
 
       ctx.shadowColor = `hsl(${o.hue}, 100%, 60%)`;
       ctx.shadowBlur = 20;
