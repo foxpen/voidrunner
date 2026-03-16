@@ -369,19 +369,30 @@ function draw() {
       const target = Rounds.getScoreTarget();
       if (target > 0) {
         const pct    = Math.min(1, (score - roundScoreStart) / target);
-        const bw     = 130, bh = 6;
-        const bx     = W - bw - 16, by = 52;
+        const bw     = 160, bh = 10;
+        const bx     = W - bw - 16, by = 56;
         const barCol = pct >= 1 ? '#00ff88' : pct > 0.6 ? '#ffcc00' : '#00ffc8';
-        ctx.fillStyle = '#0a0a1a88';
-        ctx.fillRect(bx - 2, by - 2, bw + 4, bh + 4);
+
+        // Background track
+        ctx.fillStyle = '#ffffff11';
+        ctx.fillRect(bx, by, bw, bh);
+
+        // Fill
         ctx.fillStyle   = barCol;
         ctx.shadowColor = barCol;
-        ctx.shadowBlur  = 8;
+        ctx.shadowBlur  = 12;
         ctx.fillRect(bx, by, bw * pct, bh);
         ctx.shadowBlur  = 0;
-        ctx.font        = '10px Orbitron, monospace';
-        ctx.fillStyle   = '#ffffff66';
-        ctx.textAlign   = 'right';
+
+        // Border
+        ctx.strokeStyle = barCol + '55';
+        ctx.lineWidth   = 1;
+        ctx.strokeRect(bx, by, bw, bh);
+
+        // Label + percent
+        ctx.font      = 'bold 11px Orbitron, monospace';
+        ctx.fillStyle = '#ffffffaa';
+        ctx.textAlign = 'right';
         ctx.fillText(`CÍL  ${Math.min(100, Math.floor(pct * 100))}%`, W - 14, by - 5);
       }
     }
