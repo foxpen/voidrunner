@@ -27,6 +27,18 @@ let activePU = { shield: 0, slow: 0, speed: 0, magnet: 0, double: 0, emp: 0 };
 let empFlash = 0;
 let screenFlash = { a: 0, r: 255, g: 51, b: 85 };
 
+// Combo system
+let comboCount = 0;
+let comboTimer = 0;   // frames before combo expires
+
+// Round target tracking
+let roundScoreStart = 0;
+let roundTargetHit  = false;
+let lastRoundsPhase = '';
+
+// Warp transition
+let warpFlash = 0;
+
 Particles.initStars(W, H);
 
 // ─── MENU MUSIC — spustí se při první interakci uživatele ──────────────────
@@ -49,6 +61,9 @@ function startGame() {
   activePU = { shield: 0, slow: 0, speed: 0, magnet: 0, double: 0, emp: 0 };
   empFlash = 0;
   screenFlash = { a: 0, r: 255, g: 51, b: 85 };
+  comboCount = 0; comboTimer = 0;
+  roundScoreStart = 0; roundTargetHit = false; lastRoundsPhase = '';
+  warpFlash = 0;
 
   Player.resetStats();
   Player.reset(W, H);
@@ -88,6 +103,7 @@ function takeDamage() {
   }
 
   Player.lives -= 1;
+  comboCount = 0; comboTimer = 0;
 
   if (Player.lives <= 0) {
     die();
@@ -133,6 +149,28 @@ function update() {
   BG.setRound(Rounds.current);
   BG.update(frameCount, W, H);
 
+  // ── Round phase transitions ──
+  const _curPhase = Rounds.phase;
+  if (_curPhase === 'PLAYING' && lastRoundsPhase !== 'PLAYING') {
+    roundScoreStart = score;
+    roundTargetHit  = false;
+  }
+  if (_curPhase === 'INTERMISSION' && lastRoundsPhase === 'PLAYING') {
+    warpFlash = 50;
+  }
+  lastRoundsPhase = _curPhase;
+
+  // ── Round score target — early advance ──
+  if (_curPhase === 'PLAYING' && !roundTargetHit) {
+    const target = Rounds.getScoreTarget();
+    if (target > 0 && (score - roundScoreStart) >= target) {
+      roundTargetHit = true;
+      score += 500;
+      UI.showNotify('🎯 CÍLE DOSAŽENO! +500', '#00ff88');
+      Rounds.forceEndRound();
+    }
+  }
+
   // Music intensity — higher near boss
   const intensity = (Rounds.current - 1) / 9;
   if (frameCount % 300 === 0) Audio.setIntensity(Rounds.isBossRound() ? 1 : intensity);
@@ -158,6 +196,11 @@ function update() {
     }
   }
 
+  // Spawn pickups during boss fight (slow rate — every ~5s)
+  if (Rounds.isBossRound() && frameCount % 300 === 0) {
+    Enemies.spawnPickupItem(W);
+  }
+
   // Hazards (planets, pillars, clusters — can't be destroyed)
   if (Rounds.shouldSpawnEnemies() && !Rounds.isBossRound()) Hazards.spawnForRound(Rounds.current, W, H);
   Hazards.update(W, H, activePU.slow > 0);
@@ -165,6 +208,19 @@ function update() {
 
   // Enemy update
   Enemies.update(W, H, activePU);
+
+  // ── Kill score + combo ──
+  if (Enemies.recentKills > 0) {
+    comboCount += Enemies.recentKills;
+    comboTimer  = 140;
+    const cMult = comboCount >= 20 ? 3 : comboCount >= 10 ? 2 : comboCount >= 5 ? 1.5 : 1;
+    const kMult = (activePU.double > 0 ? 2 : 1) * Player.scoreMult * cMult;
+    score += Enemies.recentKills * 15 * kMult;
+  }
+  if (comboTimer > 0) {
+    comboTimer--;
+    if (comboTimer <= 0) comboCount = 0;
+  }
 
   // Weapons update — pass enemy list + boss target
   const allTargets = [...Enemies.list];
@@ -291,6 +347,43 @@ function draw() {
     Player.draw(ctx, frameCount, activePU);
     Player.drawLivesHUD(ctx, W);
     Weapons.drawMagHUD(ctx, W, H, frameCount);
+
+    // ── Combo display ──
+    if (comboCount >= 5) {
+      const cMult  = comboCount >= 20 ? 3 : comboCount >= 10 ? 2 : comboCount >= 5 ? 1.5 : 1;
+      const cColor = comboCount >= 20 ? '#ffcc00' : comboCount >= 10 ? '#ff8800' : '#00ffc8';
+      ctx.save();
+      ctx.textAlign   = 'center';
+      ctx.font        = `bold 13px Orbitron, monospace`;
+      ctx.fillStyle   = cColor;
+      ctx.shadowColor = cColor;
+      ctx.shadowBlur  = 14;
+      ctx.fillText(`×${cMult}  ${comboCount} COMBO`, Player.x, Player.y - 42);
+      ctx.shadowBlur  = 0;
+      ctx.restore();
+    }
+
+    // ── Round target progress bar ──
+    if (Rounds.phase === 'PLAYING') {
+      const target = Rounds.getScoreTarget();
+      if (target > 0) {
+        const pct = Math.min(1, (score - roundScoreStart) / target);
+        const bx  = W - 170, by = H - 44;
+        const bw  = 140, bh  = 5;
+        ctx.fillStyle = '#0a0a1a';
+        ctx.fillRect(bx - 2, by - 2, bw + 4, bh + 4);
+        const barCol = pct >= 1 ? '#00ff88' : pct > 0.6 ? '#ffcc00' : '#00ffc8';
+        ctx.fillStyle   = barCol;
+        ctx.shadowColor = barCol;
+        ctx.shadowBlur  = 7;
+        ctx.fillRect(bx, by, bw * pct, bh);
+        ctx.shadowBlur  = 0;
+        ctx.font        = '10px Orbitron, monospace';
+        ctx.fillStyle   = '#ffffff55';
+        ctx.textAlign   = 'right';
+        ctx.fillText(`CÍL  ${Math.min(100, Math.floor(pct * 100))}%`, W - 14, by - 5);
+      }
+    }
   }
 
   // Particles
@@ -314,6 +407,30 @@ function draw() {
   }
 
   ctx.restore();
+
+  // ── Warp flash (round transition) ──
+  if (warpFlash > 0) {
+    warpFlash--;
+    const wf = warpFlash / 50;
+    const wg = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W,H) * 0.9);
+    wg.addColorStop(0,   `rgba(0,255,200,${wf * 0.7})`);
+    wg.addColorStop(0.4, `rgba(0,180,255,${wf * 0.3})`);
+    wg.addColorStop(1,   `rgba(0,0,0,0)`);
+    ctx.fillStyle = wg;
+    ctx.fillRect(0, 0, W, H);
+    const lineCount = 24;
+    for (let i = 0; i < lineCount; i++) {
+      const a   = (i / lineCount) * Math.PI * 2;
+      const len = (1 - wf) * Math.max(W, H) * 0.85;
+      const sr  = wf * 60;
+      ctx.strokeStyle = `rgba(0,255,200,${wf * 0.5})`;
+      ctx.lineWidth   = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(W/2 + Math.cos(a)*sr,       H/2 + Math.sin(a)*sr);
+      ctx.lineTo(W/2 + Math.cos(a)*(sr+len), H/2 + Math.sin(a)*(sr+len));
+      ctx.stroke();
+    }
+  }
 
   // Screen flash overlay (damage / kill feedback)
   if (screenFlash.a > 0) {

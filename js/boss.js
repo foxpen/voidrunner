@@ -7,6 +7,7 @@ const Boss = (() => {
   let phase    = 1;
   let defeated = false;
   let entryDone = false;
+  let dyingTimer = 0;
 
   // ── Attack state machine ──
   let attackTimer   = 0;   // frames until next attack
@@ -32,6 +33,7 @@ const Boss = (() => {
     spiralFrame   = 0;
     moveState     = 'DRIFT';
     moveTimer     = 120;
+    dyingTimer    = 0;
 
     b = {
       x: W / 2,
@@ -61,6 +63,27 @@ const Boss = (() => {
   function update(W, H, slowActive) {
     if (!active) return;
     const slowMult = slowActive ? 0.35 : 1;
+
+    // ── Dying animation ──
+    if (b.dying) {
+      dyingTimer--;
+      b.shakeX = (Math.random() - 0.5) * 14;
+      b.rot += b.rotSpeed * 4 * slowMult;
+      if (dyingTimer % 12 === 0) {
+        const ex = b.x + (Math.random() - 0.5) * b.size * 2;
+        const ey = b.y + (Math.random() - 0.5) * b.size * 2;
+        const col = ['#ff3355','#ff8800','#ffcc00'][ Math.floor(Math.random()*3) ];
+        Particles.spawn(ex, ey, col, 20);
+        Particles.spawnDebris(ex, ey, '#ff8800', 3);
+      }
+      if (dyingTimer <= 0) {
+        defeated = true;
+        active   = false;
+        Particles.spawn(b.x, b.y, '#ffffff', 60);
+        Particles.spawn(b.x, b.y, '#ffcc00', 40);
+      }
+      return;
+    }
 
     // ── Entry: materializace ──
     if (!entryDone) {
@@ -275,17 +298,20 @@ const Boss = (() => {
     b.shakeX   = 8;
     b.hitFlash = 8;
     Particles.spawn(b.x, b.y, '#ffffff', 6);
-    if (b.hp <= 0 && !defeated) {
-      defeated = true;
-      active   = false;
-      Particles.spawn(b.x, b.y, '#ff3355', 80);
-      Particles.spawn(b.x, b.y, '#ff8800', 60);
-      Particles.spawn(b.x, b.y, '#ffcc00', 40);
+    if (b.hp <= 0 && !defeated && !b.dying) {
+      b.dying    = true;
+      dyingTimer = 150;
+      bullets    = [];
+      Particles.spawn(b.x, b.y, '#ff3355', 50);
+      Particles.spawn(b.x, b.y, '#ff8800', 40);
+      if (typeof screenFlash !== 'undefined') {
+        screenFlash.r = 255; screenFlash.g = 200; screenFlash.b = 0; screenFlash.a = 0.65;
+      }
     }
   }
 
   function checkPlayerBulletHit() {
-    if (!active || !entryDone || Player.invincible > 0) return false;
+    if (!active || !entryDone || Player.invincible > 0 || b.dying) return false;
     for (const bul of bullets) {
       if (Utils.dist(Player.x, Player.y, bul.x, bul.y) < bul.size + Player.w * 0.5) return true;
     }
@@ -293,7 +319,7 @@ const Boss = (() => {
   }
 
   function asBossTarget() {
-    if (!active || !entryDone) return null;
+    if (!active || !entryDone || b.dying) return null;
     return { x: b.x, y: b.y, size: b.size, hp: b.hp, takeDmg: takeDamage };
   }
 
@@ -331,6 +357,22 @@ const Boss = (() => {
       ctx.fillStyle   = '#ffffff';
       ctx.beginPath(); ctx.arc(0, 0, b.size * 1.15, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 1;
+    }
+
+    // ── Dying rings ──
+    if (b.dying) {
+      const dyingPct = 1 - dyingTimer / 150;
+      for (let r = 0; r < 3; r++) {
+        const ringR = b.size * (1 + dyingPct * (r + 1) * 0.9);
+        const ringA = Math.max(0, 0.8 - dyingPct * (r + 1) * 0.4);
+        ctx.strokeStyle = `rgba(255,${80 + r*60},0,${ringA})`;
+        ctx.lineWidth   = 3 - r * 0.8;
+        ctx.shadowColor = '#ff8800';
+        ctx.shadowBlur  = 18;
+        ctx.beginPath(); ctx.arc(0, 0, ringR, 0, Math.PI * 2); ctx.stroke();
+      }
+      ctx.shadowBlur  = 0;
+      ctx.globalAlpha = dyingTimer % 8 < 4 ? 0.55 : 1.0; // flicker
     }
 
     // Phase 2: corona
@@ -391,6 +433,7 @@ const Boss = (() => {
     }
 
     ctx.restore();
+    ctx.globalAlpha = 1;
   }
 
   return {

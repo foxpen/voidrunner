@@ -18,23 +18,23 @@ const CFG = {
   // Rounds
   ROUNDS: {
     TOTAL: 10,
-    ROUND_DURATION: 600,     // frames (~10s při 60fps)
+    ROUND_DURATION: 3600,    // frames (~60s při 60fps)
     BOSS_ROUND: 10,
     INTERMISSION: 180,       // frames mezi koly (3s)
   },
 
   // Difficulty scaling per round
   DIFFICULTY: [
-    { round: 1,  spawnRate: 60, speed: 1.0, obstacleCount: 1 },
-    { round: 2,  spawnRate: 52, speed: 1.2, obstacleCount: 1 },
-    { round: 3,  spawnRate: 44, speed: 1.4, obstacleCount: 2 },
-    { round: 4,  spawnRate: 38, speed: 1.6, obstacleCount: 2 },
-    { round: 5,  spawnRate: 32, speed: 1.8, obstacleCount: 2 },
-    { round: 6,  spawnRate: 28, speed: 2.0, obstacleCount: 3 },
-    { round: 7,  spawnRate: 24, speed: 2.2, obstacleCount: 3 },
-    { round: 8,  spawnRate: 20, speed: 2.5, obstacleCount: 3 },
-    { round: 9,  spawnRate: 16, speed: 2.8, obstacleCount: 4 },
-    { round: 10, spawnRate: 12, speed: 3.2, obstacleCount: 4 }, // BOSS
+    { round: 1,  spawnRate: 60, speed: 1.0, obstacleCount: 1, scoreTarget: 3800 },
+    { round: 2,  spawnRate: 52, speed: 1.2, obstacleCount: 1, scoreTarget: 4400 },
+    { round: 3,  spawnRate: 44, speed: 1.4, obstacleCount: 2, scoreTarget: 5100 },
+    { round: 4,  spawnRate: 38, speed: 1.6, obstacleCount: 2, scoreTarget: 5900 },
+    { round: 5,  spawnRate: 32, speed: 1.8, obstacleCount: 2, scoreTarget: 6800 },
+    { round: 6,  spawnRate: 28, speed: 2.0, obstacleCount: 3, scoreTarget: 7800 },
+    { round: 7,  spawnRate: 24, speed: 2.2, obstacleCount: 3, scoreTarget: 9000 },
+    { round: 8,  spawnRate: 20, speed: 2.5, obstacleCount: 3, scoreTarget: 10500 },
+    { round: 9,  spawnRate: 16, speed: 2.8, obstacleCount: 4, scoreTarget: 12000 },
+    { round: 10, spawnRate: 12, speed: 3.2, obstacleCount: 4, scoreTarget: 0     },
   ],
 
   // Weapons

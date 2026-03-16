@@ -138,6 +138,15 @@ const Rounds = (() => {
     return 1 - timer / DUR;
   }
 
+  function forceEndRound() {
+    if (phase === 'PLAYING' && timer > 1) timer = 1;
+  }
+
+  function getScoreTarget() {
+    const d = CFG.DIFFICULTY[current - 1];
+    return d ? (d.scoreTarget || 0) : 0;
+  }
+
   function timeLeft() {
     return Math.max(0, Math.ceil(timer / 60));
   }
@@ -147,7 +156,7 @@ const Rounds = (() => {
   return {
     reset, tick, getDifficulty, getSpawnRate,
     shouldSpawnEnemies, isBossRound, isUpgradeScreen, isGameDone, isIntermission, isCountdown,
-    progress, timeLeft,
+    progress, timeLeft, forceEndRound, getScoreTarget,
     get current()        { return current; },
     get phase()          { return phase; },
     get frameCount()     { return frameCount; },
