@@ -363,6 +363,14 @@ function draw() {
       ctx.restore();
     }
 
+    // ── Tilt indicator (mobile) ──
+    if (Input.tiltEnabled) {
+      ctx.font      = '10px Orbitron, monospace';
+      ctx.fillStyle = '#00ffc844';
+      ctx.textAlign = 'center';
+      ctx.fillText('NAKLON = POHYB  •  KLEPNI = REKALIBRUJ', W / 2, H - 20);
+    }
+
     // ── Round target progress bar ──
     if (Rounds.phase === 'PLAYING') {
       const target = Rounds.getScoreTarget();
