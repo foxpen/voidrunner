@@ -17,7 +17,7 @@ const Boss = (() => {
     entryDone = false;
     phase = 1;
     attackTimer = 0;
-    const bh_cy = (H || window.innerHeight) * 0.35; // BH centrum (shodné s bg.js)
+    const bh_cy = (H || window.innerHeight) * 0.62; // pod středem BH aby byl viditelný
     b = {
       x: W / 2,
       y: bh_cy,
@@ -66,12 +66,17 @@ const Boss = (() => {
       Particles.spawn(b.x, b.y, '#ff8800', 60);
     }
 
-    // Horizontal patrol
-    b.vx += (Math.random() - 0.5) * 0.3 * (phase === 2 ? 2 : 1);
-    b.vx *= 0.95;
-    b.vx = Utils.clamp(b.vx, -CFG_B.SPEED * (phase===2?2:1), CFG_B.SPEED * (phase===2?2:1));
+    // Patrol — horizontal + vertical drift
+    const spd = CFG_B.SPEED * (phase === 2 ? 2.5 : 1.4);
+    b.vx += (Math.random() - 0.5) * 0.5 * (phase === 2 ? 2 : 1);
+    b.vy += (Math.random() - 0.5) * 0.25 * (phase === 2 ? 2 : 1);
+    b.vx *= 0.94; b.vy *= 0.94;
+    b.vx = Utils.clamp(b.vx, -spd, spd);
+    b.vy = Utils.clamp(b.vy, -spd * 0.6, spd * 0.6);
     b.x += b.vx * slowMult;
+    b.y += b.vy * slowMult;
     b.x  = Utils.clamp(b.x, b.size + 20, W - b.size - 20);
+    b.y  = Utils.clamp(b.y, H * 0.45, H - b.size - 20);
 
     b.rot += b.rotSpeed * slowMult;
     b.orbitAngle += 0.028 * (phase === 2 ? 1.8 : 1) * slowMult;

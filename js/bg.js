@@ -22,7 +22,7 @@ const BG = (() => {
     1.40,  // 7
     1.70,  // 8
     2.10,  // 9  — obrovská, skoro uvnitř
-    2.80,  // 10 BOSS — pohltí celou obrazovku
+    1.80,  // 10 BOSS — obrovská ale arena ještě viditelná
   ];
 
   function setRound(round) {
@@ -32,7 +32,7 @@ const BG = (() => {
     bhBgTarget = target;
   }
 
-  function update(frameCount, W, H) {
+  function update(_fc, W, H) {
     // Lerp
     bhBgScale += (bhBgTarget - bhBgScale) * 0.012;
     dustAngle += 0.0003;
