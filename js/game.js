@@ -220,7 +220,7 @@ function update() {
   // Particles
   Particles.update(state, frameCount, W, H, Rounds.getDifficulty(), activePU.slow > 0);
 
-  if (shakeTime > 0) shakeTime--;
+  // shakeTime is decremented in draw()
 
   // Game won?
   if (Rounds.isGameDone()) {
@@ -236,8 +236,11 @@ function draw() {
 
   let sx = 0, sy = 0;
   if (shakeTime > 0) {
-    sx = (Math.random() - 0.5) * shakeIntensity * (shakeTime / 30);
-    sy = (Math.random() - 0.5) * shakeIntensity * (shakeTime / 30);
+    shakeTime--;
+    const decay = shakeTime / 30;
+    const t = frameCount;
+    sx = (Math.sin(t * 0.9) * 0.6 + Math.sin(t * 2.1) * 0.4) * shakeIntensity * decay;
+    sy = (Math.cos(t * 0.8) * 0.6 + Math.cos(t * 1.7) * 0.4) * shakeIntensity * decay;
   }
 
   ctx.save();
@@ -295,6 +298,7 @@ function draw() {
 
   // Particles
   Particles.drawParticles(ctx);
+  Particles.drawDebris(ctx);
 
   // Slow-mo tint
   if (activePU.slow > 0) {

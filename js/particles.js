@@ -5,6 +5,7 @@ const Particles = (() => {
   let bgStars  = [];
   let nebulae  = [];
   let empWaves = [];
+  let debrisList = [];
   let _W = 800, _H = 600;
 
   // Star colors — weighted toward white/blue
@@ -92,6 +93,9 @@ const Particles = (() => {
       p.life -= p.decay;
     });
     list = list.filter(p => p.life > 0);
+
+    debrisList.forEach(d => { d.x += d.vx; d.y += d.vy; d.vy += 0.04; d.rot += d.rotSpeed; d.vx *= 0.97; d.life -= d.decay; });
+    debrisList = debrisList.filter(d => d.life > 0);
 
     empWaves.forEach(w => { w.radius += 18; w.life -= 0.025; });
     empWaves = empWaves.filter(w => w.life > 0);
@@ -186,7 +190,51 @@ const Particles = (() => {
     ctx.shadowBlur  = 0;
   }
 
-  function clear() { list = []; empWaves = []; }
+  function spawnDebris(x, y, color, count) {
+    count = count || 5;
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const s = 1.5 + Math.random() * 4;
+      const sz = 4 + Math.random() * 9;
+      const nv = 3 + Math.floor(Math.random() * 3);
+      const verts = [];
+      for (let j = 0; j < nv; j++) {
+        const va = (j / nv) * Math.PI * 2 + Math.random() * 0.5;
+        verts.push({ x: Math.cos(va) * sz * (0.45 + Math.random() * 0.55), y: Math.sin(va) * sz * (0.45 + Math.random() * 0.55) });
+      }
+      debrisList.push({
+        x, y,
+        vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1,
+        rot: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.18,
+        life: 1,
+        decay: 0.012 + Math.random() * 0.018,
+        verts, color,
+      });
+    }
+  }
 
-  return { initStars, spawn, spawnEmpWave, update, drawStars, drawEmpWaves, drawParticles, clear };
+  function drawDebris(ctx) {
+    debrisList.forEach(d => {
+      ctx.save();
+      ctx.translate(d.x, d.y);
+      ctx.rotate(d.rot);
+      ctx.globalAlpha = d.life * 0.9;
+      ctx.fillStyle = d.color;
+      ctx.shadowColor = d.color;
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.moveTo(d.verts[0].x, d.verts[0].y);
+      for (let i = 1; i < d.verts.length; i++) ctx.lineTo(d.verts[i].x, d.verts[i].y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  function clear() { list = []; empWaves = []; debrisList = []; }
+
+  return { initStars, spawn, spawnEmpWave, spawnDebris, update, drawStars, drawEmpWaves, drawParticles, drawDebris, clear };
 })();

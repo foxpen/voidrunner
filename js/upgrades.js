@@ -143,10 +143,36 @@ const Upgrades = (() => {
       const hovOff = isHov ? -8 : 0;
       const rarity = card.rarity || 'common';
 
-      // ── Card background ──
-      ctx.fillStyle = isHov ? '#1a1a2e' : '#12121f';
+      // ── Card background (tinted by rarity) ──
+      const bgColors = {
+        common:    isHov ? '#161624' : '#101018',
+        rare:      isHov ? '#0d1a2e' : '#080f1c',
+        legendary: isHov ? '#1a100e' : '#110a08',
+      };
+      ctx.fillStyle = bgColors[rarity] || bgColors.common;
       _roundRect(ctx, cx, cy + hovOff, CARD_W, CARD_H, 12);
       ctx.fill();
+
+      // Legendary: animated shimmer background
+      if (rarity === 'legendary') {
+        const shimHue = (frameCount * 2) % 360;
+        const shimGrad = ctx.createLinearGradient(cx, cy + hovOff, cx + CARD_W, cy + hovOff + CARD_H);
+        shimGrad.addColorStop(0,   `hsla(${shimHue}, 80%, 40%, 0.08)`);
+        shimGrad.addColorStop(0.5, `hsla(${shimHue + 60}, 80%, 50%, 0.12)`);
+        shimGrad.addColorStop(1,   `hsla(${shimHue + 120}, 80%, 40%, 0.08)`);
+        ctx.fillStyle = shimGrad;
+        _roundRect(ctx, cx, cy + hovOff, CARD_W, CARD_H, 12);
+        ctx.fill();
+      }
+      // Rare: subtle blue inner glow
+      if (rarity === 'rare') {
+        const rareGrad = ctx.createRadialGradient(cx + CARD_W/2, cy + hovOff + CARD_H/2, 0, cx + CARD_W/2, cy + hovOff + CARD_H/2, CARD_W * 0.8);
+        rareGrad.addColorStop(0,   'rgba(100, 40, 200, 0.10)');
+        rareGrad.addColorStop(1,   'rgba(0, 0, 0, 0)');
+        ctx.fillStyle = rareGrad;
+        _roundRect(ctx, cx, cy + hovOff, CARD_W, CARD_H, 12);
+        ctx.fill();
+      }
 
       // ── Border by rarity ──
       if (rarity === 'legendary') {

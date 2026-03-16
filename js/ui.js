@@ -180,18 +180,43 @@ const UI = (() => {
   }
 
   function drawCountdownOverlay(ctx, W, H, value, frameCount) {
-    ctx.fillStyle = 'rgba(10,10,15,0.3)';
+    // Semi-transparent overlay
+    ctx.fillStyle = 'rgba(10,10,15,0.35)';
     ctx.fillRect(0, 0, W, H);
-    const pulse = 0.85 + 0.15 * Math.sin(frameCount * 0.25);
-    const sz    = Math.floor(Math.min(200, W * 0.18) * pulse);
+
+    // Color by value: 3=cyan, 2=yellow, 1=red
+    const colors = { 3: '#00ffc8', 2: '#ffcc00', 1: '#ff3355' };
+    const glows  = { 3: '#00ffc8', 2: '#ffaa00', 1: '#ff0000' };
+    const col    = colors[value] || '#ffffff';
+    const glow   = glows[value]  || '#ffffff';
+
+    // Zoom-pulse: scale based on fractional position within current second
+    const frac   = (frameCount % 60) / 60;
+    const scale  = 1.4 - frac * 0.4; // zoom in from 1.4→1.0
+    const alpha  = Math.min(1, frac < 0.15 ? frac / 0.15 : 1.0);
+
+    const sz = Math.floor(Math.min(180, W * 0.2) * scale);
+
+    ctx.save();
+    ctx.translate(W / 2, H / 2);
+    ctx.globalAlpha = alpha;
     ctx.textAlign = 'center';
-    ctx.font = `900 ${sz}px Orbitron, monospace`;
-    ctx.globalAlpha = pulse;
-    ctx.fillStyle = '#ffffff';
-    ctx.shadowColor = '#00ffc8';
-    ctx.shadowBlur = 80;
-    ctx.fillText(value, W / 2, H / 2 + sz * 0.35);
+
+    // Outer glow ring
+    ctx.shadowColor = glow;
+    ctx.shadowBlur  = 80;
+    ctx.font        = `900 ${sz}px Orbitron, monospace`;
+    ctx.fillStyle   = col;
+    ctx.fillText(value, 0, sz * 0.35);
+
+    // Subtitle
     ctx.shadowBlur = 0;
+    ctx.globalAlpha = alpha * 0.7;
+    ctx.font = `bold ${Math.floor(W * 0.022)}px Rajdhani, sans-serif`;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('— PŘIPRAV SE —', 0, sz * 0.35 + 38);
+
+    ctx.restore();
     ctx.globalAlpha = 1;
   }
 

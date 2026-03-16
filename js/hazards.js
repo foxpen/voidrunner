@@ -69,6 +69,7 @@ const Hazards = (() => {
       rotSpeed: (Math.random() - 0.5) * 0.003,
       surfaceOffset: Math.random() * 100,
       craters,
+      depth: 0.5 + Math.random() * 0.5,
     });
   }
 
@@ -81,6 +82,7 @@ const Hazards = (() => {
     const len     = 180 + Math.random() * 120;
     const hue     = 180 + Math.random() * 60;
 
+    const pillarDepth = 0.6 + Math.random() * 0.4;
     // Left pillar
     list.push({
       type: 'pillar',
@@ -89,6 +91,7 @@ const Hazards = (() => {
       w: 28, h: len,
       hue, paired: true,
       capSize: 18,
+      depth: pillarDepth,
     });
     // Right pillar
     list.push({
@@ -99,6 +102,7 @@ const Hazards = (() => {
       hue, paired: true,
       capSize: 18,
       isRight: true,
+      depth: pillarDepth,
     });
   }
 
@@ -126,6 +130,7 @@ const Hazards = (() => {
         rot: Math.random() * Math.PI * 2,
         rotSpeed: (Math.random() - 0.5) * 0.008,
         hue: 200 + Math.random() * 40,
+        depth: 0.55 + Math.random() * 0.45,
       });
     }
   }
@@ -133,8 +138,8 @@ const Hazards = (() => {
   function update(W, H, slowActive) {
     const slowMult = slowActive ? 0.35 : 1;
     list.forEach(h => {
-      h.x += (h.vx || 0) * slowMult;
-      h.y += h.vy * slowMult;
+      h.x += (h.vx || 0) * slowMult * (h.depth || 1);
+      h.y += h.vy * slowMult * (h.depth || 1);
       if (h.rot !== undefined) h.rot += (h.rotSpeed || 0) * slowMult;
       if (h.ringAngle !== undefined) h.ringAngle += 0.002 * slowMult;
     });
@@ -178,6 +183,7 @@ const Hazards = (() => {
   function _drawPlanet(ctx, p, frameCount) {
     ctx.save();
     ctx.translate(p.x, p.y);
+    ctx.globalAlpha = 0.5 + (p.depth || 1) * 0.5;
 
     // Atmosphere glow
     const atmoGrad = ctx.createRadialGradient(0, 0, p.size * 0.7, 0, 0, p.size * 1.4);
@@ -263,6 +269,7 @@ const Hazards = (() => {
     ctx.beginPath(); ctx.arc(0, 0, p.size * 0.9, 0, Math.PI * 2); ctx.stroke();
     ctx.setLineDash([]);
 
+    ctx.globalAlpha = 1;
     ctx.restore();
   }
 
@@ -271,6 +278,7 @@ const Hazards = (() => {
     const pulse = 0.6 + 0.4 * Math.sin(frameCount * 0.04);
     ctx.save();
     ctx.translate(h.x, h.y + h.h);
+    ctx.globalAlpha = 0.55 + (h.depth || 1) * 0.45;
 
     // Pillar body
     const grad = ctx.createLinearGradient(-h.w / 2, 0, h.w / 2, 0);
@@ -308,6 +316,7 @@ const Hazards = (() => {
     ctx.save();
     ctx.translate(a.x, a.y);
     ctx.rotate(a.rot);
+    ctx.globalAlpha = 0.5 + (a.depth || 1) * 0.5;
 
     // Glow
     ctx.shadowColor = `hsl(${a.hue},60%,50%)`;
