@@ -265,6 +265,11 @@ function draw() {
   // Stars
   Particles.drawStars(ctx, frameCount);
 
+  // Speed lines — pruhy pohybu za letu
+  if (state === STATE.PLAYING) {
+    Particles.drawSpeedLines(ctx, Rounds.getDifficulty());
+  }
+
   // Grid
   const slowG = activePU.slow > 0 ? 0.3 : 1;
   ctx.strokeStyle = '#00ffc808';

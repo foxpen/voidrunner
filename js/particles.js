@@ -6,15 +6,37 @@ const Particles = (() => {
   let nebulae  = [];
   let empWaves = [];
   let debrisList = [];
+  let speedLines = [];
   let _W = 800, _H = 600;
 
   // Star colors — weighted toward white/blue
   const STAR_COLORS = ['#ffffff', '#ffffff', '#ccdeff', '#aabbff', '#ffeedd', '#ffcc99'];
 
+  function initSpeedLines(W, H) {
+    speedLines = [];
+    for (let i = 0; i < 60; i++) {
+      speedLines.push(_makeSpeedLine(W, H, true));
+    }
+  }
+
+  function _makeSpeedLine(W, H, randomY) {
+    const speed = 4 + Math.random() * 14;
+    return {
+      x:      Math.random() * W,
+      y:      randomY ? Math.random() * H : -20,
+      len:    speed * (2.5 + Math.random() * 3),   // proužek delší = rychlejší
+      speed,
+      alpha:  0.04 + Math.random() * 0.14,
+      width:  0.4 + Math.random() * 0.8,
+      hue:    Math.random() < 0.8 ? 0 : 190,       // mostly white, some cyan
+    };
+  }
+
   function initStars(W, H) {
     _W = W; _H = H;
     bgStars = [];
     nebulae = [];
+    initSpeedLines(W, H);
 
     // 3 parallax layers: far / mid / near
     const layers = [
@@ -86,6 +108,18 @@ const Particles = (() => {
       n.y += n.speed * (isPlaying ? difficulty * slowMult : 0.2);
       if (n.y - n.r > H + 20) { n.y = -n.r; n.x = Math.random() * W; }
     });
+
+    // Speed lines — pohybují se s obtížností
+    if (isPlaying) {
+      speedLines.forEach(s => {
+        s.y += s.speed * difficulty * slowMult;
+        if (s.y - s.len > H) {
+          const nl = _makeSpeedLine(W, H, false);
+          s.x = nl.x; s.y = nl.y; s.len = nl.len;
+          s.speed = nl.speed; s.alpha = nl.alpha; s.hue = nl.hue;
+        }
+      });
+    }
 
     list.forEach(p => {
       p.x += p.vx; p.y += p.vy;
@@ -163,6 +197,24 @@ const Particles = (() => {
     ctx.globalAlpha = 1;
   }
 
+  function drawSpeedLines(ctx, difficulty) {
+    const spd = Math.min(1, (difficulty || 1) / 3.5); // normalizovaná rychlost 0-1
+    if (spd < 0.05) return;
+    speedLines.forEach(s => {
+      const alpha = s.alpha * spd;
+      if (alpha < 0.01) return;
+      const color = s.hue === 0
+        ? `rgba(255,255,255,${alpha})`
+        : `rgba(0,220,255,${alpha * 0.8})`;
+      ctx.strokeStyle = color;
+      ctx.lineWidth   = s.width;
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y - s.len);
+      ctx.lineTo(s.x, s.y);
+      ctx.stroke();
+    });
+  }
+
   function drawEmpWaves(ctx) {
     empWaves.forEach(w => {
       ctx.strokeStyle = `rgba(255, 68, 255, ${w.life * 0.5})`;
@@ -236,5 +288,5 @@ const Particles = (() => {
 
   function clear() { list = []; empWaves = []; debrisList = []; }
 
-  return { initStars, spawn, spawnEmpWave, spawnDebris, update, drawStars, drawEmpWaves, drawParticles, drawDebris, clear };
+  return { initStars, initSpeedLines, spawn, spawnEmpWave, spawnDebris, update, drawStars, drawSpeedLines, drawEmpWaves, drawParticles, drawDebris, clear };
 })();
