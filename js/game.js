@@ -159,7 +159,7 @@ function update() {
   }
 
   // Hazards (planets, pillars, clusters — can't be destroyed)
-  if (Rounds.shouldSpawnEnemies()) Hazards.spawnForRound(Rounds.current, W, H);
+  if (Rounds.shouldSpawnEnemies() && !Rounds.isBossRound()) Hazards.spawnForRound(Rounds.current, W, H);
   Hazards.update(W, H, activePU.slow > 0);
   if (Hazards.checkPlayerCollision(activePU)) takeDamage();
 
@@ -270,14 +270,6 @@ function draw() {
     Particles.drawSpeedLines(ctx, Rounds.getDifficulty());
   }
 
-  // Grid
-  const slowG = activePU.slow > 0 ? 0.3 : 1;
-  ctx.strokeStyle = '#00ffc808';
-  ctx.lineWidth = 1;
-  const gridOff = (frameCount * 0.5 * Rounds.getDifficulty() * slowG) % 60;
-  for (let y = gridOff; y < H; y += 60) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
-  }
 
   // EMP waves
   Particles.drawEmpWaves(ctx);

@@ -49,6 +49,7 @@ const Rounds = (() => {
             phase = 'BOSS';
             Boss.spawn(W, H);
             Enemies.clear();
+            Hazards.clear();
           } else {
             current++;
             timer = gameMode === 'endless' ? Infinity : DUR * (gameMode === 'hardcore' ? 0.7 : 1);
