@@ -44,6 +44,18 @@ const Hazards = (() => {
     const x    = Math.random() * (W - size * 2) + size;
     const spd  = 0.6 + Math.random() * 0.8;
 
+    // Procedurální krátery
+    const craterCount = 3 + Math.floor(Math.random() * 5);
+    const craters = [];
+    for (let i = 0; i < craterCount; i++) {
+      const a  = Math.random() * Math.PI * 2;
+      const r  = Math.random() * size * 0.7;
+      craters.push({
+        x: Math.cos(a) * r, y: Math.sin(a) * r,
+        r: size * (0.06 + Math.random() * 0.12),
+      });
+    }
+
     list.push({
       type: 'planet',
       x, y: -size - 20,
@@ -56,6 +68,7 @@ const Hazards = (() => {
       rot: Math.random() * Math.PI * 2,
       rotSpeed: (Math.random() - 0.5) * 0.003,
       surfaceOffset: Math.random() * 100,
+      craters,
     });
   }
 
@@ -184,18 +197,43 @@ const Hazards = (() => {
     ctx.beginPath(); ctx.arc(0, 0, p.size, 0, Math.PI * 2); ctx.fill();
     ctx.shadowBlur  = 0;
 
-    // Surface bands
+    // Surface details (clipped to planet)
     ctx.save();
-    ctx.clip(); // clip to planet circle
     ctx.beginPath(); ctx.arc(0, 0, p.size, 0, Math.PI * 2);
+    ctx.clip();
+
+    // Cloud bands
     ctx.rotate(p.rot);
-    for (let i = 0; i < 3; i++) {
-      const by = -p.size + (i + 1) * (p.size * 2 / 4) + Math.sin(frameCount * 0.002 + p.surfaceOffset + i) * 6;
-      ctx.globalAlpha = 0.12;
-      ctx.fillStyle   = i % 2 === 0 ? '#ffffff' : '#000000';
-      ctx.fillRect(-p.size, by - 8, p.size * 2, 16);
+    for (let i = 0; i < 4; i++) {
+      const by = -p.size + (i + 1) * (p.size * 2 / 5) + Math.sin(frameCount * 0.002 + p.surfaceOffset + i) * 5;
+      ctx.globalAlpha = 0.10 + (i % 2) * 0.06;
+      ctx.fillStyle   = i % 2 === 0 ? '#ffffff' : _darken(p.color, 25);
+      ctx.fillRect(-p.size, by - 6, p.size * 2, 12);
     }
+    ctx.rotate(-p.rot);
+
+    // Krátery
     ctx.globalAlpha = 1;
+    if (p.craters) {
+      p.craters.forEach(c => {
+        ctx.globalAlpha = 0.28;
+        ctx.fillStyle   = _darken(p.color, 55);
+        ctx.beginPath(); ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 0.12;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth   = 0.8;
+        ctx.beginPath(); ctx.arc(c.x, c.y, c.r * 0.7, 0, Math.PI * 2); ctx.stroke();
+      });
+    }
+
+    // Terminator (shadow on dark side)
+    const shadowGrad = ctx.createRadialGradient(p.size * 0.4, -p.size * 0.3, 0, p.size * 0.4, -p.size * 0.3, p.size * 1.2);
+    shadowGrad.addColorStop(0.6, 'rgba(0,0,0,0)');
+    shadowGrad.addColorStop(1,   'rgba(0,0,0,0.55)');
+    ctx.globalAlpha = 1;
+    ctx.fillStyle   = shadowGrad;
+    ctx.fillRect(-p.size, -p.size, p.size * 2, p.size * 2);
+
     ctx.restore();
 
     // Rings (Saturn-style)

@@ -70,98 +70,141 @@ const Player = (() => {
     trail.forEach(t => t.life -= 0.05);
   }
 
-  function draw(ctx, frameCount, activePU) {
-    // Trail
-    trail.forEach(t => {
-      if (t.life <= 0) return;
-      ctx.globalAlpha = t.life * 0.35;
-      ctx.fillStyle = t.color || '#00ffc8';
-      const s = 3.5 * t.life;
+  function _drawEngines(ctx, px, py, shipColor, isBoosting, frameCount) {
+    // 3 engine ports: center + 2 side
+    const ports = [
+      { ox: 0,           oy: p.H * 0.55,  w: 7 },
+      { ox: -p.W * 0.25, oy: p.H * 0.45,  w: 4 },
+      { ox:  p.W * 0.25, oy: p.H * 0.45,  w: 4 },
+    ];
+    ports.forEach((port, i) => {
+      const base = isBoosting ? 16 + Math.random() * 20 : 8 + Math.random() * 10;
+      const fl   = base * (i === 0 ? 1 : 0.65);
+      const flicker = 0.5 + Math.random() * 0.5;
+
+      // Outer glow
+      const grad = ctx.createLinearGradient(
+        px + port.ox, py + port.oy,
+        px + port.ox, py + port.oy + fl
+      );
+      if (isBoosting) {
+        grad.addColorStop(0, `rgba(0,255,136,${0.8 * flicker})`);
+        grad.addColorStop(0.4, `rgba(0,200,255,${0.4 * flicker})`);
+        grad.addColorStop(1, 'rgba(0,80,255,0)');
+      } else {
+        grad.addColorStop(0, `rgba(0,255,200,${0.6 * flicker})`);
+        grad.addColorStop(0.5, `rgba(0,150,255,${0.25 * flicker})`);
+        grad.addColorStop(1, 'rgba(0,50,200,0)');
+      }
+
+      ctx.fillStyle = grad;
+      ctx.shadowColor = isBoosting ? '#00ff88' : '#00ffc8';
+      ctx.shadowBlur  = isBoosting ? 20 : 10;
+
       ctx.beginPath();
-      ctx.arc(t.x, t.y + 10, s, 0, Math.PI * 2);
+      ctx.moveTo(px + port.ox - port.w, py + port.oy);
+      ctx.lineTo(px + port.ox,          py + port.oy + fl);
+      ctx.lineTo(px + port.ox + port.w, py + port.oy);
+      ctx.closePath();
       ctx.fill();
     });
+    ctx.shadowBlur = 0;
+  }
+
+  function draw(ctx, frameCount, activePU) {
+    const shipColor = activePU.speed > 0 ? '#00ff88'
+                    : activePU.shield > 0 ? '#00aaff'
+                    : '#00ffc8';
+
+    // ── Trail — tapered glow ribbon ──
+    for (let i = 0; i < trail.length; i++) {
+      const t    = trail[i];
+      if (t.life <= 0) continue;
+      const frac = i / trail.length;
+      ctx.globalAlpha = t.life * frac * 0.45;
+      ctx.fillStyle   = t.color || shipColor;
+      ctx.shadowColor = t.color || shipColor;
+      ctx.shadowBlur  = 6;
+      const s = (2.5 + frac * 3) * t.life;
+      ctx.beginPath();
+      ctx.arc(t.x, t.y + p.H * 0.5, s, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.globalAlpha = 1;
+    ctx.shadowBlur  = 0;
 
     // Blink when invincible
     const blink = invincible > 0 && Math.floor(invincible / 4) % 2;
     if (blink) return;
 
+    const isBoosting = activePU.speed > 0;
+
+    // ── Engines (drawn behind hull) ──
+    _drawEngines(ctx, x, y, shipColor, isBoosting, frameCount);
+
     ctx.save();
     ctx.translate(x, y);
-
-    const shipColor = activePU.speed > 0 ? '#00ff88'
-                    : activePU.shield > 0 ? '#00aaff'
-                    : '#00ffc8';
-
     ctx.shadowColor = shipColor;
-    ctx.shadowBlur  = 25;
+    ctx.shadowBlur  = 18;
+
+    // ── Hull — main body ──
+    ctx.fillStyle = shipColor;
+    ctx.beginPath();
+    ctx.moveTo(0,          -p.H);           // nose
+    ctx.lineTo(-p.W * 0.5,  p.H * 0.1);    // inner left shoulder
+    ctx.lineTo(-p.W,         p.H * 0.5);    // left wing tip
+    ctx.lineTo(-p.W * 0.55,  p.H * 0.6);   // left wing trailing
+    ctx.lineTo(-p.W * 0.25,  p.H * 0.45);  // left engine notch
+    ctx.lineTo(0,             p.H * 0.55);  // center tail
+    ctx.lineTo( p.W * 0.25,  p.H * 0.45);  // right engine notch
+    ctx.lineTo( p.W * 0.55,  p.H * 0.6);   // right wing trailing
+    ctx.lineTo( p.W,          p.H * 0.5);   // right wing tip
+    ctx.lineTo( p.W * 0.5,   p.H * 0.1);   // inner right shoulder
+    ctx.closePath();
+    ctx.fill();
+
+    // ── Hull accent stripe ──
+    ctx.fillStyle   = shipColor + '66';
+    ctx.shadowBlur  = 0;
+    ctx.beginPath();
+    ctx.moveTo(0,           -p.H * 0.7);
+    ctx.lineTo(-p.W * 0.3,   p.H * 0.05);
+    ctx.lineTo(0,             p.H * 0.2);
+    ctx.lineTo( p.W * 0.3,   p.H * 0.05);
+    ctx.closePath();
+    ctx.fill();
+
+    // ── Cockpit ──
+    ctx.fillStyle = '#060610';
+    ctx.beginPath();
+    ctx.moveTo(0,           -p.H * 0.65);
+    ctx.lineTo(-p.W * 0.32,  p.H * 0.05);
+    ctx.lineTo(0,             p.H * 0.18);
+    ctx.lineTo( p.W * 0.32,  p.H * 0.05);
+    ctx.closePath();
+    ctx.fill();
+
+    // Cockpit glow dot
+    ctx.shadowColor = shipColor;
+    ctx.shadowBlur  = 12;
     ctx.fillStyle   = shipColor;
-
-    // Body
     ctx.beginPath();
-    ctx.moveTo(0, -p.H);
-    ctx.lineTo(-p.W,     p.H * 0.6);
-    ctx.lineTo(-p.W*0.3, p.H * 0.3);
-    ctx.lineTo(0,         p.H * 0.5);
-    ctx.lineTo( p.W*0.3,  p.H * 0.3);
-    ctx.lineTo( p.W,      p.H * 0.6);
-    ctx.closePath();
+    ctx.arc(0, -p.H * 0.2, 2.5, 0, Math.PI * 2);
     ctx.fill();
 
-    // Cockpit cutout
-    ctx.fillStyle = '#0a0a0f';
-    ctx.beginPath();
-    ctx.moveTo(0, -p.H * 0.55);
-    ctx.lineTo(-p.W * 0.4, p.H * 0.3);
-    ctx.lineTo(0,           p.H * 0.15);
-    ctx.lineTo( p.W * 0.4,  p.H * 0.3);
-    ctx.closePath();
-    ctx.fill();
-
-    // Cockpit dot
-    ctx.fillStyle = shipColor + 'aa';
-    ctx.beginPath();
-    ctx.arc(0, -p.H * 0.15, 3, 0, Math.PI * 2);
-    ctx.fill();
+    // ── Wing-tip running lights ──
+    const blink2 = Math.floor(frameCount / 18) % 2;
+    ctx.shadowBlur = 10;
+    ctx.fillStyle  = blink2 ? '#ff4444' : '#ff000066';
+    ctx.beginPath(); ctx.arc(-p.W, p.H * 0.5, 2.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle  = blink2 ? '#44ff44' : '#00ff0066';
+    ctx.beginPath(); ctx.arc( p.W, p.H * 0.5, 2.2, 0, Math.PI * 2); ctx.fill();
 
     ctx.shadowBlur = 0;
     ctx.restore();
 
-    // Engine flame
-    const flameLen = activePU.speed > 0
-      ? 14 + Math.random() * 16
-      :  8 + Math.random() * 10;
-    const flameColor = activePU.speed > 0
-      ? `rgba(0, 255, 136, ${0.4 + Math.random() * 0.4})`
-      : `rgba(0, 255, 200, ${0.3 + Math.random() * 0.3})`;
-
-    ctx.fillStyle = flameColor;
-    ctx.beginPath();
-    ctx.moveTo(x - 5, y + p.H * 0.5);
-    ctx.lineTo(x,     y + p.H * 0.5 + flameLen);
-    ctx.lineTo(x + 5, y + p.H * 0.5);
-    ctx.closePath();
-    ctx.fill();
-
-    if (activePU.speed > 0) {
-      const sfl = 6 + Math.random() * 8;
-      ctx.fillStyle = `rgba(0, 255, 136, ${0.2 + Math.random() * 0.2})`;
-      ctx.beginPath();
-      ctx.moveTo(x - p.W,     y + p.H * 0.6);
-      ctx.lineTo(x - p.W - 3, y + p.H * 0.6 + sfl);
-      ctx.lineTo(x - p.W + 3, y + p.H * 0.6);
-      ctx.closePath();
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(x + p.W,     y + p.H * 0.6);
-      ctx.lineTo(x + p.W + 3, y + p.H * 0.6 + sfl);
-      ctx.lineTo(x + p.W - 3, y + p.H * 0.6);
-      ctx.closePath();
-      ctx.fill();
-    }
-
-    // Shield bubble
+    // Shield bubble and magnet handled below
+    // (engines already drawn before hull)
     if (activePU.shield > 0) {
       const shieldPulse = 0.6 + 0.4 * Math.sin(frameCount * 0.08);
       const shieldAlpha = activePU.shield < 120 ? (activePU.shield / 120) * 0.3 : 0.3;
