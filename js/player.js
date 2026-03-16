@@ -42,6 +42,7 @@ const Player = (() => {
       case 'scoreMult':  stats.scoreMult += card.value; break;
       case 'permMagnet': stats.permMagnet = true; break;
       case 'dualFire':   stats.dualFire  = true; break;
+      case 'overdrive':  stats.speed *= 1.3; break;
     }
   }
 

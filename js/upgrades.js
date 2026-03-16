@@ -4,9 +4,10 @@ const Upgrades = (() => {
   let showing = false;
   let cards = [];
   let onSelect = null;
-  let animIn = 0;       // 0→1 fade-in animation
+  let animIn = 0;
   let hovered = -1;
   let title = 'VYBER VYLEPŠENÍ';
+  let legendaryFlash = 0;
 
   const CARD_W = 200;
   const CARD_H = 260;
@@ -23,22 +24,50 @@ const Upgrades = (() => {
     title = customTitle || 'VYBER VYLEPŠENÍ';
     hovered = -1;
 
+    const round = (typeof Rounds !== 'undefined') ? Rounds.current : 1;
+
     if (!Weapons.equipped.includes('basic')) {
-      // Vždy nabídni základní laser když hráč nemá zbraně
+      // Vždy nabídni basic laser jako první kartu
       const basicCard = CFG.UPGRADE_CARDS.find(c => c.id === 'unlock_basic');
-      const rest = CFG.UPGRADE_CARDS.filter(c =>
-        c.id !== 'unlock_basic' && !(c.type === 'weapon' && applied.has(c.id))
-      );
-      const others = Utils.pickN(rest, CARD_COUNT - 1);
+      const rest = _buildPool(round).filter(c => c.id !== 'unlock_basic');
+      const others = _weightedPick(rest, CARD_COUNT - 1);
       cards = [basicCard, ...others];
     } else {
-      const pool = CFG.UPGRADE_CARDS.filter(c => {
-        if (c.type === 'weapon' && applied.has(c.id)) return false;
-        return true;
-      });
-      cards = Utils.pickN(pool, CARD_COUNT);
+      const pool = _buildPool(round);
+      cards = _weightedPick(pool, CARD_COUNT);
     }
     _setupMouseHandlers(W, H);
+  }
+
+  // Sestav pool karet dostupných pro daný round
+  function _buildPool(round) {
+    return CFG.UPGRADE_CARDS.filter(c => {
+      if (c.type === 'weapon' && applied.has(c.id)) return false; // už má
+      if ((c.minRound || 1) > round) return false;                // ještě nezablokováno
+      if (c.stat === 'dualFire'   && !Weapons.equipped.includes('basic'))  return false;
+      if (c.stat === 'orbitCount' && !Weapons.equipped.includes('orbit'))  return false;
+      if (c.stat === 'overdrive'  && Weapons.equipped.length < 2)          return false;
+      return true;
+    });
+  }
+
+  // Výběr N karet s váhami — rare/legendary méně časté
+  function _weightedPick(pool, n) {
+    if (pool.length <= n) return [...pool];
+    const result = [];
+    const remaining = [...pool];
+    for (let i = 0; i < n && remaining.length > 0; i++) {
+      const totalW = remaining.reduce((s, c) => s + (c.weight || 5), 0);
+      let r = Math.random() * totalW;
+      let idx = 0;
+      for (let j = 0; j < remaining.length; j++) {
+        r -= (remaining[j].weight || 5);
+        if (r <= 0) { idx = j; break; }
+      }
+      result.push(remaining[idx]);
+      remaining.splice(idx, 1);
+    }
+    return result;
   }
 
   function hide() {
@@ -103,7 +132,21 @@ const Upgrades = (() => {
     if (i < 0 || i >= cards.length) return;
     const card = cards[i];
     applied.add(card.id);
-    Audio.sfx('upgrade');
+
+    // Dopamine feedback podle rarity
+    if (card.rarity === 'legendary') {
+      Audio.sfx('legendary');
+      // Zlatý screen flash — přes game.js screenFlash
+      if (typeof screenFlash !== 'undefined') {
+        screenFlash.r = 255; screenFlash.g = 180; screenFlash.b = 0; screenFlash.a = 0.6;
+      }
+      legendaryFlash = 40; // interní flash pro overlay
+    } else if (card.rarity === 'rare') {
+      Audio.sfx('rare');
+    } else {
+      Audio.sfx('upgrade');
+    }
+
     hide();
     onSelect && onSelect(card);
   }

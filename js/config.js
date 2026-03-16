@@ -104,24 +104,46 @@ const CFG = {
   // Upgrade cards — appear between rounds
   // rarity: 'common' | 'rare' | 'legendary'
   UPGRADE_CARDS: [
-    // ── Základní laser — vždy první upgrade ──
-    { id: 'unlock_basic',   rarity: 'common',    type: 'weapon',  name: 'ZÁKLADNÍ LASER',    desc: 'Odemkne laserovou zbraň',             icon: '🔫', color: '#00ffc8', weaponId: 'basic'   },
+    // minRound = nejdřívější kolo kdy se karta může objevit
+    // weight   = relativní pravděpodobnost výběru (vyšší = častější)
 
-    // ── Další zbraně ──
-    { id: 'unlock_spread',  rarity: 'common',    type: 'weapon',  name: 'SPREAD SHOT',       desc: 'Vystřelí 3 projektily najednou',      icon: '🌟', color: '#ffcc00', weaponId: 'spread'  },
-    { id: 'unlock_orbit',   rarity: 'rare',      type: 'weapon',  name: 'ORBIT BOLA',        desc: 'Kuličky obíhají kolem lodi',          icon: '⚪', color: '#ff8800', weaponId: 'orbit'   },
-    { id: 'unlock_missile', rarity: 'rare',      type: 'weapon',  name: 'NAVÁDĚCÍ STŘELA',   desc: 'Sleduje nejbližšího nepřítele',       icon: '🚀', color: '#ff3355', weaponId: 'missile' },
-    { id: 'unlock_ring',    rarity: 'rare',      type: 'weapon',  name: 'PLAZMOVÝ PRSTEN',   desc: 'Výbuch ve vlně kolem lodi',           icon: '💥', color: '#ff44ff', weaponId: 'ring'    },
+    // ── Zbraně — odemykají se postupně ──
+    { id: 'unlock_basic',   rarity: 'common',    type: 'weapon',  minRound: 1, weight: 10,
+      name: 'ZÁKLADNÍ LASER',    desc: 'Přímá střelba na nejbližšího',        icon: '🔫', color: '#00ffc8', weaponId: 'basic'   },
+    { id: 'unlock_spread',  rarity: 'common',    type: 'weapon',  minRound: 2, weight: 6,
+      name: 'SPREAD SHOT',       desc: '3 projektily v kuželu',               icon: '🌟', color: '#ffcc00', weaponId: 'spread'  },
+    { id: 'unlock_orbit',   rarity: 'rare',      type: 'weapon',  minRound: 4, weight: 4,
+      name: 'ORBIT BOLA',        desc: 'Kuličky obíhají kolem lodi',          icon: '⚪', color: '#ff8800', weaponId: 'orbit'   },
+    { id: 'unlock_missile', rarity: 'rare',      type: 'weapon',  minRound: 5, weight: 3,
+      name: 'NAVÁDĚCÍ STŘELA',   desc: 'Samonaváděcí střela, 3× škoda',      icon: '🚀', color: '#ff3355', weaponId: 'missile' },
+    { id: 'unlock_ring',    rarity: 'legendary', type: 'weapon',  minRound: 7, weight: 2,
+      name: 'PLAZMOVÝ PRSTEN',   desc: 'Vlna škody kolem celé lodi',          icon: '💥', color: '#ff44ff', weaponId: 'ring'    },
 
-    // ── Stat upgrady ──
-    { id: 'dmg_up',    rarity: 'common',    type: 'stat', name: 'VYŠŠÍ DAMAGE',       desc: '+1 poškození všem zbraním',           icon: '⬆️',  color: '#ff3355', stat: 'damage',     value: 1     },
-    { id: 'fire_up',   rarity: 'common',    type: 'stat', name: 'RYCHLÁ PALBA',       desc: '-20% čas mezi výstřely',              icon: '🔥',  color: '#ff6b00', stat: 'fireRate',   value: -0.2  },
-    { id: 'speed_up',  rarity: 'common',    type: 'stat', name: 'RYCHLEJŠÍ LOĎ',      desc: '+15% rychlost pohybu',                icon: '💨',  color: '#00ff88', stat: 'shipSpeed',  value: 0.15  },
-    { id: 'hp_up',     rarity: 'rare',      type: 'stat', name: 'ŠTÍTOVÝ MODUL',      desc: '+1 extra život',                      icon: '❤️',  color: '#ff0055', stat: 'lives',      value: 1     },
-    { id: 'proj_up',   rarity: 'rare',      type: 'stat', name: 'DUAL FIRE',          desc: 'Základní laser střílí dvojitě',        icon: '🔱',  color: '#00aaff', stat: 'dualFire',   value: true  },
-    { id: 'orbit_cnt', rarity: 'rare',      type: 'stat', name: 'VÍCE BOLAS',         desc: '+2 orbit kuličky',                    icon: '🔵',  color: '#ff8800', stat: 'orbitCount', value: 2     },
-    { id: 'magnet_p',  rarity: 'legendary', type: 'stat', name: 'PERMANENTNÍ MAGNET', desc: 'Stálý přitažlivý efekt',              icon: '🧲',  color: '#ff8800', stat: 'permMagnet', value: true  },
-    { id: 'score_up',  rarity: 'legendary', type: 'stat', name: 'SCORE BOOSTER',      desc: '+50% skóre trvale',                   icon: '×1.5',color: '#ff3388', stat: 'scoreMult',  value: 0.5   },
+    // ── Common stat upgrady (kola 1–10) ──
+    { id: 'dmg_up',    rarity: 'common',    type: 'stat', minRound: 1, weight: 8,
+      name: 'OSTŘEJŠÍ ZBRANĚ',    desc: '+1 poškození všem zbraním',          icon: '⬆️',  color: '#ff3355', stat: 'damage',    value: 1    },
+    { id: 'fire_up',   rarity: 'common',    type: 'stat', minRound: 1, weight: 7,
+      name: 'RYCHLÁ PALBA',       desc: '-20% čas mezi výstřely',             icon: '🔥',  color: '#ff6b00', stat: 'fireRate',  value: -0.2 },
+    { id: 'speed_up',  rarity: 'common',    type: 'stat', minRound: 1, weight: 7,
+      name: 'RYCHLEJŠÍ LOĎ',      desc: '+15% rychlost pohybu',               icon: '💨',  color: '#00ff88', stat: 'shipSpeed', value: 0.15 },
+
+    // ── Rare stat upgrady (kola 4+) ──
+    { id: 'hp_up',     rarity: 'rare',      type: 'stat', minRound: 4, weight: 5,
+      name: 'ŠTÍTOVÝ MODUL',      desc: '+1 extra život',                     icon: '❤️',  color: '#ff0055', stat: 'lives',     value: 1    },
+    { id: 'proj_up',   rarity: 'rare',      type: 'stat', minRound: 4, weight: 4,
+      name: 'DUAL FIRE',          desc: 'Laser střílí ze dvou hlavní',        icon: '🔱',  color: '#00aaff', stat: 'dualFire',  value: true },
+    { id: 'orbit_cnt', rarity: 'rare',      type: 'stat', minRound: 5, weight: 3,
+      name: 'VÍCE BOLAS',         desc: '+2 orbit kuličky',                   icon: '🔵',  color: '#ff8800', stat: 'orbitCount',value: 2    },
+    { id: 'mag_up',    rarity: 'rare',      type: 'stat', minRound: 3, weight: 4,
+      name: 'VĚTŠÍ ZÁSOBNÍK',     desc: '+6 nábojů do zásobníku',             icon: '🔋',  color: '#44ffaa', stat: 'magSize',   value: 6    },
+
+    // ── Legendary (kola 7+) ──
+    { id: 'magnet_p',  rarity: 'legendary', type: 'stat', minRound: 7, weight: 2,
+      name: 'PERMANENTNÍ MAGNET', desc: 'Stálý přitažlivý efekt navždy',      icon: '🧲',  color: '#ff8800', stat: 'permMagnet',value: true },
+    { id: 'score_up',  rarity: 'legendary', type: 'stat', minRound: 7, weight: 2,
+      name: 'SCORE BOOSTER ×1.5', desc: '+50% skóre permanentně',             icon: '⚡',  color: '#ff3388', stat: 'scoreMult', value: 0.5  },
+    { id: 'overdrive', rarity: 'legendary', type: 'stat', minRound: 8, weight: 1,
+      name: 'OVERDRIVE',          desc: '+30% damage +30% rychlost najednou', icon: '☄️',  color: '#ffaa00', stat: 'overdrive', value: true },
   ],
 
   // Power-ups (pickups during game)

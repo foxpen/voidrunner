@@ -59,6 +59,17 @@ const Weapons = (() => {
         stats['basic'] = stats['basic'] || {};
         stats['basic'].dual = true;
         break;
+      case 'magSize':
+        magShots = Math.min(magShots + card.value, MAG_SIZE + card.value);
+        // permanentně zvýší efektivní velikost zásobníku
+        break;
+      case 'overdrive':
+        // +30% damage všem zbraním
+        for (const id of equipped) {
+          stats[id] = stats[id] || {};
+          stats[id].damage = ((stats[id].damage || CFG.WEAPONS[id]?.damage || 1) * 1.3) | 0;
+        }
+        break;
     }
   }
 

@@ -199,7 +199,9 @@ const Audio = (() => {
       case 'death':    _sfxDeath();   break;
       case 'hit':      _sfxHit();     break;
       case 'round':    _sfxRound();   break;
-      case 'upgrade':  _sfxUpgrade(); break;
+      case 'upgrade':   _sfxUpgrade();   break;
+      case 'rare':      _sfxRare();      break;
+      case 'legendary': _sfxLegendary(); break;
     }
   }
 
@@ -291,6 +293,35 @@ const Audio = (() => {
       g.gain.linearRampToValueAtTime(0.16, t + 0.02);
       g.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
       o.start(t); o.stop(t + 0.3);
+    });
+  }
+
+  function _sfxRare() {
+    // Vzestupný arpeggio — přirozenější než common
+    [440, 660, 880, 1100, 1320].forEach((f, i) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(master);
+      o.type = 'sine'; o.frequency.value = f;
+      const t = ctx.currentTime + i * 0.07;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.18, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+      o.start(t); o.stop(t + 0.38);
+    });
+  }
+
+  function _sfxLegendary() {
+    // Epický chord burst — nízký + vysoký najednou
+    const now = ctx.currentTime;
+    [[220, 0], [440, 0.02], [660, 0.04], [880, 0.06], [1320, 0.08], [1760, 0.12]].forEach(([f, delay]) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(master);
+      o.type = 'sine'; o.frequency.value = f;
+      const t = now + delay;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.22, t + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+      o.start(t); o.stop(t + 0.75);
     });
   }
 
