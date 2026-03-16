@@ -333,6 +333,11 @@ const Weapons = (() => {
       ctx.fillText('NABÍJÍ...', W / 2, y - 6);
       ctx.globalAlpha = 1;
     } else {
+      // Label
+      ctx.font      = '9px Orbitron, monospace';
+      ctx.fillStyle = '#ffffff33';
+      ctx.textAlign = 'center';
+      ctx.fillText('ZÁSOBNÍK', W / 2, y - 6);
       // Bullet pips
       const pipW = Math.floor(barW / MAG_SIZE) - 2;
       for (let i = 0; i < MAG_SIZE; i++) {

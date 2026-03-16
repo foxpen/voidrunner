@@ -348,49 +348,50 @@ function draw() {
     Player.drawLivesHUD(ctx, W);
     Weapons.drawMagHUD(ctx, W, H, frameCount);
 
-    // ── Combo display ──
-    if (comboCount >= 5) {
+    // ── Combo display — nad lodí ──
+    if (comboCount >= 3) {
       const cMult  = comboCount >= 20 ? 3 : comboCount >= 10 ? 2 : comboCount >= 5 ? 1.5 : 1;
       const cColor = comboCount >= 20 ? '#ffcc00' : comboCount >= 10 ? '#ff8800' : '#00ffc8';
+      const cSize  = comboCount >= 10 ? 15 : 12;
       ctx.save();
       ctx.textAlign   = 'center';
-      ctx.font        = `bold 13px Orbitron, monospace`;
+      ctx.font        = `bold ${cSize}px Orbitron, monospace`;
       ctx.fillStyle   = cColor;
       ctx.shadowColor = cColor;
-      ctx.shadowBlur  = 14;
-      ctx.fillText(`×${cMult}  ${comboCount} COMBO`, Player.x, Player.y - 42);
+      ctx.shadowBlur  = 18;
+      ctx.fillText(`×${cMult}  ${comboCount}↑`, Player.x, Player.y - 46);
       ctx.shadowBlur  = 0;
       ctx.restore();
+    }
+
+    // ── Round target progress bar — vpravo nahoře ──
+    if (Rounds.phase === 'PLAYING') {
+      const target = Rounds.getScoreTarget();
+      if (target > 0) {
+        const pct    = Math.min(1, (score - roundScoreStart) / target);
+        const bw     = 130, bh = 6;
+        const bx     = W - bw - 16, by = 52;
+        const barCol = pct >= 1 ? '#00ff88' : pct > 0.6 ? '#ffcc00' : '#00ffc8';
+        ctx.fillStyle = '#0a0a1a88';
+        ctx.fillRect(bx - 2, by - 2, bw + 4, bh + 4);
+        ctx.fillStyle   = barCol;
+        ctx.shadowColor = barCol;
+        ctx.shadowBlur  = 8;
+        ctx.fillRect(bx, by, bw * pct, bh);
+        ctx.shadowBlur  = 0;
+        ctx.font        = '10px Orbitron, monospace';
+        ctx.fillStyle   = '#ffffff66';
+        ctx.textAlign   = 'right';
+        ctx.fillText(`CÍL  ${Math.min(100, Math.floor(pct * 100))}%`, W - 14, by - 5);
+      }
     }
 
     // ── Tilt indicator (mobile) ──
     if (Input.tiltEnabled) {
       ctx.font      = '10px Orbitron, monospace';
-      ctx.fillStyle = '#00ffc844';
+      ctx.fillStyle = '#00ffc833';
       ctx.textAlign = 'center';
-      ctx.fillText('NAKLON = POHYB  •  KLEPNI = REKALIBRUJ', W / 2, H - 20);
-    }
-
-    // ── Round target progress bar ──
-    if (Rounds.phase === 'PLAYING') {
-      const target = Rounds.getScoreTarget();
-      if (target > 0) {
-        const pct = Math.min(1, (score - roundScoreStart) / target);
-        const bx  = W - 170, by = H - 44;
-        const bw  = 140, bh  = 5;
-        ctx.fillStyle = '#0a0a1a';
-        ctx.fillRect(bx - 2, by - 2, bw + 4, bh + 4);
-        const barCol = pct >= 1 ? '#00ff88' : pct > 0.6 ? '#ffcc00' : '#00ffc8';
-        ctx.fillStyle   = barCol;
-        ctx.shadowColor = barCol;
-        ctx.shadowBlur  = 7;
-        ctx.fillRect(bx, by, bw * pct, bh);
-        ctx.shadowBlur  = 0;
-        ctx.font        = '10px Orbitron, monospace';
-        ctx.fillStyle   = '#ffffff55';
-        ctx.textAlign   = 'right';
-        ctx.fillText(`CÍL  ${Math.min(100, Math.floor(pct * 100))}%`, W - 14, by - 5);
-      }
+      ctx.fillText('↕↔ NAKLON  •  KLEPNI = REKALIBRUJ', W / 2, H - 14);
     }
   }
 
