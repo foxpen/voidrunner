@@ -170,28 +170,59 @@ const BG = (() => {
       }
     }
 
-    // ── Boss round: extreme environment — screen edges glow ──
-    if (isBossRound && s > 0.8) {
-      const edgeGrad = ctx.createRadialGradient(W/2, H/2, H * 0.2, W/2, H/2, H);
-      edgeGrad.addColorStop(0,   'rgba(0,0,0,0)');
-      edgeGrad.addColorStop(0.6, `rgba(255,80,0,${0.08 * (s - 0.8) * 5})`);
-      edgeGrad.addColorStop(1,   `rgba(255,40,0,${0.18 * (s - 0.8) * 5})`);
-      ctx.fillStyle = edgeGrad;
+    // ── Boss round: inside the wormhole — completely different arena ──
+    if (isBossRound) {
+      // Překryj vesmír fialovo-červeným interiérem červí díry
+      const arenaGrad = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W, H));
+      arenaGrad.addColorStop(0,   'rgba(20,0,30,0.92)');
+      arenaGrad.addColorStop(0.4, 'rgba(60,0,40,0.88)');
+      arenaGrad.addColorStop(0.8, 'rgba(100,10,0,0.85)');
+      arenaGrad.addColorStop(1,   'rgba(0,0,0,0.95)');
+      ctx.fillStyle = arenaGrad;
       ctx.fillRect(0, 0, W, H);
 
-      // Distortion lines (spaghettification)
-      ctx.globalAlpha = Math.min(0.15, (s - 0.8) * 0.5);
-      ctx.strokeStyle = '#ff6600';
-      ctx.lineWidth   = 1;
-      for (let i = 0; i < 12; i++) {
-        const y = (i / 12) * H;
-        const wave = Math.sin(frameCount * 0.02 + i) * 8 * (s - 0.8) * 5;
+      // Energie vortex — točící se energetické pruhy
+      ctx.save();
+      ctx.translate(W / 2, H * 0.35);
+      for (let i = 0; i < 18; i++) {
+        const a  = frameCount * 0.018 + (i / 18) * Math.PI * 2;
+        const r1 = 80 + Math.sin(a * 3 + frameCount * 0.005) * 30;
+        const r2 = 220 + Math.cos(a * 2) * 50;
+        const alpha = 0.06 + 0.04 * Math.sin(a * 5);
+        ctx.strokeStyle = `hsla(${280 + i * 8},90%,60%,${alpha})`;
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.moveTo(0, y + wave);
-        ctx.bezierCurveTo(W * 0.3, y + wave * 2, W * 0.7, y - wave * 2, W, y + wave);
+        ctx.moveTo(Math.cos(a) * r1, Math.sin(a) * r1);
+        ctx.quadraticCurveTo(
+          Math.cos(a + 0.5) * (r1 + r2) * 0.5,
+          Math.sin(a + 0.5) * (r1 + r2) * 0.5,
+          Math.cos(a + 1.0) * r2, Math.sin(a + 1.0) * r2
+        );
+        ctx.stroke();
+      }
+
+      // Spaghettification — horizontální distorzní vlny
+      ctx.globalAlpha = 0.12;
+      ctx.strokeStyle = '#cc44ff';
+      ctx.lineWidth   = 1;
+      for (let i = 0; i < 16; i++) {
+        const y    = (i / 16) * H - H * 0.35;
+        const wave = Math.sin(frameCount * 0.025 + i * 0.6) * 14;
+        ctx.beginPath();
+        ctx.moveTo(-W/2, y + wave);
+        ctx.bezierCurveTo(-W * 0.1, y + wave * 2.5, W * 0.1, y - wave * 2.5, W/2, y + wave);
         ctx.stroke();
       }
       ctx.globalAlpha = 1;
+      ctx.restore();
+
+      // Okraje — rudá záře singularity
+      const edgeGrad = ctx.createRadialGradient(W/2, H/2, H * 0.25, W/2, H/2, H);
+      edgeGrad.addColorStop(0,   'rgba(0,0,0,0)');
+      edgeGrad.addColorStop(0.7, 'rgba(180,0,80,0.10)');
+      edgeGrad.addColorStop(1,   'rgba(255,0,60,0.25)');
+      ctx.fillStyle = edgeGrad;
+      ctx.fillRect(0, 0, W, H);
     }
 
     _drawDebris(ctx);

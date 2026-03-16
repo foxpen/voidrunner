@@ -243,10 +243,16 @@ function draw() {
   ctx.save();
   ctx.translate(sx, sy);
 
-  // Background
+  // Background — fialové pro boss arenu, jinak normální
+  const isBoss = Rounds.isBossRound();
   const bg = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, W*0.7);
-  bg.addColorStop(0, activePU.slow > 0 ? '#18180a' : '#12121f');
-  bg.addColorStop(1, '#0a0a0f');
+  if (isBoss) {
+    bg.addColorStop(0, '#0d0010');
+    bg.addColorStop(1, '#050005');
+  } else {
+    bg.addColorStop(0, activePU.slow > 0 ? '#18180a' : '#12121f');
+    bg.addColorStop(1, '#0a0a0f');
+  }
   ctx.fillStyle = bg;
   ctx.fillRect(-20, -20, W+40, H+40);
 

@@ -32,6 +32,7 @@ const Boss = (() => {
       rotSpeed: 0.012,
       color: CFG_B.COLOR_P1,
       shakeX: 0,
+      hitFlash: 0,
       orbitAngle: 0,
     };
     bullets = [];
@@ -124,7 +125,9 @@ const Boss = (() => {
   function takeDamage(dmg) {
     if (!active) return;
     b.hp = Math.max(0, b.hp - dmg);
-    b.shakeX = 6;
+    b.shakeX = 8;
+    b.hitFlash = 8; // bílý záblesk při zásahu
+    Particles.spawn(b.x, b.y, '#ffffff', 6);
     if (b.hp <= 0 && !defeated) {
       defeated = true;
       active = false;
@@ -190,6 +193,16 @@ const Boss = (() => {
       corona.addColorStop(1,   `rgba(255,20,0,${0.3 * pulse})`);
       ctx.fillStyle = corona;
       ctx.beginPath(); ctx.arc(0, 0, b.size * 1.6, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Hit flash overlay
+    if (b.hitFlash > 0) {
+      b.hitFlash--;
+      const hfa = (b.hitFlash / 8) * 0.5;
+      ctx.globalAlpha = hfa;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(0, 0, b.size * 1.1, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
     }
 
     // Body — solid black event horizon
