@@ -1,36 +1,49 @@
 // ─── VOID RUNNER — BOSS ─────────────────────────────────────────────────────
 
 const Boss = (() => {
-  let active = false;
-  let b = {};
-  let bullets = [];
-  let attackTimer = 0;
-  let phase = 1;
+  let active   = false;
+  let b        = {};
+  let bullets  = [];
+  let phase    = 1;
   let defeated = false;
   let entryDone = false;
+
+  // ── Attack state machine ──
+  let attackTimer   = 0;   // frames until next attack
+  let attackPattern = 0;   // 0-3, cycles through patterns
+  let spiralFrame   = 0;   // frames left in spiral attack
+  let spiralAngle   = 0;
+
+  // ── Movement state machine ──
+  let moveState     = 'DRIFT';  // DRIFT | CHARGE | DODGE
+  let moveTimer     = 0;
+  let chargeTarget  = { x: 0, y: 0 };
+  let dodgeDir      = 1;
 
   const CFG_B = CFG.BOSS;
 
   function spawn(W, H) {
-    active = true;
-    defeated = false;
+    active    = true;
+    defeated  = false;
     entryDone = false;
-    phase = 1;
-    attackTimer = 0;
-    const bh_cy = (H || window.innerHeight) * 0.62; // pod středem BH aby byl viditelný
+    phase     = 1;
+    attackTimer   = 60;   // krátká pauza před prvním útokem
+    attackPattern = 0;
+    spiralFrame   = 0;
+    moveState     = 'DRIFT';
+    moveTimer     = 120;
+
     b = {
       x: W / 2,
-      y: bh_cy,
-      targetY: bh_cy,
+      y: (H || window.innerHeight) * 0.62,
       vx: 0, vy: 0,
       hp: CFG_B.HP,
       maxHp: CFG_B.HP,
-      size: 0,             // začíná na 0, scale-up animace
+      size: 0,
       targetSize: CFG_B.SIZE,
       entryFrame: 0,
       rot: 0,
       rotSpeed: 0.012,
-      color: CFG_B.COLOR_P1,
       shakeX: 0,
       hitFlash: 0,
       orbitAngle: 0,
@@ -39,9 +52,9 @@ const Boss = (() => {
   }
 
   function clear() {
-    active = false;
-    bullets = [];
-    b = {};
+    active   = false;
+    bullets  = [];
+    b        = {};
     defeated = false;
   }
 
@@ -49,7 +62,7 @@ const Boss = (() => {
     if (!active) return;
     const slowMult = slowActive ? 0.35 : 1;
 
-    // Entry: materializace z černé díry (scale 0 → targetSize za 90 framů)
+    // ── Entry: materializace ──
     if (!entryDone) {
       b.entryFrame++;
       b.size = b.targetSize * Math.min(1, b.entryFrame / 90);
@@ -59,89 +72,208 @@ const Boss = (() => {
       return;
     }
 
-    // Phase check
+    // ── Phase check ──
     if (b.hp <= CFG_B.PHASE2_HP && phase === 1) {
       phase = 2;
-      b.color = CFG_B.COLOR_P2;
-      b.rotSpeed = 0.025;
+      b.rotSpeed = 0.028;
       Particles.spawn(b.x, b.y, '#ff8800', 60);
     }
 
-    // Patrol — horizontal + vertical drift
-    const spd = CFG_B.SPEED * (phase === 2 ? 2.5 : 1.4);
-    b.vx += (Math.random() - 0.5) * 0.5 * (phase === 2 ? 2 : 1);
-    b.vy += (Math.random() - 0.5) * 0.25 * (phase === 2 ? 2 : 1);
-    b.vx *= 0.94; b.vy *= 0.94;
-    b.vx = Utils.clamp(b.vx, -spd, spd);
-    b.vy = Utils.clamp(b.vy, -spd * 0.6, spd * 0.6);
-    b.x += b.vx * slowMult;
-    b.y += b.vy * slowMult;
-    b.x  = Utils.clamp(b.x, b.size + 20, W - b.size - 20);
-    b.y  = Utils.clamp(b.y, H * 0.45, H - b.size - 20);
+    const p2 = phase === 2;
 
-    b.rot += b.rotSpeed * slowMult;
-    b.orbitAngle += 0.028 * (phase === 2 ? 1.8 : 1) * slowMult;
+    // ── Movement state machine ──
+    _updateMovement(W, H, slowMult, p2);
 
-    // Attack
-    attackTimer--;
-    if (attackTimer <= 0) {
-      attackTimer = Math.max(30, CFG_B.ATTACK_RATE - (phase === 2 ? 30 : 0));
-      _attack(W, H);
+    b.rot        += b.rotSpeed * slowMult;
+    b.orbitAngle += 0.028 * (p2 ? 1.8 : 1) * slowMult;
+
+    // Clamp v aréně
+    b.x = Utils.clamp(b.x, b.size + 20, W - b.size - 20);
+    b.y = Utils.clamp(b.y, H * 0.1,     H - b.size - 20);
+
+    // ── Spiral — pokračující útok ──
+    if (spiralFrame > 0) {
+      spiralFrame--;
+      spiralAngle += 0.28 * (p2 ? 1.5 : 1);
+      const spd = p2 ? 4 : 3;
+      bullets.push({
+        x: b.x, y: b.y,
+        vx: Math.cos(spiralAngle) * spd,
+        vy: Math.sin(spiralAngle) * spd,
+        size: 5, halo: '#aa44ff', speed: spd,
+      });
     }
 
-    // Move bullets
+    // ── Attack timer ──
+    attackTimer -= slowMult;
+    if (attackTimer <= 0 && spiralFrame <= 0) {
+      const rate = Math.max(40, (p2 ? 55 : 80));
+      attackTimer = rate;
+      _doAttack(W, H, p2);
+    }
+
+    // ── Move bullets ──
     bullets.forEach(bul => {
       bul.x += bul.vx * slowMult;
       bul.y += bul.vy * slowMult;
       if (bul.homing) {
         const angle = Utils.angleTo(bul.x, bul.y, Player.x, Player.y);
-        bul.vx = Utils.moveToward(bul.vx, Math.cos(angle) * bul.speed, 0.15);
-        bul.vy = Utils.moveToward(bul.vy, Math.sin(angle) * bul.speed, 0.15);
+        bul.vx = Utils.moveToward(bul.vx, Math.cos(angle) * bul.speed, 0.18);
+        bul.vy = Utils.moveToward(bul.vy, Math.sin(angle) * bul.speed, 0.18);
       }
     });
-    bullets = bullets.filter(bul => bul.x > -20 && bul.x < W+20 && bul.y > -20 && bul.y < H+20);
+    bullets = bullets.filter(bul =>
+      bul.x > -30 && bul.x < W + 30 && bul.y > -30 && bul.y < H + 30
+    );
   }
 
-  function _attack(W, H) {
-    if (phase === 1) {
-      const count = 8;
-      for (let i = 0; i < count; i++) {
-        const a = (i / count) * Math.PI * 2;
-        bullets.push({ x: b.x, y: b.y, vx: Math.cos(a)*3, vy: Math.sin(a)*3, size: 6, halo: '#ff8800', speed: 3 });
+  // ─── Movement state machine ────────────────────────────────────────────────
+  function _updateMovement(W, H, slowMult, p2) {
+    moveTimer -= slowMult;
+
+    if (moveState === 'DRIFT') {
+      // Náhodný drift
+      b.vx += (Math.random() - 0.5) * (p2 ? 0.7 : 0.4);
+      b.vy += (Math.random() - 0.5) * (p2 ? 0.5 : 0.28);
+      b.vx *= 0.93; b.vy *= 0.93;
+      const maxSpd = p2 ? 2.5 : 1.6;
+      b.vx = Utils.clamp(b.vx, -maxSpd, maxSpd);
+      b.vy = Utils.clamp(b.vy, -maxSpd * 0.6, maxSpd * 0.6);
+      if (moveTimer <= 0) {
+        // Přepni na CHARGE nebo DODGE
+        moveState    = Math.random() < (p2 ? 0.55 : 0.35) ? 'CHARGE' : 'DODGE';
+        moveTimer    = p2 ? 80 : 110;
+        chargeTarget = { x: Player.x, y: Player.y };
+        dodgeDir     = Math.random() < 0.5 ? 1 : -1;
       }
-    } else {
-      const count = 12;
-      for (let i = 0; i < count; i++) {
-        const a = (i / count) * Math.PI * 2;
-        bullets.push({ x: b.x, y: b.y, vx: Math.cos(a)*4, vy: Math.sin(a)*4, size: 5, halo: '#ff4400', speed: 4 });
+
+    } else if (moveState === 'CHARGE') {
+      // Nabíhá k pozici hráče (zapamatované při startu CHARGE)
+      const ax = (chargeTarget.x - b.x) * 0.06;
+      const ay = (chargeTarget.y - b.y) * 0.06;
+      b.vx += ax; b.vy += ay;
+      b.vx *= 0.9; b.vy *= 0.9;
+      const maxChg = p2 ? 5.5 : 3.8;
+      b.vx = Utils.clamp(b.vx, -maxChg, maxChg);
+      b.vy = Utils.clamp(b.vy, -maxChg, maxChg);
+      if (moveTimer <= 0) {
+        moveState = 'DRIFT';
+        moveTimer = p2 ? 100 : 140;
       }
-      for (let i = 0; i < 2; i++) {
-        const angle = Utils.angleTo(b.x, b.y, Player.x, Player.y) + (i===0?-0.2:0.2);
-        bullets.push({ x: b.x, y: b.y, vx: Math.cos(angle)*3, vy: Math.sin(angle)*3, size: 8, halo: '#ffcc00', speed: 3, homing: true });
+
+    } else if (moveState === 'DODGE') {
+      // Uhýbá kolmo od hráče
+      const toPlayer = Utils.angleTo(b.x, b.y, Player.x, Player.y);
+      const perpAngle = toPlayer + Math.PI * 0.5 * dodgeDir;
+      const dodgeSpd  = p2 ? 3.5 : 2.2;
+      b.vx += Math.cos(perpAngle) * 0.4;
+      b.vy += Math.sin(perpAngle) * 0.4;
+      b.vx *= 0.92; b.vy *= 0.92;
+      b.vx = Utils.clamp(b.vx, -dodgeSpd, dodgeSpd);
+      b.vy = Utils.clamp(b.vy, -dodgeSpd, dodgeSpd);
+      if (moveTimer <= 0) {
+        moveState = 'DRIFT';
+        moveTimer = p2 ? 90 : 120;
+      }
+    }
+
+    b.x += b.vx * slowMult;
+    b.y += b.vy * slowMult;
+  }
+
+  // ─── 4 útočné patterny ────────────────────────────────────────────────────
+  function _doAttack(W, H, p2) {
+    const pat = attackPattern % (p2 ? 4 : 3);  // fáze 2 odemkne curtain
+    attackPattern++;
+
+    switch (pat) {
+
+      case 0: // RADIAL — kruhový výbuch
+        _attackRadial(p2 ? 14 : 10, p2 ? 4.5 : 3.2);
+        break;
+
+      case 1: // SPIRAL — otáčivá spirála
+        spiralFrame = p2 ? 36 : 28;
+        spiralAngle = Utils.angleTo(b.x, b.y, Player.x, Player.y);
+        break;
+
+      case 2: // SWARM — naváděcí roje
+        _attackSwarm(p2 ? 6 : 4);
+        break;
+
+      case 3: // CURTAIN — zeď střel s mezerami (jen fáze 2)
+        _attackCurtain(W, H);
+        break;
+    }
+
+    // Po útoku — udělej dodge
+    if (moveState === 'DRIFT') {
+      moveState = 'DODGE';
+      moveTimer = 70;
+      dodgeDir  = Math.random() < 0.5 ? 1 : -1;
+    }
+  }
+
+  function _attackRadial(count, spd) {
+    const offset = Math.random() * Math.PI * 2;
+    for (let i = 0; i < count; i++) {
+      const a = offset + (i / count) * Math.PI * 2;
+      bullets.push({
+        x: b.x, y: b.y,
+        vx: Math.cos(a) * spd, vy: Math.sin(a) * spd,
+        size: 6, halo: '#ff9922', speed: spd,
+      });
+    }
+  }
+
+  function _attackSwarm(count) {
+    for (let i = 0; i < count; i++) {
+      const spread = (i / count - 0.5) * 1.2;
+      const angle  = Utils.angleTo(b.x, b.y, Player.x, Player.y) + spread;
+      const spd    = 2.8 + Math.random() * 1.2;
+      bullets.push({
+        x: b.x + Math.cos(angle) * b.size,
+        y: b.y + Math.sin(angle) * b.size,
+        vx: Math.cos(angle) * spd,
+        vy: Math.sin(angle) * spd,
+        size: 7, halo: '#ffcc00', speed: spd, homing: true,
+      });
+    }
+  }
+
+  function _attackCurtain(W, H) {
+    // 3 řady střel se svislými mezerami (hráč musí projet)
+    const rows   = 3;
+    const cols   = 9;
+    const gapCol = Math.floor(Math.random() * cols); // mezera
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        if (Math.abs(col - gapCol) <= 0.5) continue; // mezera pro hráče
+        const bx = (col / (cols - 1)) * W;
+        const by = H * (0.15 + row * 0.08);
+        bullets.push({
+          x: bx, y: by,
+          vx: 0, vy: 1.8 + row * 0.4,
+          size: 6, halo: '#ff4466', speed: 1.8,
+        });
       }
     }
   }
 
+  // ─── Damage & hit ─────────────────────────────────────────────────────────
   function takeDamage(dmg) {
     if (!active) return;
     b.hp = Math.max(0, b.hp - dmg);
-    b.shakeX = 8;
-    b.hitFlash = 8; // bílý záblesk při zásahu
+    b.shakeX   = 8;
+    b.hitFlash = 8;
     Particles.spawn(b.x, b.y, '#ffffff', 6);
     if (b.hp <= 0 && !defeated) {
       defeated = true;
-      active = false;
+      active   = false;
       Particles.spawn(b.x, b.y, '#ff3355', 80);
       Particles.spawn(b.x, b.y, '#ff8800', 60);
       Particles.spawn(b.x, b.y, '#ffcc00', 40);
     }
-  }
-
-  function checkWeaponHits(enemies) {
-    // Boss acts as a single enemy-like target for weapon system
-    if (!active || !entryDone) return;
-    // We inject boss as enemy-like object; weapons.js handles collision
-    // So we expose boss as a target list
   }
 
   function checkPlayerBulletHit() {
@@ -157,68 +289,66 @@ const Boss = (() => {
     return { x: b.x, y: b.y, size: b.size, hp: b.hp, takeDmg: takeDamage };
   }
 
+  // ─── Draw ─────────────────────────────────────────────────────────────────
   function draw(ctx, frameCount) {
     if (!active) return;
 
-    // ── Boss bullets — mini event horizons ──
+    // Boss bullets
     bullets.forEach(bul => {
       const halo = bul.halo || '#ff8800';
-      // Halo glow
-      const hg = ctx.createRadialGradient(bul.x, bul.y, 0, bul.x, bul.y, bul.size * 2.5);
-      hg.addColorStop(0, halo + '66');
+      const hg   = ctx.createRadialGradient(bul.x, bul.y, 0, bul.x, bul.y, bul.size * 2.5);
+      hg.addColorStop(0, halo + '88');
       hg.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = hg;
       ctx.beginPath(); ctx.arc(bul.x, bul.y, bul.size * 2.5, 0, Math.PI * 2); ctx.fill();
-      // Dark core
-      ctx.fillStyle = '#020002';
-      ctx.shadowColor = halo; ctx.shadowBlur = 10;
+      ctx.fillStyle = '#010001';
+      ctx.shadowColor = halo; ctx.shadowBlur = 12;
       ctx.beginPath(); ctx.arc(bul.x, bul.y, bul.size, 0, Math.PI * 2); ctx.fill();
       ctx.shadowBlur = 0;
     });
 
-    // ── Boss body ──
+    // Boss body
     ctx.save();
     ctx.translate(b.x + b.shakeX, b.y);
     b.shakeX *= 0.7;
 
-    const pulse = 0.7 + 0.3 * Math.sin(frameCount * (phase === 2 ? 0.12 : 0.06));
+    const pulse    = 0.7 + 0.3 * Math.sin(frameCount * (phase === 2 ? 0.12 : 0.06));
     const ringColor = phase === 2 ? '#ff4400' : '#ff9922';
     const edgeColor = phase === 2 ? '#ff4400' : '#ff8800';
 
-    // Phase 2: outer distortion corona
-    if (phase === 2) {
-      const corona = ctx.createRadialGradient(0, 0, b.size * 0.8, 0, 0, b.size * 1.6);
-      corona.addColorStop(0, 'rgba(0,0,0,0)');
-      corona.addColorStop(0.6, `rgba(255,60,0,${0.12 * pulse})`);
-      corona.addColorStop(1,   `rgba(255,20,0,${0.3 * pulse})`);
-      ctx.fillStyle = corona;
-      ctx.beginPath(); ctx.arc(0, 0, b.size * 1.6, 0, Math.PI * 2); ctx.fill();
-    }
-
-    // Hit flash overlay
+    // Hit flash
     if (b.hitFlash > 0) {
       b.hitFlash--;
-      const hfa = (b.hitFlash / 8) * 0.5;
-      ctx.globalAlpha = hfa;
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath(); ctx.arc(0, 0, b.size * 1.1, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = (b.hitFlash / 8) * 0.55;
+      ctx.fillStyle   = '#ffffff';
+      ctx.beginPath(); ctx.arc(0, 0, b.size * 1.15, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 1;
     }
 
-    // Body — solid black event horizon
+    // Phase 2: corona
+    if (phase === 2) {
+      const corona = ctx.createRadialGradient(0, 0, b.size * 0.8, 0, 0, b.size * 1.7);
+      corona.addColorStop(0,   'rgba(0,0,0,0)');
+      corona.addColorStop(0.5, `rgba(255,60,0,${0.12 * pulse})`);
+      corona.addColorStop(1,   `rgba(255,20,0,${0.32 * pulse})`);
+      ctx.fillStyle = corona;
+      ctx.beginPath(); ctx.arc(0, 0, b.size * 1.7, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // Body
     ctx.rotate(b.rot);
     const bodyGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, b.size);
-    bodyGrad.addColorStop(0, '#000000');
+    bodyGrad.addColorStop(0,   '#000000');
     bodyGrad.addColorStop(0.8, '#050205');
-    bodyGrad.addColorStop(1, '#0a0308');
-    ctx.fillStyle = bodyGrad;
+    bodyGrad.addColorStop(1,   '#0a0308');
+    ctx.fillStyle  = bodyGrad;
     ctx.shadowColor = edgeColor;
-    ctx.shadowBlur = 30 * pulse;
+    ctx.shadowBlur  = 30 * pulse;
     ctx.beginPath(); ctx.arc(0, 0, b.size, 0, Math.PI * 2); ctx.fill();
 
-    // Hexagon structure inside core (subtle)
+    // Hexagon core
     ctx.strokeStyle = `rgba(255,80,0,${0.12 + 0.08 * pulse})`;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth   = 1.5;
     ctx.beginPath();
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2;
@@ -228,21 +358,29 @@ const Boss = (() => {
     ctx.closePath(); ctx.stroke();
     ctx.shadowBlur = 0;
 
-    // ── Orbiting photon ring (accretion disk) ──
-    ctx.rotate(-b.rot); // world-space
+    // Accretion ring
+    ctx.rotate(-b.rot);
     ctx.save();
     ctx.rotate(b.orbitAngle);
-    ctx.scale(1, 0.26);  // flatten to ellipse
-    ctx.strokeStyle = ringColor;
-    ctx.lineWidth = phase === 2 ? 4 : 2.5;
-    ctx.shadowColor = ringColor;
-    ctx.shadowBlur = phase === 2 ? 28 : 16;
-    ctx.globalAlpha = phase === 2 ? 0.9 : 0.72;
-    ctx.beginPath();
-    ctx.arc(0, 0, b.size * 1.18, 0, Math.PI * 2);
-    ctx.stroke();
+    ctx.scale(1, 0.26);
+    ctx.strokeStyle  = ringColor;
+    ctx.lineWidth    = phase === 2 ? 4 : 2.5;
+    ctx.shadowColor  = ringColor;
+    ctx.shadowBlur   = phase === 2 ? 28 : 16;
+    ctx.globalAlpha  = phase === 2 ? 0.9 : 0.72;
+    ctx.beginPath(); ctx.arc(0, 0, b.size * 1.18, 0, Math.PI * 2); ctx.stroke();
     ctx.globalAlpha = 1; ctx.shadowBlur = 0;
     ctx.restore();
+
+    // Move state indicator — malý symbol nad bossem
+    if (moveState === 'CHARGE') {
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle   = '#ff4422';
+      ctx.font        = `bold ${b.size * 0.3}px monospace`;
+      ctx.textAlign   = 'center';
+      ctx.fillText('▼', 0, -b.size - 10);
+      ctx.globalAlpha = 1;
+    }
 
     ctx.restore();
   }
@@ -250,10 +388,10 @@ const Boss = (() => {
   return {
     spawn, clear, update, draw,
     checkPlayerBulletHit, asBossTarget, takeDamage,
-    get active() { return active; },
+    get active()   { return active; },
     get defeated() { return defeated; },
-    get hp() { return b.hp || 0; },
-    get maxHp() { return b.maxHp || CFG_B.HP; },
-    get phase() { return phase; },
+    get hp()       { return b.hp || 0; },
+    get maxHp()    { return b.maxHp || CFG_B.HP; },
+    get phase()    { return phase; },
   };
 })();
