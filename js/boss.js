@@ -117,9 +117,14 @@ const Boss = (() => {
       bul.x += bul.vx * slowMult;
       bul.y += bul.vy * slowMult;
       if (bul.homing) {
-        const angle = Utils.angleTo(bul.x, bul.y, Player.x, Player.y);
-        bul.vx = Utils.moveToward(bul.vx, Math.cos(angle) * bul.speed, 0.18);
-        bul.vy = Utils.moveToward(bul.vy, Math.sin(angle) * bul.speed, 0.18);
+        bul.homingDelay = (bul.homingDelay || 0) - 1;
+        if (bul.homingDelay <= 0) {
+          const angle = Utils.angleTo(bul.x, bul.y, Player.x, Player.y);
+          bul.vx = Utils.moveToward(bul.vx, Math.cos(angle) * bul.speed, 0.07);
+          bul.vy = Utils.moveToward(bul.vy, Math.sin(angle) * bul.speed, 0.07);
+        }
+        bul.life = (bul.life || 300) - 1;
+        if (bul.life <= 0) { bul.x = -999; } // odstranit
       }
     });
     bullets = bullets.filter(bul =>
@@ -228,15 +233,18 @@ const Boss = (() => {
 
   function _attackSwarm(count) {
     for (let i = 0; i < count; i++) {
-      const spread = (i / count - 0.5) * 1.2;
+      const spread = (i / count - 0.5) * 1.8; // větší rozptyl na startu
       const angle  = Utils.angleTo(b.x, b.y, Player.x, Player.y) + spread;
-      const spd    = 2.8 + Math.random() * 1.2;
+      const spd    = 2.0 + Math.random() * 0.8; // pomalejší
       bullets.push({
         x: b.x + Math.cos(angle) * b.size,
         y: b.y + Math.sin(angle) * b.size,
         vx: Math.cos(angle) * spd,
         vy: Math.sin(angle) * spd,
-        size: 7, halo: '#ffcc00', speed: spd, homing: true,
+        size: 7, halo: '#ffcc00', speed: spd,
+        homing: true,
+        homingDelay: 40, // 40 framů letí rovně
+        life: 300,       // zmizí po 5s
       });
     }
   }
