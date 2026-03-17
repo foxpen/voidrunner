@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VOID RUNNER</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; overflow: hidden; }
+canvas { display: block; position: fixed; top: 0; left: 0; }
+
+#overlay {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  pointer-events: none; z-index: 10;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+}
+
+#title-wrap {
+  margin-top: 14vh;
+  text-align: center;
+  opacity: 0;
+  transform: translateY(20px) scale(1.04);
+  transition: opacity 1.2s ease, transform 1.2s ease;
+}
+#title-wrap.show { opacity: 1; transform: translateY(0) scale(1); }
+
+#title {
+  font-family: 'Orbitron', monospace;
+  font-size: clamp(44px, 8vw, 110px);
+  font-weight: 900;
+  color: #f5f0e8;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  text-shadow:
+    0 0 30px rgba(255,130,40,0.4),
+    0 0 80px rgba(255,80,10,0.18),
+    0 2px 6px rgba(0,0,0,0.9);
+}
+
+#divider {
+  height: 1px;
+  margin: 18px auto;
+  width: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,160,60,0.65), transparent);
+  transition: width 0.9s ease;
+}
+#divider.show { width: min(680px, 75vw); }
+
+#subtitle {
+  font-family: 'Orbitron', monospace;
+  font-size: clamp(11px, 1.6vw, 16px);
+  font-weight: 400;
+  color: rgba(255,175,70,0.75);
+  letter-spacing: 0.55em;
+  text-transform: uppercase;
+  min-height: 1.6em;
+  text-shadow: 0 0 30px rgba(255,120,20,0.3);
+}
+
+#prompt {
+  margin-top: 44px;
+  font-family: 'Orbitron', monospace;
+  font-size: clamp(10px, 1.1vw, 13px);
+  font-weight: 700;
+  color: rgba(255,175,70,0.55);
+  letter-spacing: 0.38em;
+  text-transform: uppercase;
+  opacity: 0;
+  animation: promptBlink 2s ease-in-out infinite;
+}
+#prompt.show { opacity: 1; }
+@keyframes promptBlink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+#skip {
+  position: fixed; bottom: 28px; right: 36px;
+  font-family: 'Orbitron', monospace; font-size: 10px;
+  color: rgba(255,255,255,0.2); letter-spacing: 3px;
+  z-index: 20; cursor: pointer;
+  transition: color 0.3s;
+}
+#skip:hover { color: rgba(255,175,70,0.6); }
+
+#fade {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: #000; z-index: 50; opacity: 1;
+  transition: opacity 1s ease; pointer-events: none;
+}
+#fade.clear { opacity: 0; }
+#fade.black { opacity: 1; pointer-events: all; }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+<div id="overlay">
+  <div id="title-wrap">
+    <div id="title">VOID RUNNER</div>
+    <div id="divider"></div>
+    <div id="subtitle"></div>
+    <div id="prompt">STISKNI ENTER / KLIKNI</div>
+  </div>
+</div>
+<div id="skip">PŘESKOČIT</div>
+<div id="fade"></div>
+
+<script>
+// ── CANVAS SETUP ────────────────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, cx, cy;
+function resize() {
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  cx = W / 2; cy = H / 2;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ── SEEDED RANDOM ───────────────────────────────────────────────────────────
+function sr(seed) {
+  const x = Math.sin(seed + 1) * 10000;
+  return x - Math.floor(x);
+}
+
+// ── STARS (3D warp starfield) ────────────────────────────────────────────────
+const STAR_N = 1600;
+const warpStars = Array.from({ length: STAR_N }, (_, i) => {
+  const angle = sr(i * 7) * Math.PI * 2;
+  return {
+    nx: Math.cos(angle),
+    ny: Math.sin(angle),
+    phase: sr(i * 7 + 1),
+    b:  0.5 + sr(i * 7 + 2) * 0.5,
+    hue: sr(i * 7 + 3) < 0.12 ? 0 : sr(i * 7 + 3) < 0.22 ? 1 : 2,
+    w:  0.5 + sr(i * 7 + 4) * 1.1,
+  };
+});
+
+// ── BG STARS (static layer, full screen coverage) ────────────────────────────
+const BG_N = 420;
+const bgStars = Array.from({ length: BG_N }, (_, i) => ({
+  x: sr(i * 3),
+  y: sr(i * 3 + 1),
+  r: 0.4 + sr(i * 3 + 2) * 1.1,
+  b: 0.15 + sr(i * 3 + 3) * 0.45,
+}));
+
+// ── BLACK HOLE dust ──────────────────────────────────────────────────────────
+const DUST_N = 550;
+const dust = Array.from({ length: DUST_N }, (_, i) => ({
+  angle: sr(i * 5) * Math.PI * 2,
+  r:     140 + sr(i * 5 + 1) * 340,
+  speed: (0.0002 + sr(i * 5 + 2) * 0.0005) * (sr(i * 5 + 3) < 0.5 ? 1 : -1),
+  size:  sr(i * 5 + 4) * 3 + 0.5,
+  b:     sr(i * 5) * 0.8 + 0.2,
+  hue:   15 + sr(i * 5 + 1) * 50,
+  layer: i < 180 ? 0 : i < 380 ? 1 : 2,
+}));
+
+// ── TIMING ───────────────────────────────────────────────────────────────────
+// All times in seconds
+const T_WARP_START  = 3;    // warp spool-up begins
+const T_WARP_PEAK   = 6;    // full warp
+const T_WARP_END    = 9;    // snap stop
+const T_SNAP_DONE   = 10;
+const T_BH_START    = 9.5;
+const T_BH_FULL     = 13.5;
+const T_TITLE       = 11.0;
+const T_DIVIDER     = 11.8;
+const T_SUBTITLE    = 12.8;
+const T_PROMPT      = 15.0;
+const T_TOTAL       = 17.0;
+
+const FPS = 60;
+let elapsed = 0;     // seconds
+let lastT   = null;
+let done    = false;
+
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+function lerp(a, b, t)    { return a + (b - a) * t; }
+function easedInQuad(t)   { return t * t; }
+function easedOutExp(t)   { return t <= 0 ? 0 : 1 - Math.pow(2, -10 * t); }
+function easedOutQuad(t)  { return 1 - (1-t)*(1-t); }
+
+function easeInQuad(frame, t0, t1, v0, v1) {
+  const t = clamp((frame - t0) / (t1 - t0), 0, 1);
+  return lerp(v0, v1, easedInQuad(t));
+}
+function easeOutQuad(frame, t0, t1, v0, v1) {
+  const t = clamp((frame - t0) / (t1 - t0), 0, 1);
+  return lerp(v0, v1, easedOutQuad(t));
+}
+function easeOutExp(frame, t0, t1, v0, v1) {
+  const t = clamp((frame - t0) / (t1 - t0), 0, 1);
+  return lerp(v0, v1, easedOutExp(t));
+}
+function linear(frame, t0, t1, v0, v1) {
+  const t = clamp((frame - t0) / (t1 - t0), 0, 1);
+  return lerp(v0, v1, t);
+}
+
+// ── TYPEWRITER ────────────────────────────────────────────────────────────────
+const SUBTITLE_TEXT = 'naviguj prázdnotou';
+let subtitleShown = '';
+let subtitleIdx   = 0;
+let lastCharT     = 0;
+const CHAR_DUR = 0.1; // seconds per character
+
+// ── TITLE STATE ───────────────────────────────────────────────────────────────
+let titleShown   = false;
+let dividerShown = false;
+let promptShown  = false;
+
+// ── NAVIGATION ────────────────────────────────────────────────────────────────
+function goToOnboarding() {
+  if (done) return;
+  done = true;
+  localStorage.setItem('vr_intro_seen', '1');
+  const fade = document.getElementById('fade');
+  fade.style.transition = 'opacity 0.9s ease';
+  fade.classList.add('black');
+  setTimeout(() => { window.location.href = 'onboarding.html'; }, 1000);
+}
+
+document.getElementById('skip').addEventListener('click', goToOnboarding);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') goToOnboarding();
+});
+canvas.addEventListener('click', () => { if (elapsed > T_TITLE) goToOnboarding(); });
+document.getElementById('prompt').addEventListener('click', goToOnboarding);
+
+// ── MAIN RENDER ────────────────────────────────────────────────────────────────
+function render(now) {
+  if (!lastT) lastT = now;
+  const dt = Math.min((now - lastT) / 1000, 0.05); // seconds, capped
+  lastT = now;
+  if (!done) elapsed += dt;
+
+  const e = elapsed;
+  const R = Math.min(W, H);
+
+  // ── Speed ──
+  let speed;
+  if      (e < T_WARP_START) speed = 0;
+  else if (e < T_WARP_PEAK)  speed = easeInQuad(e, T_WARP_START, T_WARP_PEAK, 0, 1);
+  else if (e < T_WARP_END)   speed = 1;
+  else                        speed = easeOutExp(e, T_WARP_END, T_SNAP_DONE, 1, 0);
+
+  // ── Travel distance (integral of speed) ──
+  let travel;
+  if      (e < T_WARP_START) travel = 0;
+  else if (e < T_WARP_PEAK)  travel = easeInQuad(e, T_WARP_START, T_WARP_PEAK, 0, 0.30);
+  else if (e < T_WARP_END)   travel = linear(e, T_WARP_PEAK, T_WARP_END, 0.30, 1.20);
+  else                        travel = linear(e, T_WARP_END, T_SNAP_DONE, 1.20, 1.28);
+  travel *= 2.6;
+
+  // ── BH ──
+  const bhP = clamp((e - T_BH_START) / (T_BH_FULL - T_BH_START), 0, 1);
+  const bhPe = easedOutQuad(bhP);
+  const bhR  = bhPe * R * 0.155;
+
+  // ── Fade in ──
+  const fadeIn = clamp(e / 2, 0, 1);
+
+  // ── BACKGROUND ──────────────────────────────────────────────────────────────
+  const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, Math.max(W,H)*0.9);
+  bg.addColorStop(0, '#07030e');
+  bg.addColorStop(1, '#010106');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // ── Nebulae ──
+  const nebA = clamp(e / 2, 0, 1);
+  [
+    { x:0.15, y:0.25, r:0.4,  c:'28,6,75'  },
+    { x:0.85, y:0.68, r:0.35, c:'6,18,65'  },
+    { x:0.52, y:0.88, r:0.3,  c:'55,6,38'  },
+  ].forEach(({ x, y, r, c }) => {
+    const ng = ctx.createRadialGradient(W*x,H*y,0,W*x,H*y,R*r);
+    ng.addColorStop(0, `rgba(${c},${0.13*nebA})`);
+    ng.addColorStop(1, 'transparent');
+    ctx.fillStyle = ng;
+    ctx.fillRect(0,0,W,H);
+  });
+
+  // ── BG stars (2D zoom) ──
+  const bgZoom = 1 + speed * 4.5;
+  bgStars.forEach(s => {
+    const ox = s.x*W - cx, oy = s.y*H - cy;
+    const bx = cx + ox*bgZoom, by = cy + oy*bgZoom;
+    if (bx<-40||bx>W+40||by<-40||by>H+40) return;
+    if (Math.sqrt((bx-cx)**2+(by-cy)**2) < bhR*1.05) return;
+    const tailX = cx+ox, tailY = cy+oy;
+    const sLen = Math.sqrt((bx-tailX)**2+(by-tailY)**2);
+    ctx.globalAlpha = s.b * fadeIn;
+    if (sLen > 0.8 && speed > 0.02) {
+      const sg = ctx.createLinearGradient(tailX,tailY,bx,by);
+      sg.addColorStop(0,'rgba(200,215,255,0)');
+      sg.addColorStop(1,`rgba(200,215,255,${s.b*fadeIn})`);
+      ctx.strokeStyle = sg;
+      ctx.lineWidth = s.r*(0.6+speed*0.8);
+      ctx.beginPath(); ctx.moveTo(tailX,tailY); ctx.lineTo(bx,by); ctx.stroke();
+    }
+    const dotA = Math.max(0, 1-speed*4);
+    if (dotA > 0.01) {
+      ctx.globalAlpha = s.b*fadeIn*dotA;
+      ctx.fillStyle = '#ccd8ff';
+      ctx.beginPath(); ctx.arc(bx,by,s.r,0,Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  });
+
+  // ── 3D warp stars ──
+  const FOCAL = 0.10, CYCLE = 0.95;
+  const twist = speed>0.7 ? (speed-0.7)*0.12 : 0;
+  ctx.save();
+  ctx.translate(cx,cy); ctx.rotate(twist); ctx.translate(-cx,-cy);
+
+  warpStars.forEach(star => {
+    const rawZ = ((star.phase - travel) % CYCLE + CYCLE) % CYCLE;
+    if (rawZ < 0.018) return;
+    const projDist = (FOCAL/rawZ)*R;
+    const drawX = cx + star.nx*projDist;
+    const drawY = cy + star.ny*projDist;
+    if (drawX<-120||drawX>W+120||drawY<-120||drawY>H+120) return;
+    const distToC = Math.sqrt((drawX-cx)**2+(drawY-cy)**2);
+    if (distToC < bhR*1.05) return;
+
+    const bhPull = bhPe * Math.max(0, 1-distToC/(W*0.42))*0.45;
+    const fdrawX = drawX+(cx-drawX)*bhPull;
+    const fdrawY = drawY+(cy-drawY)*bhPull;
+
+    const prevZ   = rawZ + speed*0.18;
+    const prevDist = (FOCAL/Math.min(prevZ,0.98))*R;
+    const tailX  = cx+star.nx*prevDist;
+    const tailY  = cy+star.ny*prevDist;
+
+    const brightness = star.b*fadeIn*(0.4+(1-rawZ)*0.6);
+    if (brightness < 0.02) return;
+
+    const col = star.hue===0 ? [145,205,255] : star.hue===1 ? [255,242,185] : [215,222,255];
+    const lw  = star.w*(0.7+speed*1.6);
+    ctx.globalAlpha = brightness;
+
+    const tLen = Math.sqrt((fdrawX-tailX)**2+(fdrawY-tailY)**2);
+    if (tLen > 1 && speed > 0.01) {
+      const sg = ctx.createLinearGradient(tailX,tailY,fdrawX,fdrawY);
+      sg.addColorStop(0,  `rgba(${col},0)`);
+      sg.addColorStop(0.55,`rgba(${col},${brightness*0.45})`);
+      sg.addColorStop(1,  `rgba(${col},${brightness})`);
+      ctx.strokeStyle = sg;
+      ctx.lineWidth = lw;
+      ctx.beginPath(); ctx.moveTo(tailX,tailY); ctx.lineTo(fdrawX,fdrawY); ctx.stroke();
+    }
+    const dotA = Math.max(0,1-speed*5);
+    if (dotA>0.01) {
+      ctx.globalAlpha = brightness*dotA;
+      ctx.fillStyle = `rgb(${col})`;
+      ctx.beginPath(); ctx.arc(fdrawX,fdrawY,lw*0.9,0,Math.PI*2); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  });
+  ctx.restore();
+
+  // ── BLACK HOLE ───────────────────────────────────────────────────────────────
+  if (bhPe > 0.01) {
+    // Outer glow
+    for (let p=3;p>=1;p--) {
+      const og=ctx.createRadialGradient(cx,cy,bhR,cx,cy,bhR*4.5*p*0.45);
+      og.addColorStop(0,`rgba(255,90,10,${bhPe*0.2/p})`);
+      og.addColorStop(0.3,`rgba(180,30,80,${bhPe*0.09/p})`);
+      og.addColorStop(1,'transparent');
+      ctx.fillStyle=og; ctx.globalAlpha=1;
+      ctx.beginPath(); ctx.arc(cx,cy,bhR*4.5*p*0.45,0,Math.PI*2); ctx.fill();
+    }
+    // Accretion disk
+    const rot = e*0.4;
+    ctx.save(); ctx.translate(cx,cy); ctx.rotate(rot);
+    dust.forEach(d => {
+      d.angle += d.speed;
+      const fl = d.layer===0 ? 0.22 : d.layer===1 ? 0.28 : 0.35;
+      const px = Math.cos(d.angle)*d.r*bhPe;
+      const py = Math.sin(d.angle)*d.r*bhPe*fl;
+      const a  = d.b*(0.4+0.5*(1-Math.abs(d.r-220)/340))*bhPe;
+      ctx.globalAlpha = Math.max(0,a);
+      ctx.fillStyle = `hsl(${d.hue},95%,${d.layer===0?75:d.layer===1?62:50}%)`;
+      ctx.beginPath(); ctx.arc(px,py,d.size*bhPe,0,Math.PI*2); ctx.fill();
+    });
+    ctx.restore(); ctx.globalAlpha=1;
+
+    // Photon ring
+    const pr=ctx.createRadialGradient(cx,cy,bhR*0.9,cx,cy,bhR*1.2);
+    pr.addColorStop(0,`rgba(255,200,100,${bhPe*0.95})`);
+    pr.addColorStop(0.5,`rgba(255,140,40,${bhPe*0.5})`);
+    pr.addColorStop(1,'transparent');
+    ctx.fillStyle=pr; ctx.globalAlpha=1;
+    ctx.beginPath(); ctx.arc(cx,cy,bhR*1.2,0,Math.PI*2); ctx.fill();
+
+    // Black center
+    const bc=ctx.createRadialGradient(cx,cy,0,cx,cy,bhR);
+    bc.addColorStop(0,'#000'); bc.addColorStop(0.88,'#000'); bc.addColorStop(1,'#030006');
+    ctx.fillStyle=bc; ctx.globalAlpha=bhPe;
+    ctx.beginPath(); ctx.arc(cx,cy,bhR,0,Math.PI*2); ctx.fill();
+
+    // Lensing arcs
+    ctx.globalAlpha=bhPe*0.65;
+    for(let a=0;a<4;a++){
+      const ang=e*0.25+a*(Math.PI*0.5);
+      ctx.strokeStyle=`rgba(255,${170-a*25},${40-a*5},${0.35-a*0.06})`;
+      ctx.lineWidth=Math.max(0.5,2.5-a*0.5);
+      ctx.beginPath(); ctx.arc(cx,cy,bhR*(1.07+a*0.04),ang,ang+Math.PI*0.65); ctx.stroke();
+    }
+    ctx.globalAlpha=1;
+  }
+
+  // ── Vignette ──
+  const vig=ctx.createRadialGradient(cx,cy,R*0.35,cx,cy,Math.max(W,H)*0.82);
+  vig.addColorStop(0,'transparent'); vig.addColorStop(1,'rgba(1,1,8,0.88)');
+  ctx.fillStyle=vig; ctx.globalAlpha=1; ctx.fillRect(0,0,W,H);
+
+  // ── HTML title reveal ──────────────────────────────────────────────────────
+  if (!titleShown && e >= T_TITLE) {
+    titleShown = true;
+    document.getElementById('title-wrap').classList.add('show');
+    // BH glow on title scales with bhPe
+  }
+  if (!dividerShown && e >= T_DIVIDER) {
+    dividerShown = true;
+    document.getElementById('divider').classList.add('show');
+  }
+  if (!promptShown && e >= T_PROMPT) {
+    promptShown = true;
+    document.getElementById('prompt').classList.add('show');
+  }
+
+  // ── Subtitle typewriter ──
+  if (e >= T_SUBTITLE && subtitleIdx < SUBTITLE_TEXT.length) {
+    if (e - lastCharT >= CHAR_DUR) {
+      lastCharT = e;
+      subtitleShown += SUBTITLE_TEXT[subtitleIdx++];
+      const sub = document.getElementById('subtitle');
+      sub.textContent = subtitleShown + (subtitleIdx < SUBTITLE_TEXT.length ? '_' : '');
+    }
+  } else if (subtitleIdx >= SUBTITLE_TEXT.length) {
+    document.getElementById('subtitle').textContent = SUBTITLE_TEXT;
+  }
+
+  // ── Auto-advance after total ──
+  if (e >= T_TOTAL && !done) goToOnboarding();
+
+  // ── Dynamic title glow (canvas overlay) ─ přeskočeno, CSS stačí ──
+
+  requestAnimationFrame(render);
+}
+
+// ── START ────────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  const fade = document.getElementById('fade');
+  setTimeout(() => {
+    fade.style.transition = 'opacity 1s ease';
+    fade.classList.add('clear');
+  }, 100);
+  requestAnimationFrame(render);
+});
+</script>
+</body>
+</html>

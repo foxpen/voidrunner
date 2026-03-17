@@ -6,9 +6,15 @@
 <title>VOID RUNNER</title>
 <link rel="stylesheet" href="css/style.css">
 <script>
-  // Redirect to onboarding if no player data
+  // Redirect to intro (first visit) or onboarding (returning without player)
   const vr = localStorage.getItem('vr_player');
-  if (!vr) window.location.replace('onboarding.html');
+  if (!vr) {
+    if (!localStorage.getItem('vr_intro_seen')) {
+      window.location.replace('intro.html');
+    } else {
+      window.location.replace('onboarding.html');
+    }
+  }
 </script>
 </head>
 <body>
