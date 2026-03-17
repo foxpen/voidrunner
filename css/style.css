@@ -181,6 +181,7 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
   color: oklch(97% 0.008 80);
   letter-spacing: -0.01em;
   margin: 0;
+  animation: flicker-title 7s linear infinite;
 }
 
 .vr-menu__tagline {
@@ -334,6 +335,20 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
 }
 
 /* ── Broken lightbulb flickers — each element has its own rhythm ── */
+@keyframes flicker-title {
+  0%, 18%          { opacity: 1; }
+  18.5%            { opacity: 0.04; }
+  19%              { opacity: 1; }
+  19.4%            { opacity: 0.6; }
+  19.8%            { opacity: 0.04; }
+  20.3%            { opacity: 1; }
+  55%, 100%        { opacity: 1; }
+  55.4%            { opacity: 0.05; }
+  55.8%            { opacity: 0.8; }
+  56.1%            { opacity: 0.05; }
+  56.5%            { opacity: 1; }
+}
+
 @keyframes flicker-a {
   /* Slow burn — occasionally dims then snaps off briefly */
   0%, 14%          { opacity: 1; }
