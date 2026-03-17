@@ -86,21 +86,45 @@
 
 <!-- START SCREEN -->
 <div id="start-screen">
-  <h1>VOID RUNNER</h1>
-  <div class="subtitle">naviguj prázdnotou</div>
-  <div class="mode-badge" id="player-badge">10 KOL · VÝBĚR KARET · BOSS FIGHT</div>
-  <div class="prompt">STISKNI ENTER / START</div>
-  <div class="controls-info">
-    ŠIPKY nebo WASD — pohyb &nbsp;|&nbsp; GAMEPAD podporován<br>
-    Přežij 10 kol · mezi koly vyber vylepšení · poraz bosse
-  </div>
-  <div class="powerup-legend">
-    <div class="pu-item"><span class="icon">🛡</span> Štít — ochrana</div>
-    <div class="pu-item"><span class="icon">⚡</span> EMP — vyčistí mapu</div>
-    <div class="pu-item"><span class="icon">⏳</span> Slow-Mo — zpomalení</div>
-    <div class="pu-item"><span class="icon">🚀</span> Turbo — rychlost</div>
-    <div class="pu-item"><span class="icon">🧲</span> Magnet — přitahuje</div>
-    <div class="pu-item"><span class="icon" style="font-size:14px;font-weight:700">×2</span> Double — dvojité skóre</div>
+  <div class="vr-menu">
+    <header class="vr-menu__header">
+      <div class="vr-menu__title-block">
+        <span class="vr-menu__sys-label">NAV-SYS / VOID RUNNER 2.0 / CLASSIFIED</span>
+        <h1 class="vr-menu__title">VOID<br>RUNNER</h1>
+        <div class="vr-menu__tagline">naviguj prázdnotou</div>
+      </div>
+      <div class="vr-menu__badge" id="player-badge">10 KOL · BOSS FIGHT · ENDLESS MODE</div>
+    </header>
+
+    <div class="vr-menu__body">
+      <div class="vr-menu__lb">
+        <div class="vr-menu__section-label">NEJLEPŠÍ SKÓRE</div>
+        <div id="leaderboard"><div class="lb-empty">Zatím žádné záznamy</div></div>
+      </div>
+
+      <div class="vr-menu__vdivider"></div>
+
+      <div class="vr-menu__right">
+        <div class="vr-menu__section-label">POWER-UPS</div>
+        <div class="powerup-legend">
+          <div class="pu-item"><span class="icon">🛡</span><span>Štít</span></div>
+          <div class="pu-item"><span class="icon">⚡</span><span>EMP</span></div>
+          <div class="pu-item"><span class="icon">⏳</span><span>Slow-Mo</span></div>
+          <div class="pu-item"><span class="icon">🚀</span><span>Turbo</span></div>
+          <div class="pu-item"><span class="icon">🧲</span><span>Magnet</span></div>
+          <div class="pu-item"><span class="icon" style="font-size:11px;font-weight:700">×2</span><span>Double</span></div>
+        </div>
+        <div class="vr-menu__controls">
+          ŠIPKY / WASD — pohyb<br>
+          GAMEPAD · NAKLON TELEFONU<br>
+          Přežij kola · nakupuj upgrades
+        </div>
+      </div>
+    </div>
+
+    <footer class="vr-menu__footer">
+      <div class="vr-menu__prompt">STISKNI ENTER / START</div>
+    </footer>
   </div>
 </div>
 
