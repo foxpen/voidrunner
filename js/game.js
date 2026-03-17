@@ -38,6 +38,7 @@ let lastRoundsPhase = '';
 
 // Warp transition
 let warpFlash = 0;
+window.shopCredits = 600; // starting credits
 
 Particles.initStars(W, H);
 
@@ -64,6 +65,7 @@ function startGame() {
   comboCount = 0; comboTimer = 0;
   roundScoreStart = 0; roundTargetHit = false; lastRoundsPhase = '';
   warpFlash = 0;
+  window.shopCredits = 600;
 
   Player.resetStats();
   Player.reset(W, H);
@@ -127,6 +129,12 @@ function die() {
   const isNew = score > highScore;
   if (isNew) highScore = score;
 
+  const _lb = JSON.parse(localStorage.getItem('vr_scores') || '[]');
+  _lb.push({ score, round: Rounds.current, date: new Date().toLocaleDateString('cs-CZ') });
+  _lb.sort((a, b) => b.score - a.score);
+  _lb.splice(5);
+  localStorage.setItem('vr_scores', JSON.stringify(_lb));
+
   UI.showGameOver(score, highScore, pickupsCollected, isNew);
 }
 
@@ -157,6 +165,10 @@ function update() {
   }
   if (_curPhase === 'INTERMISSION' && lastRoundsPhase === 'PLAYING') {
     warpFlash = 50;
+    const _credBonus = roundTargetHit ? 200 : 0;
+    const _credEarned = 300 + Rounds.current * 40 + _credBonus;
+    window.shopCredits = (window.shopCredits || 0) + _credEarned;
+    UI.showNotify(`+${_credEarned} KREDITY`, '#ffcc00');
   }
   lastRoundsPhase = _curPhase;
 

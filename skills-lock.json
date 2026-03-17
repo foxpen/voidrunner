@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": {
+    "frontend-design": {
+      "source": "pbakaus/impeccable",
+      "sourceType": "github",
+      "computedHash": "2c211c20810c920c151279f0856355fc376922385fef56771c1987e9a6206f7a"
+    },
+    "remotion-best-practices": {
+      "source": "remotion-dev/skills",
+      "sourceType": "github",
+      "computedHash": "c3da3b9e371761d9e33a84360f952b0d5e3259ae19e46f8a8f439d2b6194d9c1"
+    }
+  }
+}

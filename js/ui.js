@@ -48,6 +48,7 @@ const UI = (() => {
     puHud.classList.remove('visible');
     if (roundDisp) roundDisp.classList.remove('visible');
     if (bossBar) bossBar.classList.remove('visible');
+    updateLeaderboard();
   }
 
   function showGameOver(score, highScore, pickups, isNew) {
@@ -235,9 +236,27 @@ const UI = (() => {
     ctx.fillText('Boss poražen · Stiskni ENTER pro restart', W / 2, H / 2 + 30);
   }
 
+  function updateLeaderboard() {
+    const lb = document.getElementById('leaderboard');
+    if (!lb) return;
+    const scores = JSON.parse(localStorage.getItem('vr_scores') || '[]');
+    if (scores.length === 0) {
+      lb.innerHTML = '<div class="lb-empty">Zat\u00edm \u017e\u00e1dn\u00e9 z\u00e1znamy</div>';
+      return;
+    }
+    lb.innerHTML = scores.map((s, i) =>
+      `<div class="lb-row">
+        <span class="lb-rank">#${i + 1}</span>
+        <span class="lb-score">${s.score.toLocaleString()}</span>
+        <span class="lb-meta">KOL ${s.round} \u00B7 ${s.date}</span>
+      </div>`
+    ).join('');
+  }
+
   return {
     showGame, showMenu, showGameOver, updateScore, updateHighScore,
     updateRound, updateBossBar, hideBossBar, updatePowerups,
     showNotify, setGamepad, drawIntermissionOverlay, drawDoneOverlay, drawCountdownOverlay,
+    updateLeaderboard,
   };
 })();

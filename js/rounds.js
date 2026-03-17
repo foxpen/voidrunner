@@ -26,13 +26,17 @@ const Rounds = (() => {
   }
 
   function getDifficulty() {
-    const d = CFG.DIFFICULTY[current - 1];
-    return d ? d.speed : 3.2;
+    const idx = Math.min(current - 1, CFG.DIFFICULTY.length - 1);
+    const d = CFG.DIFFICULTY[idx];
+    const over = current > CFG.DIFFICULTY.length ? 1 + (current - CFG.DIFFICULTY.length) * 0.12 : 1;
+    return d ? d.speed * over : 3.2;
   }
 
   function getSpawnRate() {
-    const d = CFG.DIFFICULTY[current - 1];
-    return d ? d.spawnRate : 12;
+    const idx = Math.min(current - 1, CFG.DIFFICULTY.length - 1);
+    const d = CFG.DIFFICULTY[idx];
+    const over = current > CFG.DIFFICULTY.length ? 1 + (current - CFG.DIFFICULTY.length) * 0.15 : 1;
+    return d ? Math.max(6, Math.floor(d.spawnRate / over)) : 8;
   }
 
   function tick(W, H) {
@@ -41,22 +45,23 @@ const Rounds = (() => {
     if (phase === 'INTERMISSION') {
       intermissionTimer--;
       if (intermissionTimer <= 0) {
-        // Show upgrade cards
         phase = 'UPGRADE';
-        Upgrades.show(W, H, card => {
-          _applyCard(card);
-          if (current >= TOTAL && gameMode !== 'endless') {
-            phase = 'BOSS';
-            Boss.spawn(W, H);
-            Enemies.clear();
-            Hazards.clear();
-          } else {
-            current++;
-            timer = gameMode === 'endless' ? Infinity : DUR * (gameMode === 'hardcore' ? 0.7 : 1);
-            countdownTimer = 180; // 3 sekundy
-            phase = 'COUNTDOWN';
+        Upgrades.showShop(W, H,
+          card => { _applyCard(card); },
+          () => {
+            if (current >= TOTAL && gameMode !== 'endless') {
+              phase = 'BOSS';
+              Boss.spawn(W, H);
+              Enemies.clear();
+              Hazards.clear();
+            } else {
+              current++;
+              timer = gameMode === 'endless' ? Infinity : DUR * (gameMode === 'hardcore' ? 0.7 : 1);
+              countdownTimer = 180;
+              phase = 'COUNTDOWN';
+            }
           }
-        });
+        );
       }
       return;
     }
@@ -87,7 +92,17 @@ const Rounds = (() => {
     if (phase === 'BOSS_DEAD') {
       intermissionTimer--;
       if (intermissionTimer <= 0) {
-        phase = 'DONE';
+        window.shopCredits = (window.shopCredits || 0) + 800;
+        current++;
+        timer = DUR * (gameMode === 'hardcore' ? 0.7 : 1);
+        phase = 'UPGRADE';
+        Upgrades.showShop(W, H,
+          card => { _applyCard(card); },
+          () => {
+            countdownTimer = 180;
+            phase = 'COUNTDOWN';
+          }
+        );
       }
       return;
     }
@@ -124,9 +139,7 @@ const Rounds = (() => {
     return phase === 'UPGRADE';
   }
 
-  function isGameDone() {
-    return phase === 'DONE';
-  }
+  function isGameDone() { return false; }
 
   function isIntermission() {
     return phase === 'INTERMISSION' || phase === 'BOSS_DEAD';
@@ -143,6 +156,7 @@ const Rounds = (() => {
   }
 
   function getScoreTarget() {
+    if (current > CFG.DIFFICULTY.length) return 12000 + (current - CFG.DIFFICULTY.length) * 1500;
     const d = CFG.DIFFICULTY[current - 1];
     return d ? (d.scoreTarget || 0) : 0;
   }
