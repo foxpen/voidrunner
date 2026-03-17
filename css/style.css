@@ -166,10 +166,11 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
   font-family: 'Rajdhani', sans-serif;
   font-size: clamp(9px, 0.9vw, 11px);
   font-weight: 500;
-  color: oklch(62% 0.14 58 / 0.55);
+  color: oklch(72% 0.16 58 / 0.9);
   letter-spacing: 0.35em;
   text-transform: uppercase;
   margin-bottom: clamp(6px, 1.2vh, 14px);
+  animation: flicker-a 6s linear infinite;
 }
 
 .vr-menu__title {
