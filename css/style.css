@@ -188,9 +188,10 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
   font-family: 'Rajdhani', sans-serif;
   font-size: clamp(10px, 1.2vw, 13px);
   font-weight: 300;
-  color: oklch(55% 0 0 / 0.55);
+  color: oklch(74% 0 0 / 0.85);
   letter-spacing: 0.55em;
   text-transform: uppercase;
+  animation: flicker-b 9s linear infinite;
 }
 
 .vr-menu__badge {
