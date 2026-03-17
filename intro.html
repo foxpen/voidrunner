@@ -162,17 +162,17 @@ const dust = Array.from({ length: DUST_N }, (_, i) => ({
 
 // ── TIMING ───────────────────────────────────────────────────────────────────
 // All times in seconds
-const T_WARP_START  = 3;    // warp spool-up begins
-const T_WARP_PEAK   = 6;    // full warp
-const T_WARP_END    = 9;    // snap stop
-const T_SNAP_DONE   = 10;
-const T_BH_START    = 9.5;
-const T_BH_FULL     = 13.5;
-const T_TITLE       = 11.0;
-const T_DIVIDER     = 11.8;
-const T_SUBTITLE    = 12.8;
-const T_PROMPT      = 15.0;
-const T_TOTAL       = 17.0;
+const T_WARP_START  = 2;    // warp spool-up begins
+const T_WARP_PEAK   = 5;    // full warp
+const T_WARP_END    = 8;    // snap stop
+const T_SNAP_DONE   = 9;
+const T_BH_START    = 8.5;
+const T_BH_FULL     = 12.5;
+const T_TITLE       = 10.0;
+const T_DIVIDER     = 10.8;
+const T_SUBTITLE    = 11.8;
+const T_PROMPT      = 14.0;
+const T_TOTAL       = 16.0;
 
 const FPS = 60;
 let elapsed = 0;     // seconds
@@ -492,30 +492,56 @@ function _startAudio(offset) {
   const at = T => now + Math.max(0, T - offset);
 
   // ── 1. Space drone (whole intro) ────────────────────────────────────────
+  // ── 1. Space drone (whole intro) ────────────────────────────────────────
   const droneG = _ac.createGain();
   droneG.gain.setValueAtTime(0, now);
-  droneG.gain.linearRampToValueAtTime(0.22, now + 0.6); // fast fade-in
-  droneG.gain.linearRampToValueAtTime(0.12, at(3.0));
-  droneG.gain.linearRampToValueAtTime(0.28, at(9.0));
-  droneG.gain.linearRampToValueAtTime(0.14, at(11.0));
-  droneG.gain.linearRampToValueAtTime(0,    at(17.0));
+  droneG.gain.linearRampToValueAtTime(0.18, now + 0.5);
+  droneG.gain.linearRampToValueAtTime(0.28, at(8.0));
+  droneG.gain.linearRampToValueAtTime(0.14, at(10.0));
+  droneG.gain.linearRampToValueAtTime(0,    at(16.0));
   droneG.connect(_master);
   if (_reverb) droneG.connect(_reverb);
 
   [[55, 'sine', 0.7], [110, 'sine', 0.35], [82.41, 'triangle', 0.18]].forEach(([f, type, vol]) => {
     const lfo = _ac.createOscillator(), lfoG = _ac.createGain();
     lfo.frequency.value = 0.08; lfoG.gain.value = f * 0.006;
-    lfo.connect(lfoG); lfo.start(now); lfo.stop(now + 18);
+    lfo.connect(lfoG); lfo.start(now); lfo.stop(now + 17);
     const osc = _ac.createOscillator(), og = _ac.createGain();
     osc.type = type; osc.frequency.value = f; og.gain.value = vol;
     lfoG.connect(osc.frequency);
     osc.connect(og); og.connect(droneG);
-    osc.start(now); osc.stop(now + 18);
+    osc.start(now); osc.stop(now + 17);
   });
 
-  // ── 2. Warp spool-up (3→9s) ─────────────────────────────────────────────
-  if (offset < 9) {
-    const noiseLen = Math.floor(_ac.sampleRate * Math.max(1, 9 - offset + 0.1));
+  // ── 2. BOOM kick at 2s (warp start) ─────────────────────────────────────
+  const kickDelay = Math.max(0, (2 - offset) * 1000);
+  setTimeout(() => {
+    if (!_ac) return;
+    const t = _ac.currentTime;
+    const kO = _ac.createOscillator(), kG = _ac.createGain();
+    kO.type = 'sine';
+    kO.frequency.setValueAtTime(100, t);
+    kO.frequency.exponentialRampToValueAtTime(32, t + 0.45);
+    kG.gain.setValueAtTime(1.0, t);
+    kG.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+    kO.connect(kG); kG.connect(_master);
+    if (_reverb) kG.connect(_reverb);
+    kO.start(t); kO.stop(t + 0.65);
+    // Sharp transient click
+    const cLen = Math.floor(_ac.sampleRate * 0.08);
+    const cBuf = _ac.createBuffer(1, cLen, _ac.sampleRate);
+    const cd2 = cBuf.getChannelData(0);
+    for (let i = 0; i < cLen; i++) cd2[i] = (Math.random()*2-1) * Math.pow(1-i/cLen, 1.2);
+    const cSrc = _ac.createBufferSource(), cG = _ac.createGain();
+    cG.gain.setValueAtTime(0.4, t);
+    cG.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+    cSrc.buffer = cBuf; cSrc.connect(cG); cG.connect(_master);
+    cSrc.start(t);
+  }, kickDelay);
+
+  // ── 3. Warp spool-up (2→8s) ─────────────────────────────────────────────
+  if (offset < 8) {
+    const noiseLen = Math.floor(_ac.sampleRate * Math.max(1, 8 - offset + 0.1));
     const noiseBuf = _ac.createBuffer(1, noiseLen, _ac.sampleRate);
     const nd = noiseBuf.getChannelData(0);
     for (let i = 0; i < noiseLen; i++) nd[i] = Math.random() * 2 - 1;
@@ -523,50 +549,50 @@ function _startAudio(offset) {
     noise.buffer = noiseBuf;
     const noiseF = _ac.createBiquadFilter();
     noiseF.type = 'bandpass'; noiseF.Q.value = 0.8;
-    const startFreq = offset < 3 ? 200 : 200 * Math.pow(3200/200, (offset-3)/6);
+    const startFreq = offset < 2 ? 200 : 200 * Math.pow(3200/200, (offset-2)/6);
     noiseF.frequency.setValueAtTime(Math.max(200, startFreq), now);
-    noiseF.frequency.exponentialRampToValueAtTime(3200, at(9));
+    noiseF.frequency.exponentialRampToValueAtTime(3200, at(8));
     const noiseG = _ac.createGain();
-    const startNVol = offset < 3 ? 0 : 0.18 + (offset-3)/6 * 0.10;
-    noiseG.gain.setValueAtTime(startNVol, now);
-    noiseG.gain.linearRampToValueAtTime(0.18, at(6));
-    noiseG.gain.linearRampToValueAtTime(0.28, at(9));
-    noiseG.gain.setValueAtTime(0, at(9) + 0.05);
+    const startNVol = offset < 2 ? 0 : 0.18 + (offset-2)/6 * 0.10;
+    noiseG.gain.setValueAtTime(Math.max(0, startNVol), now);
+    noiseG.gain.linearRampToValueAtTime(0.18, at(5));
+    noiseG.gain.linearRampToValueAtTime(0.28, at(8));
+    noiseG.gain.setValueAtTime(0, at(8) + 0.05);
     noise.connect(noiseF); noiseF.connect(noiseG); noiseG.connect(_master);
-    noise.start(now); noise.stop(at(9) + 0.1);
+    noise.start(now); noise.stop(at(8) + 0.1);
 
     const toneG = _ac.createGain();
-    const startTVol = offset < 3 ? 0 : 0.055 * Math.min(1, (offset-3)/2.5);
-    toneG.gain.setValueAtTime(startTVol, now);
-    toneG.gain.linearRampToValueAtTime(0.055, at(5.5));
-    toneG.gain.linearRampToValueAtTime(0.10,  at(8.5));
-    toneG.gain.setValueAtTime(0, at(9) + 0.05);
+    const startTVol = offset < 2 ? 0 : 0.055 * Math.min(1, (offset-2)/2.5);
+    toneG.gain.setValueAtTime(Math.max(0, startTVol), now);
+    toneG.gain.linearRampToValueAtTime(0.055, at(4.5));
+    toneG.gain.linearRampToValueAtTime(0.10,  at(7.5));
+    toneG.gain.setValueAtTime(0, at(8) + 0.05);
     toneG.connect(_master);
     const tone = _ac.createOscillator();
     tone.type = 'sawtooth';
-    const startTFreq = offset < 3 ? 110 : 110 * Math.pow(540/110, Math.min(1,(offset-3)/6));
+    const startTFreq = offset < 2 ? 110 : 110 * Math.pow(540/110, Math.min(1,(offset-2)/6));
     tone.frequency.setValueAtTime(Math.max(110, startTFreq), now);
-    tone.frequency.exponentialRampToValueAtTime(540, at(9));
+    tone.frequency.exponentialRampToValueAtTime(540, at(8));
     tone.connect(toneG);
-    tone.start(now); tone.stop(at(9) + 0.1);
+    tone.start(now); tone.stop(at(8) + 0.1);
   }
 
-  // High whine during peak warp (6→9s)
-  if (offset < 9) {
+  // High whine during peak warp (5→8s)
+  if (offset < 8) {
     const whineG = _ac.createGain();
-    const startWVol = offset < 6 ? 0 : 0.06 * Math.min(1, (offset-6)/1.5);
-    whineG.gain.setValueAtTime(startWVol, now);
-    whineG.gain.linearRampToValueAtTime(0.06, at(7.5));
-    whineG.gain.linearRampToValueAtTime(0,    at(9));
+    const startWVol = offset < 5 ? 0 : 0.06 * Math.min(1, (offset-5)/1.5);
+    whineG.gain.setValueAtTime(Math.max(0, startWVol), now);
+    whineG.gain.linearRampToValueAtTime(0.06, at(6.5));
+    whineG.gain.linearRampToValueAtTime(0,    at(8));
     whineG.connect(_master);
     const whine = _ac.createOscillator();
     whine.type = 'sine'; whine.frequency.value = 2800;
     whine.connect(whineG);
-    whine.start(now); whine.stop(at(9) + 0.1);
+    whine.start(now); whine.stop(at(8) + 0.1);
   }
 
-  // ── 3. BOOM at 9s ────────────────────────────────────────────────────────
-  const boomDelay = Math.max(0, (9 - offset) * 1000);
+  // ── 4. Impact BOOM at 8s (warp snap) ────────────────────────────────────
+  const boomDelay = Math.max(0, (8 - offset) * 1000);
   setTimeout(() => {
     if (!_ac) return;
     const t = _ac.currentTime;
@@ -579,7 +605,6 @@ function _startAudio(offset) {
     boomO.connect(boomG); boomG.connect(_master);
     if (_reverb) boomG.connect(_reverb);
     boomO.start(t); boomO.stop(t + 0.75);
-    // Crack
     const crackLen = Math.floor(_ac.sampleRate * 0.4);
     const crackBuf = _ac.createBuffer(1, crackLen, _ac.sampleRate);
     const cd = crackBuf.getChannelData(0);
@@ -593,32 +618,32 @@ function _startAudio(offset) {
     crack.start(t);
   }, boomDelay);
 
-  // ── 4. BH eerie tone (9.5→17s) ──────────────────────────────────────────
-  if (offset < 17) {
+  // ── 5. BH eerie tone (8.5→16s) ──────────────────────────────────────────
+  if (offset < 16) {
     const bhG = _ac.createGain();
-    const startBHVol = offset < 9.5 ? 0 : 0.12 * Math.min(1, (offset-9.5)/2.5);
-    bhG.gain.setValueAtTime(startBHVol, now);
-    bhG.gain.linearRampToValueAtTime(0.12, at(12));
-    bhG.gain.setValueAtTime(0.12, at(15));
-    bhG.gain.linearRampToValueAtTime(0,    at(17));
+    const startBHVol = offset < 8.5 ? 0 : 0.12 * Math.min(1, (offset-8.5)/2.5);
+    bhG.gain.setValueAtTime(Math.max(0, startBHVol), now);
+    bhG.gain.linearRampToValueAtTime(0.12, at(11));
+    bhG.gain.setValueAtTime(0.12, at(14));
+    bhG.gain.linearRampToValueAtTime(0,    at(16));
     bhG.connect(_master);
     if (_reverb) bhG.connect(_reverb);
 
     [[220,'sine',0.6],[330,'sine',0.3],[440,'sine',0.15],[660,'sine',0.08]].forEach(([f,type,v],i) => {
       const slfo = _ac.createOscillator(), slfoG = _ac.createGain();
       slfo.frequency.value = 0.05 + i*0.02; slfoG.gain.value = f * 0.008;
-      slfo.connect(slfoG); slfo.start(now); slfo.stop(now + 18);
+      slfo.connect(slfoG); slfo.start(now); slfo.stop(now + 17);
       const o = _ac.createOscillator(), og = _ac.createGain();
       o.type = type; o.frequency.value = f; og.gain.value = v;
       slfoG.connect(o.frequency);
       o.connect(og); og.connect(bhG);
-      o.start(now); o.stop(now + 18);
+      o.start(now); o.stop(now + 17);
     });
   }
 
-  // ── 5. Title chord swell at 11s ──────────────────────────────────────────
-  if (offset < 14) {
-    const chordDelay = Math.max(0, (11 - offset) * 1000);
+  // ── 6. Title chord swell at 10s ──────────────────────────────────────────
+  if (offset < 13) {
+    const chordDelay = Math.max(0, (10 - offset) * 1000);
     setTimeout(() => {
       if (!_ac) return;
       const t = _ac.currentTime;
