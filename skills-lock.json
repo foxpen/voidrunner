@@ -6,6 +6,16 @@
       "sourceType": "github",
       "computedHash": "2c211c20810c920c151279f0856355fc376922385fef56771c1987e9a6206f7a"
     },
+    "game-developer": {
+      "source": "jeffallan/claude-skills",
+      "sourceType": "github",
+      "computedHash": "dc9eadc15076e0d13dd15d9a3c25fc10f7b15d14dc2ee1c877686bf6790b7a63"
+    },
+    "game-development": {
+      "source": "sickn33/antigravity-awesome-skills",
+      "sourceType": "github",
+      "computedHash": "28d4b05df72e585707be653d26c06119b3cc500518625871c1c7bc11164a5a61"
+    },
     "remotion-best-practices": {
       "source": "remotion-dev/skills",
       "sourceType": "github",

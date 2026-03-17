@@ -7,7 +7,9 @@
       "Bash(gh --version)",
       "Bash(npx skills:*)",
       "Read(//c/Users/repto/Desktop/Antigravity/.agents/skills/**)",
-      "Read(//c/Users/repto/.claude/**)"
+      "Read(//c/Users/repto/.claude/**)",
+      "Bash(mkdir -p \"c:\\\\Users\\\\repto\\\\Desktop\\\\Antigravity\\\\intro\\\\src\")",
+      "Read(//c/Users/repto/Desktop/Antigravity/**)"
     ]
   }
 }
