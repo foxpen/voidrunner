@@ -456,6 +456,204 @@ function render(now) {
   requestAnimationFrame(render);
 }
 
+// ── AUDIO ENGINE ─────────────────────────────────────────────────────────────
+let _ac = null;
+let _audioStarted = false;
+
+function _startAudio() {
+  if (_audioStarted) return;
+  _audioStarted = true;
+  try {
+    _ac = new (window.AudioContext || window.webkitAudioContext)();
+    if (_ac.state === 'suspended') _ac.resume();
+  } catch(e) { return; }
+
+  const master = _ac.createGain();
+  master.gain.value = 0.7;
+  master.connect(_ac.destination);
+
+  // ── Reverb (1.8s impulse) ───────────────────────────────────────────────
+  let reverb = null;
+  try {
+    const len = Math.floor(_ac.sampleRate * 1.8);
+    const buf = _ac.createBuffer(2, len, _ac.sampleRate);
+    for (let c = 0; c < 2; c++) {
+      const d = buf.getChannelData(c);
+      for (let i = 0; i < len; i++) d[i] = (Math.random()*2-1) * Math.pow(1-i/len, 1.8);
+    }
+    reverb = _ac.createConvolver();
+    reverb.buffer = buf;
+    reverb.connect(master);
+  } catch(e) {}
+
+  const now = _ac.currentTime;
+
+  // ── 1. Ambient space drone (0→17s) ──────────────────────────────────────
+  // Sub-bass hum A1=55Hz + A2=110Hz, sehr leise
+  const droneG = _ac.createGain();
+  droneG.gain.setValueAtTime(0, now);
+  droneG.gain.linearRampToValueAtTime(0.22, now + 2.5);
+  droneG.gain.linearRampToValueAtTime(0.12, now + 3.0); // recede slightly at warp start
+  droneG.gain.linearRampToValueAtTime(0.28, now + 9.0);
+  droneG.gain.linearRampToValueAtTime(0.14, now + 11.0);
+  droneG.gain.linearRampToValueAtTime(0, now + 17.0);
+  droneG.connect(master);
+  if (reverb) droneG.connect(reverb);
+
+  [[55, 'sine', 0.7], [110, 'sine', 0.35], [82.41, 'triangle', 0.18]].forEach(([f, type, vol]) => {
+    const lfo = _ac.createOscillator();
+    const lfoG = _ac.createGain();
+    lfo.frequency.value = 0.08; lfoG.gain.value = f * 0.006;
+    lfo.connect(lfoG); lfo.connect(lfoG); lfo.start(now);
+    const osc = _ac.createOscillator();
+    const og  = _ac.createGain();
+    osc.type = type; osc.frequency.value = f; og.gain.value = vol;
+    lfoG.connect(osc.frequency);
+    osc.connect(og); og.connect(droneG);
+    osc.start(now); osc.stop(now + 18);
+    lfo.stop(now + 18);
+  });
+
+  // ── 2. Warp spool-up (3→6s): rising noise sweep + tension tone ──────────
+  // White noise burst, filtered highpass sweep
+  const noiseLen = Math.floor(_ac.sampleRate * 7);
+  const noiseBuf = _ac.createBuffer(1, noiseLen, _ac.sampleRate);
+  const nd = noiseBuf.getChannelData(0);
+  for (let i = 0; i < noiseLen; i++) nd[i] = Math.random() * 2 - 1;
+
+  const noise = _ac.createBufferSource();
+  noise.buffer = noiseBuf;
+  const noiseF = _ac.createBiquadFilter();
+  noiseF.type = 'bandpass'; noiseF.frequency.value = 200; noiseF.Q.value = 0.8;
+  const noiseG = _ac.createGain();
+  noiseG.gain.setValueAtTime(0, now + 3);
+  noiseG.gain.linearRampToValueAtTime(0.18, now + 6);
+  noiseG.gain.linearRampToValueAtTime(0.28, now + 9);
+  noiseG.gain.setValueAtTime(0.0, now + 9.05);
+  noiseF.frequency.setValueAtTime(200, now + 3);
+  noiseF.frequency.exponentialRampToValueAtTime(3200, now + 9);
+  noise.connect(noiseF); noiseF.connect(noiseG); noiseG.connect(master);
+  noise.start(now + 3); noise.stop(now + 9.1);
+
+  // Rising tension pitch (100→600Hz sawtooth)
+  const toneG = _ac.createGain();
+  toneG.gain.setValueAtTime(0, now + 3);
+  toneG.gain.linearRampToValueAtTime(0.055, now + 5.5);
+  toneG.gain.linearRampToValueAtTime(0.10, now + 8.5);
+  toneG.gain.setValueAtTime(0, now + 9.05);
+  toneG.connect(master);
+  const tone = _ac.createOscillator();
+  tone.type = 'sawtooth';
+  tone.frequency.setValueAtTime(110, now + 3);
+  tone.frequency.exponentialRampToValueAtTime(540, now + 9);
+  tone.connect(toneG);
+  tone.start(now + 3); tone.stop(now + 9.1);
+
+  // High freq whine during peak warp (6→9s)
+  const whineG = _ac.createGain();
+  whineG.gain.setValueAtTime(0, now + 6);
+  whineG.gain.linearRampToValueAtTime(0.06, now + 7.5);
+  whineG.gain.linearRampToValueAtTime(0, now + 9);
+  whineG.connect(master);
+  const whine = _ac.createOscillator();
+  whine.type = 'sine'; whine.frequency.value = 2800;
+  whine.connect(whineG);
+  whine.start(now + 6); whine.stop(now + 9.1);
+
+  // ── 3. IMPACT BOOM at 9s ────────────────────────────────────────────────
+  setTimeout(() => {
+    if (!_ac) return;
+    const t = _ac.currentTime;
+    // Sub-bass thump
+    const boomO = _ac.createOscillator();
+    const boomG = _ac.createGain();
+    boomO.type = 'sine';
+    boomO.frequency.setValueAtTime(80, t);
+    boomO.frequency.exponentialRampToValueAtTime(28, t + 0.55);
+    boomG.gain.setValueAtTime(0.9, t);
+    boomG.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+    boomO.connect(boomG); boomG.connect(master);
+    if (reverb) boomG.connect(reverb);
+    boomO.start(t); boomO.stop(t + 0.75);
+
+    // Crack/noise hit
+    const crackLen = Math.floor(_ac.sampleRate * 0.4);
+    const crackBuf = _ac.createBuffer(1, crackLen, _ac.sampleRate);
+    const cd = crackBuf.getChannelData(0);
+    for (let i = 0; i < crackLen; i++) cd[i] = (Math.random()*2-1) * Math.pow(1-i/crackLen, 0.5);
+    const crack = _ac.createBufferSource();
+    const crackF = _ac.createBiquadFilter();
+    const crackG = _ac.createGain();
+    crackF.type = 'lowpass'; crackF.frequency.value = 600;
+    crackG.gain.setValueAtTime(0.55, t);
+    crackG.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+    crack.buffer = crackBuf;
+    crack.connect(crackF); crackF.connect(crackG); crackG.connect(master);
+    crack.start(t);
+  }, 9000);
+
+  // ── 4. Black hole eerie tone (9.5→17s) ──────────────────────────────────
+  const bhG = _ac.createGain();
+  bhG.gain.setValueAtTime(0, now + 9.5);
+  bhG.gain.linearRampToValueAtTime(0.12, now + 12);
+  bhG.gain.setValueAtTime(0.12, now + 15);
+  bhG.gain.linearRampToValueAtTime(0, now + 17);
+  bhG.connect(master);
+  if (reverb) bhG.connect(reverb);
+
+  // Mysterious high harmonic shimmer
+  [[220, 'sine', 0.6], [330, 'sine', 0.3], [440, 'sine', 0.15], [660, 'sine', 0.08]].forEach(([f, type, v], i) => {
+    const slfo = _ac.createOscillator();
+    const slfoG = _ac.createGain();
+    slfo.frequency.value = 0.05 + i * 0.02; slfoG.gain.value = f * 0.008;
+    slfo.connect(slfoG); slfo.start(now + 9); slfo.stop(now + 18);
+    const o = _ac.createOscillator();
+    const og = _ac.createGain();
+    o.type = type; o.frequency.value = f; og.gain.value = v;
+    slfoG.connect(o.frequency);
+    o.connect(og); og.connect(bhG);
+    o.start(now + 9.5); o.stop(now + 18);
+  });
+
+  // ── 5. Title swell chord at 11s (Am — Interstellar feel) ───────────────
+  setTimeout(() => {
+    if (!_ac) return;
+    const t = _ac.currentTime;
+    // Am chord: A2, C3, E3, A3
+    [[110, 0.09], [130.81, 0.06], [164.81, 0.05], [220, 0.04]].forEach(([f, vol], i) => {
+      const o = _ac.createOscillator();
+      const g = _ac.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      const harmonics = [1, 2, 3];
+      const hamps = [1, 0.4, 0.15];
+      // Organ: sum of harmonics
+      harmonics.forEach((h, hi) => {
+        const ho = _ac.createOscillator();
+        const hg = _ac.createGain();
+        ho.type = 'sine'; ho.frequency.value = f * h; hg.gain.value = hamps[hi];
+        ho.connect(hg); hg.connect(g);
+        ho.start(t + i * 0.08); ho.stop(t + 6.5);
+      });
+      g.gain.setValueAtTime(0, t + i * 0.08);
+      g.gain.linearRampToValueAtTime(vol, t + i * 0.08 + 1.2);
+      g.gain.setValueAtTime(vol, t + 4);
+      g.gain.linearRampToValueAtTime(0, t + 6);
+      g.connect(master);
+      if (reverb) g.connect(reverb);
+    });
+    // Bass pedal A1
+    const bp = _ac.createOscillator();
+    const bpG = _ac.createGain();
+    bp.type = 'sine'; bp.frequency.value = 55;
+    bpG.gain.setValueAtTime(0, t);
+    bpG.gain.linearRampToValueAtTime(0.14, t + 1.5);
+    bpG.gain.linearRampToValueAtTime(0, t + 5.5);
+    bp.connect(bpG); bpG.connect(master);
+    if (reverb) bpG.connect(reverb);
+    bp.start(t); bp.stop(t + 6.5);
+  }, 11000);
+}
+
 // ── START ────────────────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
   const fade = document.getElementById('fade');
@@ -465,6 +663,17 @@ window.addEventListener('load', () => {
   }, 100);
   requestAnimationFrame(render);
 });
+
+// Audio spustí se při první interakci NEBO automaticky po 0.5s (moderní browsery blokují bez interakce)
+function _tryAutoAudio() {
+  _startAudio();
+  document.removeEventListener('pointerdown', _tryAutoAudio);
+  document.removeEventListener('keydown', _tryAutoAudio);
+}
+document.addEventListener('pointerdown', _tryAutoAudio, { once: true });
+document.addEventListener('keydown', _tryAutoAudio, { once: true });
+// Pokusíme se spustit automaticky po krátkém zpoždění
+setTimeout(() => { try { _startAudio(); } catch(e){} }, 300);
 </script>
 </body>
 </html>
