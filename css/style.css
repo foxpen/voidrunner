@@ -224,17 +224,18 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
   font-family: 'Orbitron', monospace;
   font-size: clamp(8px, 0.8vw, 10px);
   font-weight: 700;
-  color: oklch(65% 0.16 58);
+  color: oklch(75% 0.18 58);
   letter-spacing: 0.42em;
   text-transform: uppercase;
   margin-bottom: clamp(10px, 2vh, 20px);
+  animation: flicker-c 4.5s linear infinite;
 }
 
 /* ── Leaderboard ── */
 .lb-empty {
   font-family: 'Rajdhani', sans-serif;
   font-size: 13px;
-  color: oklch(38% 0 0 / 0.7);
+  color: oklch(58% 0 0 / 0.9);
   letter-spacing: 0.15em;
   padding: 12px 0;
 }
@@ -251,7 +252,7 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
 
 .lb-rank {
   font-size: clamp(9px, 0.85vw, 11px);
-  color: oklch(42% 0 0 / 0.6);
+  color: oklch(58% 0 0 / 0.85);
   font-weight: 400;
 }
 
@@ -264,7 +265,7 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
 
 .lb-meta {
   font-size: clamp(8px, 0.75vw, 10px);
-  color: oklch(42% 0 0 / 0.7);
+  color: oklch(58% 0 0 / 0.85);
   letter-spacing: 0.1em;
   white-space: nowrap;
 }
@@ -284,7 +285,7 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
 .powerup-legend .pu-item {
   font-family: 'Rajdhani', sans-serif;
   font-size: clamp(12px, 1.3vw, 15px);
-  color: oklch(58% 0 0 / 0.75);
+  color: oklch(76% 0 0 / 0.9);
   letter-spacing: 0.1em;
   display: flex;
   align-items: center;
@@ -295,13 +296,13 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
   font-size: 15px;
   width: 20px;
   text-align: center;
-  opacity: 0.65;
+  opacity: 0.9;
 }
 
 .vr-menu__controls {
   font-family: 'Rajdhani', sans-serif;
   font-size: clamp(10px, 1.05vw, 12px);
-  color: oklch(40% 0 0 / 0.7);
+  color: oklch(62% 0 0 / 0.85);
   letter-spacing: 0.08em;
   line-height: 2.1;
   border-top: 1px solid oklch(45% 0 0 / 0.12);
@@ -330,6 +331,49 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
 @keyframes promptBlink {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.32; }
+}
+
+/* ── Broken lightbulb flickers — each element has its own rhythm ── */
+@keyframes flicker-a {
+  /* Slow burn — occasionally dims then snaps off briefly */
+  0%, 14%          { opacity: 1; }
+  15%              { opacity: 0.7; }
+  15.5%            { opacity: 1; }
+  16%              { opacity: 0.06; }
+  16.5%            { opacity: 1; }
+  60%, 100%        { opacity: 1; }
+  60.3%            { opacity: 0.4; }
+  60.7%            { opacity: 0.05; }
+  61%              { opacity: 1; }
+}
+
+@keyframes flicker-b {
+  /* Double-stutter — two rapid blinks then long break */
+  0%, 29%          { opacity: 1; }
+  30%              { opacity: 0.08; }
+  30.4%            { opacity: 1; }
+  30.7%            { opacity: 0.05; }
+  31.1%            { opacity: 1; }
+  72%, 100%        { opacity: 1; }
+  72.5%            { opacity: 0.5; }
+  73%              { opacity: 0.1; }
+  73.4%            { opacity: 0.8; }
+  73.8%            { opacity: 0.06; }
+  74.2%            { opacity: 1; }
+}
+
+@keyframes flicker-c {
+  /* Triple micro-stutter — fast and irregular */
+  0%, 8%           { opacity: 1; }
+  8.2%             { opacity: 0.05; }
+  8.5%             { opacity: 1; }
+  8.7%             { opacity: 0.2; }
+  9%               { opacity: 1; }
+  44%, 100%        { opacity: 1; }
+  44.4%            { opacity: 0.08; }
+  44.7%            { opacity: 0.7; }
+  45%              { opacity: 0.05; }
+  45.4%            { opacity: 1; }
 }
 
 @media (max-width: 700px) {
