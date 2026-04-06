@@ -329,6 +329,29 @@ function draw() {
   // Dynamic background (BH approaching)
   BG.draw(ctx, W, H, frameCount, Rounds.isBossRound());
 
+  // ── Large cinematic nebula cloud around BH ──
+  {
+    const bhX = W * 0.5, bhY = H * 0.35;
+    const bhS = BG.scale;
+    // Outer smoke cloud
+    [[0, 0, 0.85, '#3d1a00', 0.08],
+     [-W*0.18, H*0.06, 0.55, '#1a0d30', 0.06],
+     [ W*0.20, -H*0.05, 0.60, '#0d1a30', 0.05],
+     [-W*0.10, H*0.12, 0.45, '#2a1400', 0.07],
+     [ W*0.12,  H*0.10, 0.50, '#1a0010', 0.05],
+    ].forEach(([ox, oy, sc, col, al]) => {
+      const r = Math.min(W, H) * (0.55 + bhS * 0.3) * sc;
+      const g2 = ctx.createRadialGradient(bhX + ox, bhY + oy, 0, bhX + ox, bhY + oy, r);
+      g2.addColorStop(0,   col + 'cc');
+      g2.addColorStop(0.45, col + '66');
+      g2.addColorStop(1,   'rgba(0,0,0,0)');
+      ctx.fillStyle = g2;
+      ctx.globalAlpha = al * (0.6 + bhS * 0.4);
+      ctx.fillRect(0, 0, W, H);
+    });
+    ctx.globalAlpha = 1;
+  }
+
   // Stars
   Particles.drawStars(ctx, frameCount);
 
@@ -553,11 +576,18 @@ function draw() {
     }
   }
 
-  // Screen flash overlay (damage / kill feedback)
+  // Screen flash — radial burst from player position
   if (screenFlash.a > 0) {
-    ctx.fillStyle = `rgba(${screenFlash.r},${screenFlash.g},${screenFlash.b},${screenFlash.a})`;
+    const fr  = `${screenFlash.r},${screenFlash.g},${screenFlash.b}`;
+    const flx = state === STATE.PLAYING ? Player.x : W / 2;
+    const fly = state === STATE.PLAYING ? Player.y : H / 2;
+    const fg  = ctx.createRadialGradient(flx, fly, 0, flx, fly, W * 0.7);
+    fg.addColorStop(0,   `rgba(${fr},${screenFlash.a * 0.9})`);
+    fg.addColorStop(0.25,`rgba(${fr},${screenFlash.a * 0.5})`);
+    fg.addColorStop(1,   `rgba(${fr},0)`);
+    ctx.fillStyle = fg;
     ctx.fillRect(0, 0, W, H);
-    screenFlash.a = Math.max(0, screenFlash.a - 0.08);
+    screenFlash.a = Math.max(0, screenFlash.a - 0.07);
   }
 
   // Overlay screens (drawn outside shake)

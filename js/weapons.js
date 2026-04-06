@@ -294,19 +294,39 @@ const Weapons = (() => {
         ctx.stroke();
         ctx.shadowBlur = 0;
       } else {
+        // Elongated laser bolt
+        const speed = Math.hypot(proj.vx, proj.vy) || 1;
+        const nx    = proj.vx / speed, ny = proj.vy / speed;
+        const boltLen = proj.size * 5 + speed * 1.8;
+
+        // Glow trail
+        const grad = ctx.createLinearGradient(
+          proj.x - nx * boltLen, proj.y - ny * boltLen,
+          proj.x + nx * proj.size, proj.y + ny * proj.size
+        );
+        grad.addColorStop(0,   'rgba(0,0,0,0)');
+        grad.addColorStop(0.4, proj.color + '55');
+        grad.addColorStop(1,   proj.color + 'ff');
+        ctx.strokeStyle = grad;
+        ctx.lineWidth   = proj.size * 1.8;
+        ctx.lineCap     = 'round';
         ctx.shadowColor = proj.color;
-        ctx.shadowBlur = 12;
-        ctx.fillStyle = proj.color;
+        ctx.shadowBlur  = 14;
         ctx.beginPath();
-        ctx.arc(proj.x, proj.y, proj.size, 0, Math.PI * 2);
-        ctx.fill();
-        // Tail
-        ctx.globalAlpha = 0.3;
+        ctx.moveTo(proj.x - nx * boltLen, proj.y - ny * boltLen);
+        ctx.lineTo(proj.x, proj.y);
+        ctx.stroke();
+
+        // Bright core
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth   = proj.size * 0.7;
+        ctx.shadowBlur  = 6;
         ctx.beginPath();
-        ctx.arc(proj.x - proj.vx * 2, proj.y - proj.vy * 2, proj.size * 0.6, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.globalAlpha = 1;
-        ctx.shadowBlur = 0;
+        ctx.moveTo(proj.x - nx * boltLen * 0.4, proj.y - ny * boltLen * 0.4);
+        ctx.lineTo(proj.x, proj.y);
+        ctx.stroke();
+
+        ctx.shadowBlur = 0; ctx.lineCap = 'butt';
       }
     });
   }

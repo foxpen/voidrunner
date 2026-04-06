@@ -136,6 +136,116 @@ const Enemies = (() => {
     return collected;
   }
 
+  // ── Draw enemy ship (tier 2 = fighter, tier 3 = heavy) ──────────────────────
+  function _drawEnemyShip(ctx, o, frame) {
+    ctx.save();
+    ctx.translate(o.x, o.y);
+    // Ships always point downward (toward player)
+    const angle = Math.atan2(o.vy, o.vx) + Math.PI / 2;
+    ctx.rotate(angle);
+
+    const sc  = '#ff2233';   // danger red
+    const dim = '#cc1122';
+    const s   = o.tier === 3 ? 1.35 : 1.0;
+    const pw  = 14 * s, ph = 18 * s;
+
+    // Engine glow
+    const fl = (6 + Math.random() * 10) * s;
+    const eg = ctx.createLinearGradient(0, ph * 0.55, 0, ph * 0.55 + fl);
+    eg.addColorStop(0, 'rgba(255,40,0,0.9)');
+    eg.addColorStop(1, 'rgba(255,0,0,0)');
+    ctx.fillStyle = eg;
+    ctx.shadowColor = '#ff2200'; ctx.shadowBlur = 14;
+    ctx.beginPath();
+    ctx.moveTo(-5 * s, ph * 0.55); ctx.lineTo(0, ph * 0.55 + fl); ctx.lineTo(5 * s, ph * 0.55);
+    ctx.closePath(); ctx.fill();
+    // Side engines
+    [-pw * 0.5, pw * 0.5].forEach(ex => {
+      const fl2 = (3 + Math.random() * 6) * s;
+      const eg2 = ctx.createLinearGradient(ex, ph * 0.4, ex, ph * 0.4 + fl2);
+      eg2.addColorStop(0, 'rgba(255,60,0,0.7)'); eg2.addColorStop(1, 'rgba(255,0,0,0)');
+      ctx.fillStyle = eg2;
+      ctx.beginPath();
+      ctx.moveTo(ex - 3 * s, ph * 0.4); ctx.lineTo(ex, ph * 0.4 + fl2); ctx.lineTo(ex + 3 * s, ph * 0.4);
+      ctx.closePath(); ctx.fill();
+    });
+
+    ctx.shadowBlur = 0;
+
+    // Outer wing panels
+    ctx.fillStyle = '#1a0808';
+    ctx.strokeStyle = sc + '66';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-pw * 0.55,  ph * 0.08);
+    ctx.lineTo(-pw * 1.3,   ph * 0.40);
+    ctx.lineTo(-pw * 1.05,  ph * 0.58);
+    ctx.lineTo(-pw * 0.52,  ph * 0.48);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo( pw * 0.55,  ph * 0.08);
+    ctx.lineTo( pw * 1.3,   ph * 0.40);
+    ctx.lineTo( pw * 1.05,  ph * 0.58);
+    ctx.lineTo( pw * 0.52,  ph * 0.48);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+
+    // Main hull
+    ctx.fillStyle = '#200808';
+    ctx.strokeStyle = sc;
+    ctx.lineWidth = 1.5;
+    ctx.shadowColor = sc; ctx.shadowBlur = o.tier === 3 ? 20 : 14;
+    ctx.beginPath();
+    ctx.moveTo(0,           -ph);
+    ctx.lineTo(-pw * 0.28, -ph * 0.38);
+    ctx.lineTo(-pw * 0.55,  ph * 0.08);
+    ctx.lineTo(-pw * 0.68,  ph * 0.46);
+    ctx.lineTo(-pw * 0.38,  ph * 0.56);
+    ctx.lineTo(-pw * 0.15,  ph * 0.46);
+    ctx.lineTo(0,            ph * 0.56);
+    ctx.lineTo( pw * 0.15,  ph * 0.46);
+    ctx.lineTo( pw * 0.38,  ph * 0.56);
+    ctx.lineTo( pw * 0.68,  ph * 0.46);
+    ctx.lineTo( pw * 0.55,  ph * 0.08);
+    ctx.lineTo( pw * 0.28, -ph * 0.38);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+
+    // Red fuselage stripe
+    ctx.fillStyle = sc + '44'; ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.moveTo(0,           -ph * 0.72);
+    ctx.lineTo(-pw * 0.18,  ph * 0.05);
+    ctx.lineTo(0,            ph * 0.42);
+    ctx.lineTo( pw * 0.18,  ph * 0.05);
+    ctx.closePath(); ctx.fill();
+
+    // Cockpit — dark with red glow
+    ctx.fillStyle = '#100004';
+    ctx.strokeStyle = sc + 'bb'; ctx.lineWidth = 1;
+    ctx.shadowColor = sc; ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.moveTo(0,           -ph * 0.70);
+    ctx.lineTo(-pw * 0.18, -ph * 0.15);
+    ctx.lineTo(0,            ph * 0.05);
+    ctx.lineTo( pw * 0.18, -ph * 0.15);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+
+    // Red cockpit dot
+    ctx.fillStyle = sc; ctx.shadowBlur = 10;
+    ctx.beginPath(); ctx.arc(0, -ph * 0.28, 2.5 * s, 0, Math.PI * 2); ctx.fill();
+
+    // Damage cracks
+    if (o.hp < o.maxHp) {
+      const dmg = 1 - o.hp / o.maxHp;
+      ctx.strokeStyle = `rgba(255,100,0,${dmg * 0.7})`;
+      ctx.lineWidth = 1; ctx.shadowBlur = 6 * dmg;
+      ctx.beginPath();
+      ctx.moveTo(-pw * 0.2, -ph * 0.1); ctx.lineTo(pw * 0.1, ph * 0.2); ctx.stroke();
+    }
+
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+
   // ── Draw a filled asteroid with depth shading ──────────────────────────────
   function _drawAsteroid(ctx, o) {
     ctx.save();
@@ -219,36 +329,58 @@ const Enemies = (() => {
   }
 
   function draw(ctx) {
-    list.forEach(o => _drawAsteroid(ctx, o));
+    list.forEach(o => {
+      if (o.tier === 1) _drawAsteroid(ctx, o);
+      else              _drawEnemyShip(ctx, o);
+    });
 
-    // Pickups
+    // Pickups — teal diamond/hexagon gem
     pickups.forEach(p => {
-      const bob   = Math.sin(p.bobPhase) * 4;
-      const pulse = 0.7 + 0.3 * Math.sin(p.bobPhase * 2);
+      const bob   = Math.sin(p.bobPhase) * 5;
+      const pulse = 0.6 + 0.4 * Math.sin(p.bobPhase * 2);
       ctx.save();
       ctx.translate(p.x, p.y + bob);
-      ctx.strokeStyle = p.color + '44';
-      ctx.lineWidth = 2;
+
+      // Outer aura
+      const aura = ctx.createRadialGradient(0, 0, 0, 0, 0, p.size * 2.8);
+      aura.addColorStop(0,   p.color + '44');
+      aura.addColorStop(0.5, p.color + '18');
+      aura.addColorStop(1,   'rgba(0,0,0,0)');
+      ctx.fillStyle = aura;
+      ctx.beginPath(); ctx.arc(0, 0, p.size * 2.8, 0, Math.PI * 2); ctx.fill();
+
+      // Hexagon body
       ctx.shadowColor = p.color;
-      ctx.shadowBlur = 15;
-      ctx.beginPath();
-      ctx.arc(0, 0, p.size + 4 + pulse * 3, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.fillStyle = p.color + '22';
-      ctx.beginPath();
-      ctx.arc(0, 0, p.size, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.shadowBlur  = 18 * pulse;
       ctx.strokeStyle = p.color;
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth   = 1.5;
+      ctx.fillStyle   = p.color + '30';
       ctx.beginPath();
-      ctx.arc(0, 0, p.size, 0, Math.PI * 2);
-      ctx.stroke();
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 - Math.PI / 6;
+        i === 0 ? ctx.moveTo(Math.cos(a) * p.size, Math.sin(a) * p.size)
+                : ctx.lineTo(Math.cos(a) * p.size, Math.sin(a) * p.size);
+      }
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+
+      // Inner bright diamond
+      ctx.shadowBlur = 10;
+      ctx.fillStyle  = p.color + 'cc';
+      ctx.beginPath();
+      ctx.moveTo(0,           -p.size * 0.55);
+      ctx.lineTo( p.size * 0.4, 0);
+      ctx.lineTo(0,            p.size * 0.55);
+      ctx.lineTo(-p.size * 0.4, 0);
+      ctx.closePath(); ctx.fill();
+
+      // Icon
       ctx.shadowBlur = 0;
-      ctx.font = '16px sans-serif';
+      ctx.font = `${p.size * 0.95}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#fff';
+      ctx.globalAlpha = 0.9;
       ctx.fillText(p.icon, 0, 1);
+      ctx.globalAlpha = 1;
       ctx.restore();
     });
   }
