@@ -23,7 +23,13 @@
       "Bash(gh repo:*)",
       "Bash(ls /c/Users/repto/Desktop/Antigravity/game/*.html)",
       "WebFetch(domain:dowloadbar.netlify.app)",
-      "Bash(node server.js)"
+      "Bash(node server.js)",
+      "Bash(node -e ':*)",
+      "Bash(openssl req:*)",
+      "Bash(\"C:/Program Files/Git/usr/bin/openssl\" req -x509 -newkey rsa:2048 -keyout cert.key -out cert.pem -days 365 -nodes -subj \"//CN=localhost\")",
+      "Bash(curl -sk https://localhost:3443/)",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(taskkill //F //IM node.exe)"
     ]
   }
 }
