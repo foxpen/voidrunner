@@ -997,36 +997,7 @@ function drawShipSelect() {
   if (!ssActive) return;
   shipCtx.clearRect(0, 0, ssW, ssH);
 
-  // ── Space background ──
-  // Dark gradient
-  const bgGrad = shipCtx.createRadialGradient(ssW*0.5, ssH*0.4, 0, ssW*0.5, ssH*0.4, Math.max(ssW,ssH)*0.75);
-  bgGrad.addColorStop(0,   'rgba(10,18,40,0.96)');
-  bgGrad.addColorStop(0.5, 'rgba(5,8,22,0.98)');
-  bgGrad.addColorStop(1,   'rgba(2,4,12,1)');
-  shipCtx.fillStyle = bgGrad;
-  shipCtx.fillRect(0, 0, ssW, ssH);
-
-  // Stars from the existing stars array
-  if (typeof stars !== 'undefined') {
-    stars.forEach(s => {
-      const a = 0.15 + s.bright * 0.5 * (0.7 + 0.3 * Math.sin(ssFrame * 0.02 + s.twinkle));
-      shipCtx.globalAlpha = a;
-      shipCtx.fillStyle = '#ffffff';
-      shipCtx.beginPath();
-      shipCtx.arc(s.bx, s.by, s.size, 0, Math.PI * 2);
-      shipCtx.fill();
-    });
-    shipCtx.globalAlpha = 1;
-  }
-
-  // Subtle nebula glow in center
-  const neb = shipCtx.createRadialGradient(ssW*0.5, ssH*0.45, 0, ssW*0.5, ssH*0.45, ssW*0.4);
-  neb.addColorStop(0,   'rgba(0,40,80,0.25)');
-  neb.addColorStop(0.5, 'rgba(0,20,50,0.12)');
-  neb.addColorStop(1,   'rgba(0,0,0,0)');
-  shipCtx.fillStyle = neb;
-  shipCtx.fillRect(0, 0, ssW, ssH);
-
+  // #bg canvas always renders stars + black hole underneath — ship canvas is transparent
   // ── Ships ──
   let hoveredShip = null;
   ssShips.forEach((s, i) => {
