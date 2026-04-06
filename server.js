@@ -56,8 +56,4 @@ for (const iface of Object.values(nets)) {
   }
 }
 
-console.log('\n  VOID RUNNER server (HTTPS)\n');
-console.log(`  Lokálně:  https://localhost:${PORT_HTTPS}`);
-ips.forEach(ip => console.log(`  Mobil:    https://${ip}:${PORT_HTTPS}  ← toto otevři na telefonu`));
-console.log('\n  Poznámka: prohlížeč zobrazí varování o certifikátu — klikni "Pokračovat"');
-console.log();
+console.log(`\n  VOID RUNNER: https://localhost:${PORT_HTTPS}\n`);
