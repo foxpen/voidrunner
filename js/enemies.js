@@ -42,10 +42,13 @@ const Enemies = (() => {
       vertices.push({ x: Math.cos(a)*r, y: Math.sin(a)*r });
     }
 
+    const baseVx0 = vx / slowMult;
+    const baseVy0 = vy / slowMult;
     list.push({
       x, y, vx, vy,
-      baseVx: vx / slowMult,
-      baseVy: vy / slowMult,
+      baseVx: baseVx0,
+      baseVy: baseVy0,
+      initSpd: Math.hypot(baseVx0, baseVy0) || spd,
       size, vertices, tier, hue,
       rot: Math.random() * Math.PI * 2,
       rotSpeed: (Math.random() - 0.5) * 0.04,
@@ -100,12 +103,13 @@ const Enemies = (() => {
     const slowMult = activePU.slow > 0 ? 0.35 : 1;
 
     list.forEach(o => {
-      // ── Enemy AI per tier ──
+      // ── Enemy AI per tier — scaled by slowMult so enemies don't over-steer ──
       if (o.tier === 2) {
         // Strafe: nudge vx toward player X
         const dx = Player.x - o.x;
-        o.baseVx += Math.sign(dx) * 0.03;
-        o.baseVx = Utils.clamp(o.baseVx, -Math.abs(o.baseVy) * 1.4, Math.abs(o.baseVy) * 1.4);
+        o.baseVx += Math.sign(dx) * 0.03 * slowMult;
+        // Clamp relative to initial vertical speed to cap lateral drift
+        o.baseVx = Utils.clamp(o.baseVx, -o.initSpd * 1.4, o.initSpd * 1.4);
       } else if (o.tier === 3) {
         // Hunt: steer velocity toward player
         const dx = Player.x - o.x;
@@ -115,8 +119,8 @@ const Enemies = (() => {
           const spd = Math.hypot(o.baseVx, o.baseVy) || 1.2;
           const tx = (dx / dist) * spd;
           const ty = (dy / dist) * spd;
-          o.baseVx += (tx - o.baseVx) * 0.025;
-          o.baseVy += (ty - o.baseVy) * 0.025;
+          o.baseVx += (tx - o.baseVx) * 0.025 * slowMult;
+          o.baseVy += (ty - o.baseVy) * 0.025 * slowMult;
         }
       }
 

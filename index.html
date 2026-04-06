@@ -251,7 +251,7 @@
   <div class="final-score" id="final-score">0</div>
   <div class="stats-row" id="stats-row"></div>
   <div class="new-record" id="new-record"></div>
-  <button class="hangar-btn" id="btn-hangar" onclick="Hangar.show(null)">◆ HANGÁR</button>
+  <button class="hangar-btn" id="btn-hangar" onclick="openHangarFromGameOver()">◆ HANGÁR</button>
   <div class="retry">STISKNI ENTER / START</div>
 </div>
 
@@ -356,6 +356,14 @@
 <script src="js/game.js"></script>
 <script src="js/onboarding.js"></script>
 <script>
+  function openHangarFromGameOver() {
+    const goScreen = document.getElementById('game-over-screen');
+    goScreen.classList.remove('visible');
+    Hangar.show(() => {
+      goScreen.classList.add('visible');
+    });
+  }
+
   function toggleMusic() {
     Audio.setMusic(!Audio.musicEnabled);
     ['btn-music', 'btn-music-menu'].forEach(id => {
