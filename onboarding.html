@@ -991,6 +991,7 @@ document.getElementById('btn-launch').addEventListener('click', () => {
   const f = document.getElementById('fade');
   f.style.transition = 'opacity 1s ease';
   f.classList.add('black');
+  localStorage.setItem('vr_autostart', '1');
   setTimeout(() => { window.location.href = 'index.html'; }, 1100);
 });
 

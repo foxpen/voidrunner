@@ -6,14 +6,9 @@
 <title>VOID RUNNER</title>
 <link rel="stylesheet" href="css/style.css">
 <script>
-  // Redirect to intro (first visit) or onboarding (returning without player)
-  const vr = localStorage.getItem('vr_player');
-  if (!vr) {
-    if (!localStorage.getItem('vr_intro_seen')) {
-      window.location.replace('intro.html');
-    } else {
-      window.location.replace('onboarding.html');
-    }
+  // First ever visit — show intro first
+  if (!localStorage.getItem('vr_intro_seen')) {
+    window.location.replace('intro.html');
   }
 </script>
 </head>
@@ -128,8 +123,12 @@
       </div>
     </div>
 
-    <footer class="vr-menu__footer">
-      <div class="vr-menu__prompt">STISKNI ENTER / START</div>
+    <footer class="vr-menu__footer" id="menu-footer">
+      <div class="vr-menu__prompt" id="menu-prompt" style="display:none">STISKNI ENTER / START</div>
+      <div id="main-menu-btns">
+        <button class="vr-menu-btn primary" id="btn-new-game">NOVÁ HRA</button>
+        <button class="vr-menu-btn" id="btn-continue-game" style="display:none">POKRAČOVAT</button>
+      </div>
     </footer>
   </div>
 </div>
@@ -151,6 +150,29 @@
   const _vr = JSON.parse(localStorage.getItem('vr_player') || '{}');
   if (_vr.name) {
     document.getElementById('player-badge').textContent = `PILOT: ${_vr.name}  ·  ${(_vr.mode||'story').toUpperCase()}  ·  ${(_vr.ship||'fighter').toUpperCase()}`;
+  }
+
+  // Auto-start handled by game.js (vr_autostart flag)
+  if (!localStorage.getItem('vr_autostart')) {
+    // Main menu button logic
+    const _hasSave = !!localStorage.getItem('vr_player');
+    const _btnNew  = document.getElementById('btn-new-game');
+    const _btnCont = document.getElementById('btn-continue-game');
+
+    if (_hasSave) {
+      _btnCont.style.display = '';
+      _btnCont.textContent = _vr.name ? `POKRAČOVAT · ${_vr.name}` : 'POKRAČOVAT';
+    }
+
+    _btnNew.addEventListener('click', () => {
+      localStorage.removeItem('vr_player');
+      window.location.href = 'onboarding.html';
+    });
+
+    _btnCont.addEventListener('click', () => {
+      document.getElementById('start-screen').style.display = 'none';
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
   }
 </script>
 

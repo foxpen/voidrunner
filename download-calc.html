@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LOADBAR — Download Time Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@400;600;700;800&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+
+:root {
+  --bg:         oklch(10% 0.025 280);
+  --panel:      oklch(13.5% 0.03 275);
+  --panel-hi:   oklch(17% 0.038 275);
+  --border:     oklch(38% 0.07 275 / 0.32);
+  --border-hi:  oklch(58% 0.12 275 / 0.55);
+  --teal:       oklch(75% 0.18 195);
+  --teal-dim:   oklch(75% 0.18 195 / 0.12);
+  --teal-glow:  oklch(75% 0.18 195 / 0.25);
+  --pink:       oklch(72% 0.18 340);
+  --pink-dim:   oklch(72% 0.18 340 / 0.12);
+  --text:       oklch(92% 0.018 280);
+  --text-muted: oklch(58% 0.04 275);
+  --text-dim:   oklch(38% 0.03 275);
+  --fast:       oklch(75% 0.18 195);
+  --mid:        oklch(82% 0.15 88);
+  --slow:       oklch(72% 0.18 52);
+  --vslow:      oklch(65% 0.20 25);
+}
+
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Nunito', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* ── SCANLINES OVERLAY ─────────────────────────── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 3px,
+    oklch(0% 0 0 / 0.025) 3px,
+    oklch(0% 0 0 / 0.025) 4px
+  );
+  pointer-events: none;
+  z-index: 9000;
+}
+
+/* ── BG NOISE / GLOW BLOBS ─────────────────────── */
+.bg-blobs {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
+}
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  opacity: 0.28;
+  animation: driftBlob linear infinite;
+}
+.blob-1 { width: 600px; height: 600px; top: -10%; left: -5%;
+  background: oklch(40% 0.18 280); animation-duration: 28s; }
+.blob-2 { width: 500px; height: 500px; top: 40%; right: -8%;
+  background: oklch(35% 0.16 195); animation-duration: 34s; animation-delay: -12s; }
+.blob-3 { width: 400px; height: 400px; bottom: -5%; left: 25%;
+  background: oklch(32% 0.14 340); animation-duration: 40s; animation-delay: -6s; }
+
+@keyframes driftBlob {
+  0%   { transform: translate(0,0) scale(1); }
+  33%  { transform: translate(40px,-30px) scale(1.08); }
+  66%  { transform: translate(-30px,50px) scale(0.95); }
+  100% { transform: translate(0,0) scale(1); }
+}
+
+/* ── PAGE SHELL ────────────────────────────────── */
+.page {
+  position: relative; z-index: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px 80px;
+}
+
+/* ── HEADER ────────────────────────────────────── */
+header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 28px 0 20px;
+  animation: fadeUp 0.5s ease both;
+}
+.logo {
+  font-family: 'Oxanium', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--teal);
+  text-shadow: 0 0 20px var(--teal-glow);
+}
+.logo-sym { color: var(--pink); margin-right: 6px; }
+.tagline {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.header-line {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, var(--border), transparent);
+}
+
+/* ── SPEED HERO ────────────────────────────────── */
+.speed-hero {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0 32px;
+  animation: fadeUp 0.5s 0.08s ease both;
+}
+
+.stat-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 32px 40px 28px;
+  width: 100%;
+  max-width: 560px;
+  position: relative;
+  box-shadow:
+    inset 0 1px 0 oklch(60% 0.1 280 / 0.12),
+    0 20px 60px oklch(0% 0 0 / 0.5),
+    0 0 0 1px oklch(0% 0 0 / 0.2);
+  transition: border-color 0.3s;
+}
+.stat-box.focused {
+  border-color: var(--teal);
+  box-shadow:
+    inset 0 1px 0 oklch(60% 0.1 280 / 0.12),
+    0 20px 60px oklch(0% 0 0 / 0.5),
+    0 0 0 1px oklch(0% 0 0 / 0.2),
+    0 0 40px var(--teal-glow),
+    0 0 80px var(--teal-dim);
+}
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+.stat-box.focused { animation: pulseGlow 2s ease infinite; }
+
+.stat-label {
+  font-family: 'Oxanium', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+.speed-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+#speed-input {
+  font-family: 'Oxanium', sans-serif;
+  font-size: 88px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  outline: none;
+  width: 100%;
+  min-width: 0;
+  caret-color: var(--teal);
+  -moz-appearance: textfield;
+}
+#speed-input::-webkit-outer-spin-button,
+#speed-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.unit-label {
+  font-family: 'Oxanium', sans-serif;
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding-bottom: 14px;
+  white-space: nowrap;
+}
+
+.unit-toggle {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.unit-btn {
+  font-family: 'Oxanium', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 6px 16px;
+  border-radius: 40px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.unit-btn:hover { border-color: var(--border-hi); color: var(--text); }
+.unit-btn.active {
+  background: var(--teal-dim);
+  border-color: var(--teal);
+  color: var(--teal);
+  box-shadow: 0 0 12px var(--teal-dim);
+}
+
+.mb-rate {
+  font-family: 'Nunito', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+#mb-rate-val { color: var(--teal); font-weight: 700; }
+
+.speed-presets {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.preset-chip {
+  font-family: 'Oxanium', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel-hi);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.18s;
+  white-space: nowrap;
+}
+.preset-chip:hover {
+  border-color: var(--pink);
+  color: var(--pink);
+  background: var(--pink-dim);
+  box-shadow: 0 0 10px var(--pink-dim);
+}
+.preset-chip.active {
+  border-color: var(--pink);
+  color: var(--pink);
+  background: var(--pink-dim);
+}
+
+/* ── TWO PANELS ────────────────────────────────── */
+.panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+  animation: fadeUp 0.5s 0.16s ease both;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 24px 28px;
+  box-shadow:
+    inset 0 1px 0 oklch(60% 0.1 280 / 0.1),
+    0 8px 32px oklch(0% 0 0 / 0.4);
+}
+.panel-title {
+  font-family: 'Oxanium', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.panel-title::before {
+  content: '';
+  display: block;
+  width: 6px; height: 6px;
+  border-radius: 2px;
+  background: var(--teal);
+  box-shadow: 0 0 8px var(--teal);
+}
+
+/* ── PRESET LIST ───────────────────────────────── */
+.preset-list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.preset-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  cursor: default;
+  transition: all 0.18s;
+}
+.preset-item:hover {
+  background: var(--panel-hi);
+  border-color: var(--border);
+  box-shadow: inset 0 0 20px oklch(75% 0.18 195 / 0.04);
+}
+.item-sym {
+  font-size: 13px;
+  color: var(--text-dim);
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.item-size {
+  font-family: 'Oxanium', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  flex: 1;
+}
+.item-time {
+  font-family: 'Oxanium', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+}
+.tier-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.tier-fast  { background: var(--fast);  box-shadow: 0 0 6px var(--fast); }
+.tier-mid   { background: var(--mid);   box-shadow: 0 0 6px var(--mid); }
+.tier-slow  { background: var(--slow);  box-shadow: 0 0 6px var(--slow); }
+.tier-vslow { background: var(--vslow); box-shadow: 0 0 6px var(--vslow); }
+.col-fast  { color: var(--fast); }
+.col-mid   { color: var(--mid); }
+.col-slow  { color: var(--slow); }
+.col-vslow { color: var(--vslow); }
+
+/* ── CUSTOM PANEL ──────────────────────────────── */
+.custom-size-display {
+  text-align: center;
+  margin-bottom: 20px;
+}
+.custom-size-val {
+  font-family: 'Oxanium', sans-serif;
+  font-size: 42px;
+  font-weight: 700;
+  color: var(--text);
+  display: block;
+  line-height: 1;
+}
+.custom-time-val {
+  font-family: 'Oxanium', sans-serif;
+  font-size: 24px;
+  font-weight: 600;
+  display: block;
+  margin-top: 6px;
+}
+
+.slider-wrap {
+  padding: 0 4px;
+  margin-bottom: 24px;
+}
+input[type=range] {
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--panel-hi);
+  outline: none;
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--teal);
+  box-shadow: 0 0 12px var(--teal-glow);
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+}
+input[type=range]::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 20px var(--teal);
+}
+input[type=range]::-moz-range-thumb {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--teal);
+  box-shadow: 0 0 12px var(--teal-glow);
+  border: none;
+  cursor: pointer;
+}
+
+.slider-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+.slider-lbl {
+  font-family: 'Oxanium', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-dim);
+  letter-spacing: 0.05em;
+}
+
+.legend {
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.legend-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── GAME LIBRARY ──────────────────────────────── */
+.library {
+  animation: fadeUp 0.5s 0.24s ease both;
+}
+.library-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.library-title {
+  font-family: 'Oxanium', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.library-title::before {
+  content: '';
+  display: block;
+  width: 6px; height: 6px;
+  border-radius: 2px;
+  background: var(--pink);
+  box-shadow: 0 0 8px var(--pink);
+}
+
+.filter-tabs {
+  display: flex;
+  gap: 6px;
+}
+.filter-btn {
+  font-family: 'Oxanium', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 5px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.18s;
+}
+.filter-btn:hover { border-color: var(--border-hi); color: var(--text); }
+.filter-btn.active {
+  background: var(--pink-dim);
+  border-color: var(--pink);
+  color: var(--pink);
+}
+
+.search-wrap {
+  position: relative;
+  margin-bottom: 20px;
+}
+.search-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-dim);
+  font-size: 16px;
+  pointer-events: none;
+}
+#search-input {
+  width: 100%;
+  padding: 13px 20px 13px 44px;
+  border-radius: 40px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-family: 'Nunito', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  outline: none;
+  transition: all 0.25s;
+  box-shadow: inset 0 1px 0 oklch(60% 0.1 280 / 0.08);
+}
+#search-input::placeholder { color: var(--text-dim); }
+#search-input:focus {
+  border-color: var(--teal);
+  box-shadow:
+    inset 0 1px 0 oklch(60% 0.1 280 / 0.08),
+    0 0 0 3px var(--teal-dim),
+    0 0 20px var(--teal-dim);
+}
+
+/* ── GAME GRID ─────────────────────────────────── */
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.game-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: default;
+  transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1), border-color 0.22s, box-shadow 0.22s;
+  animation: cardAppear 0.3s ease both;
+}
+.game-card:hover {
+  transform: translateY(-5px) scale(1.01);
+  border-color: oklch(50% 0.1 275 / 0.5);
+  box-shadow: 0 16px 48px oklch(0% 0 0 / 0.55), 0 0 24px var(--teal-dim);
+}
+
+.card-img {
+  width: 100%;
+  height: 80px;
+  object-fit: cover;
+  display: block;
+  border-radius: 0;
+}
+.card-icon-wrap {
+  width: 100%;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+}
+.card-body {
+  padding: 10px 14px 12px;
+}
+.card-name {
+  font-family: 'Nunito', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+}
+.card-size {
+  font-family: 'Oxanium', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+.card-time {
+  font-family: 'Oxanium', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.no-results {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-dim);
+}
+.no-results-icon { font-size: 40px; margin-bottom: 12px; }
+.no-results-text {
+  font-family: 'Oxanium', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+
+/* ── ANIMATIONS ────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(22px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes cardAppear {
+  from { opacity: 0; transform: scale(0.93); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ── RESPONSIVE ────────────────────────────────── */
+@media (max-width: 900px) {
+  .game-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 700px) {
+  .panels { grid-template-columns: 1fr; }
+  .game-grid { grid-template-columns: repeat(2, 1fr); }
+  #speed-input { font-size: 64px; }
+  .stat-box { padding: 24px 24px 20px; }
+}
+@media (max-width: 480px) {
+  .game-grid { grid-template-columns: repeat(2, 1fr); }
+  .library-header { flex-direction: column; align-items: flex-start; }
+}
+</style>
+</head>
+<body>
+
+<div class="bg-blobs">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+</div>
+
+<div class="page">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo"><span class="logo-sym">◈</span>LOADBAR</div>
+    <div class="header-line"></div>
+    <div class="tagline">download time calculator</div>
+  </header>
+
+  <!-- SPEED HERO -->
+  <section class="speed-hero">
+    <div class="stat-box" id="stat-box">
+      <div class="stat-label">internet speed</div>
+      <div class="speed-row">
+        <input type="number" id="speed-input" value="100" min="0.1" max="100000" step="any">
+        <span class="unit-label" id="unit-label">Mbps</span>
+      </div>
+      <div class="unit-toggle">
+        <button class="unit-btn active" data-unit="mbps">Mbps</button>
+        <button class="unit-btn" data-unit="gbps">Gbps</button>
+      </div>
+      <div class="mb-rate">= <span id="mb-rate-val">12.5</span> MB/s download speed</div>
+      <div class="speed-presets">
+        <button class="preset-chip" data-mbps="5">5 Mbps</button>
+        <button class="preset-chip" data-mbps="25">25 Mbps</button>
+        <button class="preset-chip" data-mbps="100">100 Mbps</button>
+        <button class="preset-chip" data-mbps="300">300 Mbps</button>
+        <button class="preset-chip" data-mbps="500">500 Mbps</button>
+        <button class="preset-chip" data-mbps="1000">1 Gbps</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- TWO PANELS -->
+  <div class="panels">
+
+    <!-- LEFT: FILE SIZES -->
+    <div class="panel">
+      <div class="panel-title">File Sizes</div>
+      <ul class="preset-list" id="preset-list"></ul>
+    </div>
+
+    <!-- RIGHT: CUSTOM FILE -->
+    <div class="panel">
+      <div class="panel-title">Custom File</div>
+      <div class="custom-size-display">
+        <span class="custom-size-val" id="custom-size-val">5 GB</span>
+        <span class="custom-time-val" id="custom-time-val">—</span>
+      </div>
+      <div class="slider-wrap">
+        <input type="range" id="custom-slider" min="1" max="200000" value="5120" step="1">
+        <div class="slider-labels">
+          <span class="slider-lbl">1 MB</span>
+          <span class="slider-lbl">200 GB</span>
+        </div>
+      </div>
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-dot tier-fast"></div> Fast — under 1 minute
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot tier-mid"></div> Moderate — 1 to 10 min
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot tier-slow"></div> Slow — 10 min to 1 hr
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot tier-vslow"></div> Very slow — over 1 hr
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- GAME LIBRARY -->
+  <section class="library">
+    <div class="library-header">
+      <span class="library-title">Game Library</span>
+      <div class="filter-tabs">
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="game">Games</button>
+        <button class="filter-btn" data-filter="sw">Software</button>
+      </div>
+    </div>
+    <div class="search-wrap">
+      <span class="search-icon">⌕</span>
+      <input type="search" id="search-input" placeholder="Search your next download...">
+    </div>
+    <div class="game-grid" id="game-grid"></div>
+  </section>
+
+</div>
+
+<script>
+// ── DATABASE ─────────────────────────────────────────────────────────────────
+const DB = [
+  // Steam Games
+  { name: 'Cyberpunk 2077',        gb: 70,   type: 'game', steamId: 1091500 },
+  { name: 'Red Dead Redemption 2', gb: 150,  type: 'game', steamId: 1174180 },
+  { name: 'GTA V',                 gb: 95,   type: 'game', steamId: 271590  },
+  { name: 'Microsoft Flight Sim',  gb: 130,  type: 'game', steamId: 1250410 },
+  { name: 'CS2',                   gb: 28,   type: 'game', steamId: 730     },
+  { name: 'Apex Legends',          gb: 75,   type: 'game', steamId: 1172470 },
+  { name: 'Elden Ring',            gb: 53,   type: 'game', steamId: 1245620 },
+  { name: 'God of War',            gb: 34,   type: 'game', steamId: 1593500 },
+  { name: 'Spider-Man Remastered', gb: 75,   type: 'game', steamId: 1817070 },
+  { name: 'Hogwarts Legacy',       gb: 76,   type: 'game', steamId: 990080  },
+  { name: 'Starfield',             gb: 139,  type: 'game', steamId: 1716740 },
+  { name: "Baldur's Gate 3",       gb: 122,  type: 'game', steamId: 1086940 },
+  { name: 'The Witcher 3',         gb: 50,   type: 'game', steamId: 292030  },
+  { name: 'Destiny 2',             gb: 105,  type: 'game', steamId: 1085660 },
+  { name: 'Battlefield 2042',      gb: 100,  type: 'game', steamId: 1517290 },
+  { name: 'Rainbow Six Siege',     gb: 60,   type: 'game', steamId: 359550  },
+  { name: 'Forza Horizon 5',       gb: 110,  type: 'game', steamId: 1551360 },
+  { name: 'Halo Infinite',         gb: 48,   type: 'game', steamId: 1240440 },
+  { name: 'Sea of Thieves',        gb: 35,   type: 'game', steamId: 1172620 },
+  { name: 'Palworld',              gb: 8,    type: 'game', steamId: 1623730 },
+  { name: 'Helldivers 2',          gb: 100,  type: 'game', steamId: 553850  },
+  // Non-Steam Games
+  { name: 'Fortnite',              gb: 30,   type: 'game', icon: '🏗️', bg: 'oklch(18% 0.04 220)' },
+  { name: 'Valorant',              gb: 22,   type: 'game', icon: '🔴', bg: 'oklch(15% 0.04 15)'  },
+  { name: 'Call of Duty Warzone',  gb: 95,   type: 'game', icon: '🎖️', bg: 'oklch(14% 0.02 90)'  },
+  { name: 'Minecraft',             gb: 1,    type: 'game', icon: '🧱', bg: 'oklch(17% 0.04 145)' },
+  { name: 'Diablo IV',             gb: 90,   type: 'game', icon: '💀', bg: 'oklch(13% 0.04 25)'  },
+  { name: 'League of Legends',     gb: 22,   type: 'game', icon: '⚔️', bg: 'oklch(15% 0.04 65)'  },
+  { name: 'Overwatch 2',           gb: 50,   type: 'game', icon: '🦸', bg: 'oklch(14% 0.04 245)' },
+  { name: 'FIFA 24',               gb: 50,   type: 'game', icon: '⚽', bg: 'oklch(15% 0.04 155)' },
+  // Software
+  { name: 'Windows 11',            gb: 5.1,  type: 'sw', icon: '🪟', bg: 'oklch(14% 0.03 220)' },
+  { name: 'macOS Ventura',         gb: 12,   type: 'sw', icon: '🍎', bg: 'oklch(14% 0.02 30)'  },
+  { name: 'Ubuntu',                gb: 4,    type: 'sw', icon: '🐧', bg: 'oklch(16% 0.04 50)'  },
+  { name: 'Adobe Photoshop',       gb: 4.5,  type: 'sw', icon: '🎨', bg: 'oklch(14% 0.04 275)' },
+  { name: 'Adobe Premiere Pro',    gb: 8,    type: 'sw', icon: '🎬', bg: 'oklch(13% 0.04 275)' },
+  { name: 'Microsoft Office',      gb: 3,    type: 'sw', icon: '📄', bg: 'oklch(14% 0.03 225)' },
+  { name: 'VS Code',               gb: 0.1,  type: 'sw', icon: '💻', bg: 'oklch(14% 0.04 230)' },
+  { name: 'Google Chrome',         gb: 0.35, type: 'sw', icon: '🌐', bg: 'oklch(14% 0.03 155)' },
+  { name: 'Steam',                 gb: 1,    type: 'sw', icon: '🎮', bg: 'oklch(14% 0.02 220)' },
+  { name: 'Epic Games Launcher',   gb: 0.7,  type: 'sw', icon: '🎯', bg: 'oklch(14% 0.02 280)' },
+  { name: 'DaVinci Resolve',       gb: 3.5,  type: 'sw', icon: '🎥', bg: 'oklch(13% 0.02 285)' },
+  { name: 'Blender',               gb: 0.4,  type: 'sw', icon: '🧊', bg: 'oklch(14% 0.03 225)' },
+  { name: 'Unity',                 gb: 3,    type: 'sw', icon: '🕹️', bg: 'oklch(13% 0.01 280)' },
+  { name: 'Unreal Engine 5',       gb: 75,   type: 'sw', icon: '🔮', bg: 'oklch(13% 0.03 285)' },
+  { name: 'Android Studio',        gb: 1.5,  type: 'sw', icon: '📱', bg: 'oklch(14% 0.04 155)' },
+  { name: 'Node.js',               gb: 0.05, type: 'sw', icon: '💚', bg: 'oklch(14% 0.04 145)' },
+  { name: 'Discord',               gb: 0.3,  type: 'sw', icon: '💬', bg: 'oklch(14% 0.04 275)' },
+  { name: 'Zoom',                  gb: 0.25, type: 'sw', icon: '📹', bg: 'oklch(14% 0.03 220)' },
+  { name: 'OBS Studio',            gb: 0.2,  type: 'sw', icon: '📡', bg: 'oklch(13% 0.02 280)' },
+  { name: 'VLC',                   gb: 0.04, type: 'sw', icon: '🦙', bg: 'oklch(16% 0.04 50)'  },
+];
+
+const PRESETS = [
+  { label: '1 MB',   mb: 1,      sym: '·' },
+  { label: '10 MB',  mb: 10,     sym: '·' },
+  { label: '100 MB', mb: 100,    sym: '▸' },
+  { label: '500 MB', mb: 500,    sym: '▸' },
+  { label: '1 GB',   mb: 1024,   sym: '◆' },
+  { label: '5 GB',   mb: 5120,   sym: '◆' },
+  { label: '10 GB',  mb: 10240,  sym: '◈' },
+  { label: '25 GB',  mb: 25600,  sym: '◈' },
+  { label: '50 GB',  mb: 51200,  sym: '◈' },
+  { label: '100 GB', mb: 102400, sym: '◈' },
+];
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let speedMbps = 100;
+let unitIsGbps = false;
+let currentFilter = 'all';
+let currentQuery = '';
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function calcTime(fileMB) {
+  const mbPerSec = speedMbps / 8;
+  if (mbPerSec <= 0) return '∞';
+  const secs = fileMB / mbPerSec;
+  if (secs < 60)    return `${Math.round(secs)}s`;
+  if (secs < 3600)  return `${Math.floor(secs/60)}m ${Math.round(secs%60)}s`;
+  if (secs < 86400) return `${Math.floor(secs/3600)}h ${Math.floor((secs%3600)/60)}m`;
+  return `${Math.floor(secs/86400)}d ${Math.floor((secs%86400)/3600)}h`;
+}
+
+function getTier(fileMB) {
+  const mbPerSec = speedMbps / 8;
+  if (mbPerSec <= 0) return 'vslow';
+  const secs = fileMB / mbPerSec;
+  if (secs < 60)   return 'fast';
+  if (secs < 600)  return 'mid';
+  if (secs < 3600) return 'slow';
+  return 'vslow';
+}
+
+function fmtSize(gb) {
+  if (gb >= 1)   return `${gb} GB`;
+  return `${(gb * 1024).toFixed(0)} MB`;
+}
+
+function fmtSizeMB(mb) {
+  if (mb >= 1024) return `${(mb/1024).toFixed(mb >= 10240 ? 0 : 1)} GB`;
+  return `${mb} MB`;
+}
+
+// ── SCRAMBLE ANIMATION ────────────────────────────────────────────────────────
+const SCRAMBLE_CHARS = '0123456789';
+function scramble(el, finalText, duration = 500) {
+  const steps = 7;
+  let step = 0;
+  const iv = duration / steps;
+  if (el._scrambleTimer) clearInterval(el._scrambleTimer);
+  el._scrambleTimer = setInterval(() => {
+    if (step >= steps) {
+      el.textContent = finalText;
+      clearInterval(el._scrambleTimer);
+      return;
+    }
+    el.textContent = finalText.split('').map(c => {
+      if (/[0-9]/.test(c)) return SCRAMBLE_CHARS[Math.floor(Math.random() * 10)];
+      return c;
+    }).join('');
+    step++;
+  }, iv);
+}
+
+// ── RENDER PRESET LIST ────────────────────────────────────────────────────────
+function renderPresets() {
+  const list = document.getElementById('preset-list');
+  list.innerHTML = PRESETS.map(p => {
+    const t = calcTime(p.mb);
+    const tier = getTier(p.mb);
+    return `<li class="preset-item">
+      <span class="item-sym">${p.sym}</span>
+      <span class="item-size">${p.label}</span>
+      <span class="item-time col-${tier}" data-mb="${p.mb}">${t}</span>
+      <span class="tier-dot tier-${tier}"></span>
+    </li>`;
+  }).join('');
+}
+
+// ── RENDER GAME GRID ──────────────────────────────────────────────────────────
+function renderGrid() {
+  const grid = document.getElementById('game-grid');
+  const q = currentQuery.toLowerCase().trim();
+  let items = DB.filter(item => {
+    if (currentFilter !== 'all' && item.type !== currentFilter) return false;
+    if (q && !item.name.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  if (items.length === 0) {
+    grid.innerHTML = `<div class="no-results">
+      <div class="no-results-icon">◈</div>
+      <div class="no-results-text">No results for "${currentQuery}"</div>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = items.map((item, i) => {
+    const fileMB = item.gb * 1024;
+    const t = calcTime(fileMB);
+    const tier = getTier(fileMB);
+    const delay = Math.min(i * 35, 400);
+    const sizeStr = fmtSize(item.gb);
+
+    let media;
+    if (item.steamId) {
+      media = `<img class="card-img" src="https://cdn.cloudflare.steamstatic.com/steam/apps/${item.steamId}/header.jpg" referrerpolicy="no-referrer" loading="lazy" alt="${item.name}" onerror="this.parentElement.innerHTML='<div class=\\"card-icon-wrap\\" style=\\"background:oklch(16% 0.035 275)\\">🎮</div>'">`;
+    } else {
+      media = `<div class="card-icon-wrap" style="background:${item.bg||'oklch(16% 0.035 275)'}">${item.icon||'📦'}</div>`;
+    }
+
+    return `<div class="game-card" style="animation-delay:${delay}ms">
+      ${media}
+      <div class="card-body">
+        <div class="card-name">${item.name}</div>
+        <div class="card-meta">
+          <span class="card-size">${sizeStr}</span>
+          <span class="card-time col-${tier}" data-idx="${i}">${t}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── UPDATE CUSTOM PANEL ───────────────────────────────────────────────────────
+function updateCustom() {
+  const slider = document.getElementById('custom-slider');
+  const mb = parseInt(slider.value);
+  const sizeEl = document.getElementById('custom-size-val');
+  const timeEl = document.getElementById('custom-time-val');
+  sizeEl.textContent = fmtSizeMB(mb);
+  const t = calcTime(mb);
+  const tier = getTier(mb);
+  timeEl.textContent = t;
+  timeEl.className = `custom-time-val col-${tier}`;
+}
+
+// ── MAIN UPDATE ───────────────────────────────────────────────────────────────
+function update(scrambleAnim = true) {
+  // update MB/s
+  const mbPerSec = (speedMbps / 8).toFixed(1);
+  document.getElementById('mb-rate-val').textContent = parseFloat(mbPerSec).toLocaleString();
+
+  // update preset list (scramble times)
+  if (scrambleAnim) {
+    document.querySelectorAll('#preset-list .item-time').forEach(el => {
+      const mb = parseFloat(el.dataset.mb);
+      const t = calcTime(mb);
+      const tier = getTier(mb);
+      el.className = `item-time col-${tier}`;
+      scramble(el, t);
+      // update sibling dot
+      const dot = el.nextElementSibling;
+      if (dot) dot.className = `tier-dot tier-${tier}`;
+    });
+  } else {
+    renderPresets();
+  }
+
+  // update custom panel
+  updateCustom();
+
+  // re-render grid (update times)
+  renderGrid();
+}
+
+// ── SPEED INPUT ───────────────────────────────────────────────────────────────
+const speedInput = document.getElementById('speed-input');
+const statBox = document.getElementById('stat-box');
+
+speedInput.addEventListener('input', () => {
+  const raw = parseFloat(speedInput.value) || 0;
+  speedMbps = unitIsGbps ? raw * 1000 : raw;
+  // clear active preset chip
+  document.querySelectorAll('.preset-chip').forEach(b => b.classList.remove('active'));
+  update(true);
+});
+speedInput.addEventListener('focus', () => statBox.classList.add('focused'));
+speedInput.addEventListener('blur',  () => statBox.classList.remove('focused'));
+
+// ── UNIT TOGGLE ───────────────────────────────────────────────────────────────
+document.querySelectorAll('.unit-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.unit-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    unitIsGbps = btn.dataset.unit === 'gbps';
+    document.getElementById('unit-label').textContent = unitIsGbps ? 'Gbps' : 'Mbps';
+    const raw = parseFloat(speedInput.value) || 0;
+    speedMbps = unitIsGbps ? raw * 1000 : raw;
+    update(true);
+  });
+});
+
+// ── PRESET CHIPS ──────────────────────────────────────────────────────────────
+document.querySelectorAll('.preset-chip').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.preset-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const mbps = parseFloat(btn.dataset.mbps);
+    speedMbps = mbps;
+    // set input value correctly depending on unit
+    if (unitIsGbps) {
+      speedInput.value = mbps / 1000;
+    } else {
+      speedInput.value = mbps;
+    }
+    update(true);
+  });
+});
+
+// ── FILTER TABS ───────────────────────────────────────────────────────────────
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    renderGrid();
+  });
+});
+
+// ── SEARCH ────────────────────────────────────────────────────────────────────
+document.getElementById('search-input').addEventListener('input', e => {
+  currentQuery = e.target.value;
+  renderGrid();
+});
+
+// ── CUSTOM SLIDER ─────────────────────────────────────────────────────────────
+document.getElementById('custom-slider').addEventListener('input', updateCustom);
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+renderPresets();
+renderGrid();
+updateCustom();
+</script>
+</body>
+</html>

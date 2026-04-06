@@ -503,4 +503,10 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
+// Auto-start if coming from onboarding
+if (localStorage.getItem('vr_autostart')) {
+  localStorage.removeItem('vr_autostart');
+  document.getElementById('start-screen').style.display = 'none';
+  startGame();
+}
 loop();

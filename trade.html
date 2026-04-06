@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EDGE — SMC Trading Tool</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --s0:  oklch(6%   0.020 265);
+  --s1:  oklch(10%  0.018 265);
+  --s2:  oklch(14%  0.016 265);
+  --s3:  oklch(19%  0.013 260);
+  --s4:  oklch(30%  0.010 255);
+  --t-hi: oklch(92% 0.006 80);
+  --t-md: oklch(60% 0.010 250);
+  --t-lo: oklch(36% 0.008 250);
+  --gold:     oklch(74% 0.16 82);
+  --gold-dim: oklch(54% 0.11 82);
+  --gold-bg:  oklch(12% 0.06 82);
+  --bull:     oklch(67% 0.17 152);
+  --bull-bg:  oklch(10% 0.06 152);
+  --bear:     oklch(65% 0.19 20);
+  --bear-bg:  oklch(10% 0.06 20);
+  --neut:     oklch(68% 0.12 255);
+  --neut-bg:  oklch(12% 0.05 255);
+  --glass-bg: oklch(100% 0 0 / 0.04);
+  --glass-border: oklch(100% 0 0 / 0.09);
+  --glass-hi: oklch(100% 0 0 / 0.07);
+}
+
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: 'IBM Plex Sans', sans-serif;
+  background: oklch(4% 0.022 268);
+  color: var(--t-hi);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── CANVAS BG ───────────────────────────────────────── */
+#bg-canvas {
+  position: fixed; inset: 0; z-index: 0;
+  pointer-events: none;
+}
+
+/* ── BACKGROUND SCENE ───────────────────────────────── */
+.bg-scene {
+  position: fixed; inset: 0; z-index: 0; overflow: hidden;
+  pointer-events: none;
+}
+.bg-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(oklch(100% 0 0 / 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(100% 0 0 / 0.045) 1px, transparent 1px);
+  background-size: 52px 52px;
+}
+.bg-vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 75% 75% at 50% 50%, transparent 30%, oklch(4% 0.022 268 / 0.85) 100%);
+}
+
+/* ── SCROLLBARS ─────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--s4); border-radius: 2px; }
+
+/* ── APP GRID ───────────────────────────────────────── */
+.app {
+  display: grid;
+  grid-template-columns: 272px 1fr 292px;
+  grid-template-rows: 48px 1fr;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── HEADER ─────────────────────────────────────────── */
+.hdr {
+  grid-column: 1 / -1;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px;
+  background: oklch(6% 0.020 265 / 0.55);
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  border-bottom: 1px solid var(--glass-border);
+  box-shadow: 0 1px 0 var(--glass-hi), 0 4px 32px oklch(0% 0 0 / 0.4);
+  gap: 16px;
+}
+
+.brand {
+  font-family: 'DM Serif Display', serif;
+  font-size: 18px; letter-spacing: 0.12em;
+  color: var(--gold);
+  padding-left: 10px;
+  border-left: 2px solid var(--gold);
+  white-space: nowrap;
+  text-shadow: 0 0 16px oklch(74% 0.16 82 / 0.5);
+  filter: drop-shadow(0 0 6px oklch(74% 0.16 82 / 0.3));
+}
+.brand sub { font-size: 9px; letter-spacing: .14em; color: var(--gold-dim); vertical-align: super; margin-left: 4px; font-family: 'IBM Plex Mono', monospace; }
+
+.inst-bar { display: flex; gap: 3px; flex: 1; justify-content: center; }
+.inst-btn {
+  padding: 5px 12px; font-size: 11px; font-weight: 500;
+  font-family: 'IBM Plex Mono', monospace; letter-spacing: .04em;
+  border: 1px solid transparent; border-radius: 4px;
+  background: none; color: var(--t-lo); cursor: pointer;
+  transition: all .15s;
+}
+.inst-btn:hover { color: var(--t-md); }
+.inst-btn.on {
+  background: oklch(12% 0.07 82 / 0.8);
+  border-color: oklch(74% 0.16 82 / 0.45);
+  color: var(--gold);
+  box-shadow: 0 0 14px oklch(74% 0.16 82 / 0.28), inset 0 1px 0 oklch(74% 0.16 82 / 0.15);
+  text-shadow: 0 0 12px oklch(74% 0.16 82 / 0.6);
+}
+
+.session-clock { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.clock {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px; color: var(--t-md);
+}
+.session-dots { display: flex; gap: 4px; align-items: center; }
+.sess { display: flex; align-items: center; gap: 4px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--t-lo); }
+.sess-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--s4); }
+.sess-dot.on { background: var(--bull); }
+
+/* ── SIDEBAR ─────────────────────────────────────────── */
+.sidebar {
+  background: oklch(6% 0.018 265 / 0.45);
+  backdrop-filter: blur(32px) saturate(170%);
+  -webkit-backdrop-filter: blur(32px) saturate(170%);
+  border-right: 1px solid var(--glass-border);
+  box-shadow: inset -1px 0 0 var(--glass-hi), 4px 0 32px oklch(0% 0 0 / 0.25);
+  overflow-y: auto;
+  display: flex; flex-direction: column;
+}
+
+.sb-section { padding: 16px 16px 0; }
+.sb-section + .sb-section { padding-top: 12px; border-top: 1px solid var(--glass-border); }
+
+.panel-lbl {
+  font-size: 9px; font-weight: 600; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--t-lo);
+  margin-bottom: 10px; display: block;
+}
+
+/* Direction toggle */
+.dir-toggle { display: flex; gap: 0; border: 1px solid var(--glass-border); border-radius: 6px; overflow: hidden; background: oklch(100% 0 0 / 0.03); }
+.dir-btn {
+  flex: 1; padding: 8px 0; font-size: 12px; font-weight: 500;
+  background: none; border: none; cursor: pointer; color: var(--t-lo);
+  transition: all .15s; display: flex; align-items: center; justify-content: center; gap: 5px;
+}
+.dir-btn.bull.on {
+  background: oklch(10% 0.07 152 / 0.8);
+  color: var(--bull);
+  box-shadow: 0 0 16px oklch(67% 0.17 152 / 0.3), inset 0 1px 0 oklch(67% 0.17 152 / 0.15);
+  text-shadow: 0 0 10px oklch(67% 0.17 152 / 0.6);
+}
+.dir-btn.bear.on {
+  background: oklch(10% 0.07 20 / 0.8);
+  color: var(--bear);
+  box-shadow: 0 0 16px oklch(65% 0.19 20 / 0.3), inset 0 1px 0 oklch(65% 0.19 20 / 0.15);
+  text-shadow: 0 0 10px oklch(65% 0.19 20 / 0.6);
+}
+.dir-btn:hover:not(.on) { color: var(--t-md); }
+
+/* Notes */
+.notes-input {
+  width: 100%; height: 72px;
+  background: oklch(100% 0 0 / 0.04); border: 1px solid var(--glass-border);
+  border-radius: 4px; color: var(--t-hi);
+  font-family: 'IBM Plex Sans', sans-serif; font-size: 12px; font-weight: 300;
+  padding: 8px 10px; resize: none; outline: none;
+  transition: border-color .15s;
+  line-height: 1.5;
+}
+.notes-input:focus { border-color: oklch(74% 0.16 82 / 0.5); box-shadow: 0 0 0 3px oklch(74% 0.16 82 / 0.08); }
+.notes-input::placeholder { color: var(--t-lo); }
+
+/* Ref cards */
+.ref-cards { padding: 16px; display: flex; flex-direction: column; gap: 3px; flex: 1; }
+
+.ref-card { border: 1px solid var(--glass-border); border-radius: 6px; overflow: hidden; background: oklch(100% 0 0 / 0.025); }
+
+.ref-card-hdr {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 12px;
+  background: transparent; border: none; cursor: pointer; color: var(--t-md);
+  font-size: 12px; font-weight: 500; font-family: 'IBM Plex Sans', sans-serif;
+  text-align: left; transition: background .12s, color .12s;
+}
+.ref-card-hdr:hover { background: oklch(100% 0 0 / 0.04); color: var(--t-hi); }
+.ref-card-hdr::before { content: attr(data-color); display: inline-block; width: 3px; height: 14px; border-radius: 1px; margin-right: 8px; flex-shrink: 0; }
+.ref-chev { font-size: 9px; transition: transform .25s; color: var(--t-lo); }
+
+.ref-card-body {
+  overflow: hidden; max-height: 0;
+  transition: max-height .3s ease;
+  background: oklch(100% 0 0 / 0.02);
+}
+.ref-card-body p {
+  padding: 10px 12px; font-size: 11px; font-weight: 300;
+  color: var(--t-md); line-height: 1.65;
+  border-top: 1px solid var(--s4);
+}
+.ref-card-body .rct { font-weight: 500; color: var(--t-hi); }
+
+/* ── MAIN AREA ───────────────────────────────────────── */
+.main {
+  background: transparent;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+
+.card {
+  background: oklch(8% 0.018 265 / 0.42);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 0 var(--glass-hi) inset, 0 8px 40px oklch(0% 0 0 / 0.32);
+}
+
+.card-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--glass-border);
+  background: oklch(100% 0 0 / 0.025);
+}
+
+.card-title { font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--t-lo); }
+
+/* ── BIAS CHECKER ───────────────────────────────────── */
+.bias-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0;
+}
+
+.bias-col {
+  padding: 14px 12px;
+  border-right: 1px solid var(--glass-border);
+}
+.bias-col:last-child { border-right: none; }
+
+.tf-lbl {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; font-weight: 500; letter-spacing: .14em;
+  color: var(--t-lo); margin-bottom: 10px; display: block;
+  text-transform: uppercase;
+}
+
+.bias-btns { display: flex; flex-direction: column; gap: 4px; }
+.bias-btn {
+  padding: 7px 10px; font-size: 12px; font-weight: 400;
+  border: 1px solid var(--glass-border); border-radius: 6px;
+  background: none; cursor: pointer; color: var(--t-lo);
+  transition: all .15s; text-align: left;
+  display: flex; align-items: center; gap: 7px;
+}
+.bias-btn::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: .3; flex-shrink: 0; transition: opacity .15s; }
+.bias-btn:hover { color: var(--t-md); border-color: var(--s3); }
+.bias-btn.bull.on { background: oklch(10% 0.07 152 / 0.75); border-color: oklch(67% 0.17 152 / 0.5); color: var(--bull); box-shadow: 0 0 10px oklch(67% 0.17 152 / 0.2); }
+.bias-btn.bull.on::before { opacity: 1; }
+.bias-btn.bear.on { background: oklch(10% 0.07 20 / 0.75); border-color: oklch(65% 0.19 20 / 0.5); color: var(--bear); box-shadow: 0 0 10px oklch(65% 0.19 20 / 0.2); }
+.bias-btn.bear.on::before { opacity: 1; }
+.bias-btn.neut.on { background: oklch(12% 0.05 255 / 0.75); border-color: oklch(68% 0.12 255 / 0.5); color: var(--neut); box-shadow: 0 0 10px oklch(68% 0.12 255 / 0.2); }
+.bias-btn.neut.on::before { opacity: 1; }
+
+/* Consensus flow */
+.bias-flow {
+  display: flex; align-items: center;
+  padding: 0 12px 14px;
+  gap: 0;
+}
+
+.flow-seg {
+  display: flex; flex-direction: column; align-items: center;
+  flex: 1;
+}
+
+.flow-badge {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px; font-weight: 500; letter-spacing: .05em;
+  padding: 4px 8px; border-radius: 20px;
+  background: var(--s3); color: var(--t-lo);
+  transition: all .3s;
+  white-space: nowrap;
+}
+.flow-badge.bull { background: var(--bull-bg); color: var(--bull); }
+.flow-badge.bear { background: var(--bear-bg); color: var(--bear); }
+
+.flow-arrow {
+  width: 40px; height: 2px;
+  background: var(--s4);
+  position: relative;
+  transition: background .4s;
+  flex-shrink: 0;
+}
+.flow-arrow::after {
+  content: '›'; position: absolute; right: -6px; top: -9px;
+  font-size: 16px; color: var(--s4); transition: color .4s;
+  line-height: 1;
+}
+.flow-arrow.lit { background: var(--gold); box-shadow: 0 0 8px oklch(74% 0.16 82 / 0.6); }
+.flow-arrow.lit::after { color: var(--gold); text-shadow: 0 0 8px oklch(74% 0.16 82 / 0.8); }
+
+.consensus-box {
+  margin: 0 16px 14px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  background: oklch(100% 0 0 / 0.04);
+  font-size: 12px; color: var(--t-lo);
+  transition: all .3s;
+  text-align: center;
+  font-weight: 500;
+}
+.consensus-box.bull-strong { background: oklch(10% 0.07 152 / 0.7); border-color: oklch(67% 0.17 152 / 0.5); color: var(--bull); box-shadow: 0 0 20px oklch(67% 0.17 152 / 0.15) inset; }
+.consensus-box.bear-strong { background: oklch(10% 0.07 20 / 0.7);  border-color: oklch(65% 0.19 20 / 0.5);  color: var(--bear); box-shadow: 0 0 20px oklch(65% 0.19 20 / 0.15) inset; }
+.consensus-box.bull-weak { background: oklch(10% 0.04 152 / 0.6); border-color: oklch(30% 0.07 152 / 0.5); color: oklch(65% 0.12 152); }
+.consensus-box.bear-weak { background: oklch(10% 0.04 20 / 0.6);  border-color: oklch(30% 0.07 20 / 0.5);  color: oklch(63% 0.12 20); }
+
+/* ── CHECKLIST ───────────────────────────────────────── */
+.check-list { padding: 4px 0; }
+
+.check-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--glass-border);
+  cursor: pointer; transition: background .1s;
+}
+.check-row:last-child { border-bottom: none; }
+.check-row:hover { background: oklch(100% 0 0 / 0.035); }
+
+.check-box {
+  width: 14px; height: 14px; flex-shrink: 0;
+  border: 1.5px solid var(--s4); border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+.check-box::after {
+  content: ''; width: 6px; height: 6px;
+  background: var(--gold); border-radius: 1px;
+  opacity: 0; transform: scale(0);
+  transition: all .15s;
+}
+.check-row.checked .check-box { border-color: var(--gold); box-shadow: 0 0 8px oklch(74% 0.16 82 / 0.5); }
+.check-row.checked .check-box::after { opacity: 1; transform: scale(1); }
+.check-row.checked .check-lbl { color: var(--t-hi); }
+
+.check-lbl { flex: 1; font-size: 12px; font-weight: 400; color: var(--t-md); line-height: 1.3; transition: color .15s; }
+.check-w {
+  font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+  color: var(--t-lo); font-weight: 400;
+  background: var(--s3); padding: 2px 5px; border-radius: 3px;
+  white-space: nowrap;
+}
+.check-row.checked .check-w { color: var(--gold); background: var(--gold-bg); }
+
+/* ── SCORE GAUGE ─────────────────────────────────────── */
+.gauge-wrap {
+  display: flex; align-items: center; gap: 28px;
+  padding: 20px 24px;
+}
+
+.gauge-svg-wrap {
+  position: relative; flex-shrink: 0;
+  width: 140px; height: 140px;
+}
+
+#gauge-svg {
+  transform: rotate(-90deg);
+}
+
+.gauge-center {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  pointer-events: none;
+}
+
+.gauge-num {
+  font-family: 'DM Serif Display', serif;
+  font-size: 52px; line-height: 1;
+  color: var(--t-hi);
+  transition: color .4s;
+}
+
+.gauge-unit { font-size: 10px; color: var(--t-lo); letter-spacing: .08em; margin-top: 2px; }
+
+.gauge-info { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+
+.gauge-rating {
+  font-size: 14px; font-weight: 600; letter-spacing: .04em;
+  color: var(--t-lo); transition: color .3s;
+}
+
+.gauge-factors { display: flex; flex-direction: column; gap: 7px; }
+.gf { display: flex; align-items: center; gap: 8px; }
+.gf-lbl { font-size: 10px; color: var(--t-lo); width: 90px; flex-shrink: 0; }
+.gf-track { flex: 1; height: 3px; background: var(--s4); border-radius: 2px; overflow: hidden; }
+.gf-fill { height: 100%; border-radius: 2px; background: var(--gold); transform: scaleX(0); transform-origin: left; transition: transform .6s cubic-bezier(.16,1,.3,1); box-shadow: 0 0 6px oklch(74% 0.16 82 / 0.5); }
+.gf-val { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: var(--t-lo); width: 28px; text-align: right; }
+
+/* ── RIGHT PANEL ─────────────────────────────────────── */
+.rpanel {
+  background: oklch(6% 0.018 265 / 0.45);
+  backdrop-filter: blur(32px) saturate(170%);
+  -webkit-backdrop-filter: blur(32px) saturate(170%);
+  border-left: 1px solid var(--glass-border);
+  box-shadow: inset 1px 0 0 var(--glass-hi), -4px 0 32px oklch(0% 0 0 / 0.25);
+  overflow-y: auto;
+  display: flex; flex-direction: column;
+}
+
+.rp-section {
+  border-bottom: 1px solid var(--glass-border);
+  padding: 14px 16px;
+}
+.rp-section:last-child { border-bottom: none; flex: 1; }
+
+/* Key levels */
+.levels-wrap { position: relative; margin-top: 10px; }
+
+.levels-list { display: flex; flex-direction: column; }
+
+.level-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--glass-border);
+  font-size: 11px;
+  transition: background .12s;
+}
+.level-row:last-child { border-bottom: none; }
+.level-row:hover { background: var(--s2); margin: 0 -16px; padding-left: 16px; padding-right: 16px; }
+
+.level-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.level-type { color: var(--t-lo); width: 52px; font-size: 10px; letter-spacing: .04em; }
+.level-price { font-family: 'IBM Plex Mono', monospace; font-weight: 500; color: var(--t-hi); flex: 1; }
+.level-status {
+  font-size: 9px; font-weight: 600; letter-spacing: .08em;
+  padding: 2px 5px; border-radius: 3px;
+}
+.level-status.active  { background: var(--s3); color: var(--t-lo); }
+.level-status.tested  { background: var(--gold-bg); color: var(--gold-dim); }
+.level-status.broken  { background: var(--bear-bg); color: var(--bear); }
+
+/* Current price line */
+.price-line-wrap { position: relative; height: 24px; margin: 0 -16px; padding: 0 16px; display: flex; align-items: center; background: oklch(74% 0.16 82 / 0.05); }
+.price-line { width: 100%; height: 1px; background: var(--gold); box-shadow: 0 0 8px oklch(74% 0.16 82 / 0.6); }
+.price-tag {
+  position: absolute; right: 0;
+  font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+  color: var(--gold); font-weight: 500;
+  background: transparent; padding: 2px 4px;
+  white-space: nowrap;
+  text-shadow: 0 0 10px oklch(74% 0.16 82 / 0.7);
+}
+
+.price-input-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.price-input-row label { font-size: 10px; color: var(--t-lo); letter-spacing: .08em; white-space: nowrap; }
+.pi {
+  flex: 1; background: oklch(100% 0 0 / 0.04); border: 1px solid var(--glass-border);
+  border-radius: 4px; color: var(--t-hi); padding: 5px 8px;
+  font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+  outline: none; transition: border-color .15s;
+}
+.pi:focus { border-color: oklch(74% 0.16 82 / 0.5); box-shadow: 0 0 0 3px oklch(74% 0.16 82 / 0.08); }
+
+/* Trade summary */
+.setup-card {
+  border: 1px solid var(--glass-border); border-radius: 8px;
+  padding: 12px; margin-top: 10px;
+  background: oklch(100% 0 0 / 0.04);
+  box-shadow: inset 0 1px 0 var(--glass-hi);
+}
+.setup-empty { font-size: 11px; color: var(--t-lo); text-align: center; padding: 10px 0; font-style: italic; }
+
+.setup-dir {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 15px; font-weight: 600; margin-bottom: 12px;
+  padding-bottom: 10px; border-bottom: 1px solid var(--glass-border);
+}
+.dir-icon { width: 10px; height: 10px; border-radius: 2px; }
+
+.setup-rows { display: flex; flex-direction: column; gap: 7px; }
+.setup-row { display: flex; justify-content: space-between; align-items: baseline; }
+.setup-key { font-size: 10px; color: var(--t-lo); letter-spacing: .06em; }
+.setup-val { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 500; color: var(--t-hi); }
+.setup-val.bull { color: var(--bull); }
+.setup-val.bear { color: var(--bear); }
+.setup-rr { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--gold); }
+
+/* Risk calculator */
+.calc-form { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+
+.calc-row { display: flex; flex-direction: column; gap: 3px; }
+.calc-lbl { font-size: 10px; color: var(--t-lo); letter-spacing: .06em; }
+.calc-inp {
+  background: oklch(100% 0 0 / 0.04); border: 1px solid var(--glass-border);
+  border-radius: 4px; color: var(--t-hi);
+  padding: 6px 10px; font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+  outline: none; transition: border-color .15s; width: 100%;
+}
+.calc-inp:focus { border-color: oklch(74% 0.16 82 / 0.5); box-shadow: 0 0 0 3px oklch(74% 0.16 82 / 0.08); }
+
+/* Risk slider */
+.risk-slider { width: 100%; accent-color: var(--gold); }
+
+.calc-out {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 6px; margin-top: 6px;
+}
+.co {
+  background: oklch(100% 0 0 / 0.05);
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  padding: 9px 10px;
+  box-shadow: inset 0 1px 0 var(--glass-hi);
+}
+.co-val {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 16px; font-weight: 500; color: var(--t-hi);
+  margin-bottom: 3px;
+}
+.co-val.good { color: var(--bull); }
+.co-val.bad  { color: var(--bear); }
+.co-lbl { font-size: 9px; color: var(--t-lo); letter-spacing: .06em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<canvas id="bg-canvas"></canvas>
+<div class="bg-scene">
+  <div class="bg-grid"></div>
+  <div class="bg-vignette"></div>
+</div>
+
+<div class="app">
+
+<!-- ── HEADER ──────────────────────────────────────── -->
+<header class="hdr">
+  <div class="brand">EDGE<sub>SMC</sub></div>
+
+  <div class="inst-bar" id="inst-bar">
+    <!-- built by JS -->
+  </div>
+
+  <div class="session-clock">
+    <div class="session-dots">
+      <div class="sess"><div class="sess-dot" id="dot-london"></div>London</div>
+      <div class="sess"><div class="sess-dot" id="dot-ny"></div>NY</div>
+    </div>
+    <div class="clock" id="clock">--:--:--</div>
+  </div>
+</header>
+
+<!-- ── SIDEBAR ─────────────────────────────────────── -->
+<aside class="sidebar">
+
+  <div class="sb-section" style="padding-top:16px">
+    <span class="panel-lbl">Směr analýzy</span>
+    <div class="dir-toggle">
+      <button class="dir-btn bull on" data-dir="long" id="dir-long">▲ LONG</button>
+      <button class="dir-btn bear"    data-dir="short" id="dir-short">▼ SHORT</button>
+    </div>
+  </div>
+
+  <div class="sb-section" style="padding-top:14px; padding-bottom:16px">
+    <span class="panel-lbl">Poznámky k analýze</span>
+    <textarea class="notes-input" placeholder="Zapiš si kontext sessie, news, open interest..."></textarea>
+  </div>
+
+  <div class="ref-cards" id="ref-cards">
+    <span class="panel-lbl">SMC Reference</span>
+    <!-- built by JS -->
+  </div>
+
+</aside>
+
+<!-- ── MAIN ────────────────────────────────────────── -->
+<main class="main">
+
+  <!-- Top-Down Bias -->
+  <div class="card">
+    <div class="card-hdr">
+      <span class="card-title">Top-Down Bias</span>
+      <span style="font-size:10px;color:var(--t-lo);font-family:'IBM Plex Mono',monospace">Daily → 4H → 15M</span>
+    </div>
+    <div class="bias-cols" id="bias-section">
+      <div class="bias-col">
+        <span class="tf-lbl">Daily (D)</span>
+        <div class="bias-btns">
+          <button class="bias-btn bull" data-tf="D" data-val="bull">Bullish</button>
+          <button class="bias-btn neut" data-tf="D" data-val="neut">Neutral</button>
+          <button class="bias-btn bear" data-tf="D" data-val="bear">Bearish</button>
+        </div>
+      </div>
+      <div class="bias-col">
+        <span class="tf-lbl">4 Hour (4H)</span>
+        <div class="bias-btns">
+          <button class="bias-btn bull" data-tf="H4" data-val="bull">Bullish</button>
+          <button class="bias-btn neut" data-tf="H4" data-val="neut">Neutral</button>
+          <button class="bias-btn bear" data-tf="H4" data-val="bear">Bearish</button>
+        </div>
+      </div>
+      <div class="bias-col">
+        <span class="tf-lbl">15 Min (M15)</span>
+        <div class="bias-btns">
+          <button class="bias-btn bull" data-tf="M15" data-val="bull">Bullish</button>
+          <button class="bias-btn neut" data-tf="M15" data-val="neut">Neutral</button>
+          <button class="bias-btn bear" data-tf="M15" data-val="bear">Bearish</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Flow arrows -->
+    <div class="bias-flow">
+      <div class="flow-seg">
+        <div class="flow-badge" id="fb-D">—</div>
+      </div>
+      <div class="flow-arrow" id="fa-1"></div>
+      <div class="flow-seg">
+        <div class="flow-badge" id="fb-H4">—</div>
+      </div>
+      <div class="flow-arrow" id="fa-2"></div>
+      <div class="flow-seg">
+        <div class="flow-badge" id="fb-M15">—</div>
+      </div>
+    </div>
+
+    <div class="consensus-box" id="consensus">Nastav všechny timeframy pro bias</div>
+  </div>
+
+  <!-- SMC Checklist -->
+  <div class="card">
+    <div class="card-hdr">
+      <span class="card-title">SMC Confluence Checklist</span>
+      <span id="check-count" style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--t-lo)">0 / 8</span>
+    </div>
+    <div class="check-list" id="check-list">
+      <!-- built by JS -->
+    </div>
+  </div>
+
+  <!-- Score Gauge -->
+  <div class="card">
+    <div class="card-hdr">
+      <span class="card-title">Setup Score</span>
+    </div>
+    <div class="gauge-wrap">
+      <div class="gauge-svg-wrap">
+        <svg id="gauge-svg" width="140" height="140" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="50" fill="none"
+            stroke="oklch(19% 0.013 260)" stroke-width="10"/>
+          <circle id="gauge-arc" cx="60" cy="60" r="50" fill="none"
+            stroke="var(--s4)" stroke-width="10" stroke-linecap="round"
+            stroke-dasharray="314.16" stroke-dashoffset="314.16"
+            style="transition:stroke-dashoffset .6s cubic-bezier(.16,1,.3,1),stroke .4s"/>
+        </svg>
+        <div class="gauge-center">
+          <div class="gauge-num" id="gauge-num">0</div>
+          <div class="gauge-unit">SCORE</div>
+        </div>
+      </div>
+      <div class="gauge-info">
+        <div class="gauge-rating" id="gauge-rating">—</div>
+        <div class="gauge-factors">
+          <div class="gf"><span class="gf-lbl">Struktura</span><div class="gf-track"><div class="gf-fill" id="gf-1"></div></div><span class="gf-val" id="gfv-1">0</span></div>
+          <div class="gf"><span class="gf-lbl">Zóna kvality</span><div class="gf-track"><div class="gf-fill" id="gf-2"></div></div><span class="gf-val" id="gfv-2">0</span></div>
+          <div class="gf"><span class="gf-lbl">FVG</span><div class="gf-track"><div class="gf-fill" id="gf-3"></div></div><span class="gf-val" id="gfv-3">0</span></div>
+          <div class="gf"><span class="gf-lbl">HTF Alignment</span><div class="gf-track"><div class="gf-fill" id="gf-4"></div></div><span class="gf-val" id="gfv-4">0</span></div>
+          <div class="gf"><span class="gf-lbl">Timing</span><div class="gf-track"><div class="gf-fill" id="gf-5"></div></div><span class="gf-val" id="gfv-5">0</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── RIGHT PANEL ──────────────────────────────────── -->
+<aside class="rpanel">
+
+  <!-- Key Levels -->
+  <div class="rp-section">
+    <span class="panel-lbl">Klíčové levely</span>
+    <div class="levels-wrap" id="levels-wrap">
+      <!-- built by JS -->
+    </div>
+    <div class="price-input-row">
+      <label for="cur-price">CENA</label>
+      <input id="cur-price" class="pi" type="number" step="0.0001" placeholder="1.08500">
+    </div>
+  </div>
+
+  <!-- Trade Setup -->
+  <div class="rp-section">
+    <span class="panel-lbl">Trade Setup</span>
+    <div class="setup-card" id="setup-card">
+      <div class="setup-empty">Nastav checklisty pro generování setupu</div>
+    </div>
+  </div>
+
+  <!-- Risk Calculator -->
+  <div class="rp-section">
+    <span class="panel-lbl">Risk Kalkulačka</span>
+    <div class="calc-form">
+      <div class="calc-row">
+        <span class="calc-lbl">Entry price</span>
+        <input id="c-entry" class="calc-inp" type="number" step="0.0001" placeholder="1.08500">
+      </div>
+      <div class="calc-row">
+        <span class="calc-lbl">Stop Loss</span>
+        <input id="c-sl" class="calc-inp" type="number" step="0.0001" placeholder="1.08000">
+      </div>
+      <div class="calc-row">
+        <span class="calc-lbl">Take Profit</span>
+        <input id="c-tp" class="calc-inp" type="number" step="0.0001" placeholder="1.09500">
+      </div>
+      <div class="calc-row">
+        <span class="calc-lbl">Účet (€) / Risk %</span>
+        <div style="display:flex;gap:6px">
+          <input id="c-account" class="calc-inp" type="number" value="10000" style="flex:2">
+          <input id="c-risk"    class="calc-inp" type="number" value="1" step="0.1" min="0.1" max="10" style="flex:1">
+        </div>
+      </div>
+    </div>
+    <div class="calc-out">
+      <div class="co"><div class="co-val" id="out-size">—</div><div class="co-lbl">Lot Size</div></div>
+      <div class="co"><div class="co-val" id="out-risk">—</div><div class="co-lbl">Risk (€)</div></div>
+      <div class="co"><div class="co-val" id="out-reward">—</div><div class="co-lbl">Reward (€)</div></div>
+      <div class="co"><div class="co-val" id="out-rr">—</div><div class="co-lbl">R:R Ratio</div></div>
+    </div>
+  </div>
+
+</aside>
+</div><!-- /app -->
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────
+const INSTRUMENTS = ['EURUSD','GBPUSD','XAUUSD','NAS100','DE40'];
+
+const PIP_VALUES = { EURUSD:10, GBPUSD:10, XAUUSD:1, NAS100:1, DE40:1 };
+
+const LEVELS = {
+  EURUSD: [
+    { type:'PWH',  price:1.09850, color:'#c9a227', status:'active' },
+    { type:'Supply', price:1.09640, color:'#e05050', status:'active' },
+    { type:'FVG↑',  price:1.09420, color:'#4db8d4', status:'active' },
+    { type:'WOpen', price:1.09200, color:'#c9a227', status:'tested' },
+    { type:'Demand', price:1.08750, color:'#4db85a', status:'active' },
+    { type:'NPOC',  price:1.08500, color:'#7090d0', status:'active' },
+    { type:'PWL',   price:1.08210, color:'#c9a227', status:'active' },
+  ],
+  GBPUSD: [
+    { type:'PWH',  price:1.27850, color:'#c9a227', status:'active' },
+    { type:'Supply', price:1.27500, color:'#e05050', status:'active' },
+    { type:'FVG↑',  price:1.27100, color:'#4db8d4', status:'active' },
+    { type:'WOpen', price:1.26800, color:'#c9a227', status:'tested' },
+    { type:'Demand', price:1.26300, color:'#4db85a', status:'active' },
+    { type:'NPOC',  price:1.25900, color:'#7090d0', status:'active' },
+    { type:'PWL',   price:1.25400, color:'#c9a227', status:'active' },
+  ],
+  XAUUSD: [
+    { type:'PWH',  price:2348.50, color:'#c9a227', status:'active' },
+    { type:'Supply', price:2335.00, color:'#e05050', status:'active' },
+    { type:'FVG↑',  price:2318.00, color:'#4db8d4', status:'active' },
+    { type:'WOpen', price:2302.00, color:'#c9a227', status:'tested' },
+    { type:'Demand', price:2280.00, color:'#4db85a', status:'active' },
+    { type:'NPOC',  price:2265.00, color:'#7090d0', status:'active' },
+    { type:'PWL',   price:2248.00, color:'#c9a227', status:'active' },
+  ],
+  NAS100: [
+    { type:'PWH',  price:18850, color:'#c9a227', status:'active' },
+    { type:'Supply', price:18620, color:'#e05050', status:'active' },
+    { type:'FVG↑',  price:18400, color:'#4db8d4', status:'active' },
+    { type:'WOpen', price:18200, color:'#c9a227', status:'tested' },
+    { type:'Demand', price:17950, color:'#4db85a', status:'active' },
+    { type:'NPOC',  price:17700, color:'#7090d0', status:'active' },
+    { type:'PWL',   price:17480, color:'#c9a227', status:'active' },
+  ],
+  DE40: [
+    { type:'PWH',  price:17950, color:'#c9a227', status:'active' },
+    { type:'Supply', price:17820, color:'#e05050', status:'active' },
+    { type:'FVG↑',  price:17680, color:'#4db8d4', status:'active' },
+    { type:'WOpen', price:17550, color:'#c9a227', status:'tested' },
+    { type:'Demand', price:17380, color:'#4db85a', status:'active' },
+    { type:'NPOC',  price:17220, color:'#7090d0', status:'active' },
+    { type:'PWL',   price:17060, color:'#c9a227', status:'active' },
+  ],
+};
+
+const SMC_CONCEPTS = [
+  { id:'bos', title:'BOS / CHoCH', color:'#4db85a',
+    body:`<span class="rct">BOS</span> (Break of Structure) — trend continuation. Price breaks previous swing H/L in trend direction.<br><span class="rct">CHoCH</span> (Change of Character) — reversal signal. Price breaks structure against prevailing trend.<br>Použití: Identifikuj na D/4H, entry na LTF.` },
+  { id:'fvg', title:'FVG — Fair Value Gap', color:'#4db8d4',
+    body:`3-svíčkový pattern kde střední svíčka vytvoří imbalanci — knoty svíčky 1 a 3 se nepřekrývají.<br><span class="rct">Acts as price magnet</span> — cena se vrací a filluje gap před continuation.<br>Použití: Mark na 4H/1H. Entry na rettest. Kombinuj s BOS.` },
+  { id:'pd', title:'Premium / Discount', color:'#9070d0',
+    body:`Fibonacci od swing low do swing high. Nad 50% = <span class="rct">Premium</span> (prodej). Pod 50% = <span class="rct">Discount</span> (kup).<br>Institucionální traders nakupují v discountu, prodávají v prémiu.<br>Použití: Pouze buy v discount, pouze sell v premium.` },
+  { id:'sd', title:'Supply & Demand Zones', color:'#c9a227',
+    body:`<span class="rct">Supply</span>: Oblast kde instituce umístily velké sell ordery — cena odešla rychle bearish.<br><span class="rct">Demand</span>: Oblast kde instituce umístily velké buy ordery — cena odešla rychle bullish.<br>Použití: Mark origin svíčku. Entry na první retest.` },
+  { id:'sfp', title:'SFP — Swing Failure', color:'#e05050',
+    body:`Cena krátce prolomí klíčový swing H/L (sweepuje likviditu) a pak se uzavře zpět dovnitř rangu.<br><span class="rct">Liquidity grab</span> institucemi — reversal pravděpodobný.<br>Použití: Čekej na full candle close zpět dovnitř. Kombinuj s FVG nebo S&D.` },
+  { id:'npoc', title:'NPOC — Naked POC', color:'#7090d0',
+    body:`High-volume level z předchozí sessie který nebyl nikdy retestován.<br><span class="rct">Acts as magnet</span> — cena tenduje k revisitaci těchto levelů.<br>Použití: Mark na volume profile (D/4H). Faktoruj do bias pokud je cena daleko.` },
+  { id:'cot', title:'COT Report', color:'#c9a227',
+    body:`Týdenní CFTC report ukazující net positioning commercials, large specs a small traders.<br><span class="rct">Commercials = smart money</span> — extrémy v jejich pozicích předcházejí reversal.<br>Použití: Kontroluj týdně. Pouze potvrzení směru — ne timing tool.` },
+  { id:'pair', title:'Pair Selection', color:'#4db85a',
+    body:`Kup nejsilnější měnu proti nejslabší. Používej currency strength meter across 8 major currencies.<br><span class="rct">Silná + Slabá = highest probability</span> direction.<br>Použití: Kontroluj denně. Obchoduj pouze páry s jasnou strength divergencí.` },
+];
+
+const CHECKS = [
+  { id:'bos_conf',   weight:20, label:'BOS/CHoCH potvrzen ve směru tradu',    factor:0 },
+  { id:'choch_key',  weight:15, label:'CHoCH na klíčovém levelu',              factor:0 },
+  { id:'fvg_id',     weight:15, label:'FVG identifikován ve směru',            factor:1 },
+  { id:'pd_zone',    weight:15, label:'Cena v Discount/Premium zóně',          factor:2 },
+  { id:'sd_conf',    weight:10, label:'Supply/Demand zóna confluence',         factor:1 },
+  { id:'sfp_vis',    weight:10, label:'SFP viditelný na klíčovém levelu',      factor:4 },
+  { id:'npoc_mag',   weight:5,  label:'NPOC jako magnet potvrzuje směr',       factor:3 },
+  { id:'htf_align',  weight:10, label:'HTF + LTF bias alignovaný',             factor:3 },
+];
+
+// ── STATE ─────────────────────────────────────────────────────
+const state = {
+  instrument: 'EURUSD',
+  direction: 'long',
+  bias: { D: null, H4: null, M15: null },
+  checks: {},
+  calc: { entry:'', sl:'', tp:'', account:10000, riskPct:1 },
+  openCards: new Set(),
+  currentPrice: null,
+};
+
+// Init checks from template
+CHECKS.forEach(c => { state.checks[c.id] = { checked: false, weight: c.weight, label: c.label, factor: c.factor }; });
+
+// ── CLOCK + SESSION ───────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleTimeString('cs', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  const h = now.getUTCHours();
+  document.getElementById('dot-london').classList.toggle('on', h >= 7 && h < 16);
+  document.getElementById('dot-ny').classList.toggle('on', h >= 13 && h < 22);
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ── BUILD INSTRUMENT BAR ──────────────────────────────────────
+function buildInstBar() {
+  const bar = document.getElementById('inst-bar');
+  bar.innerHTML = INSTRUMENTS.map(s => `
+    <button class="inst-btn ${s===state.instrument?'on':''}" data-sym="${s}">${s}</button>
+  `).join('');
+}
+
+document.getElementById('inst-bar').addEventListener('click', e => {
+  const btn = e.target.closest('.inst-btn');
+  if (!btn) return;
+  switchInstrument(btn.dataset.sym);
+});
+
+function switchInstrument(sym) {
+  state.instrument = sym;
+  Object.values(state.checks).forEach(c => c.checked = false);
+  state.bias = { D:null, H4:null, M15:null };
+  state.calc.entry = ''; state.calc.sl = ''; state.calc.tp = '';
+  state.currentPrice = null;
+  ['c-entry','c-sl','c-tp'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('cur-price').value = '';
+  buildInstBar();
+  buildChecklist();
+  renderBias();
+  renderScore();
+  renderCalc();
+  renderLevels();
+}
+
+// ── DIRECTION TOGGLE ──────────────────────────────────────────
+document.querySelectorAll('.dir-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    state.direction = btn.dataset.dir;
+    document.getElementById('dir-long').classList.toggle('on', state.direction==='long');
+    document.getElementById('dir-short').classList.toggle('on', state.direction==='short');
+    renderSetup();
+  });
+});
+
+// ── BIAS ──────────────────────────────────────────────────────
+document.getElementById('bias-section').addEventListener('click', e => {
+  const btn = e.target.closest('.bias-btn');
+  if (!btn) return;
+  state.bias[btn.dataset.tf] = btn.dataset.val;
+  renderBias();
+  renderScore();
+});
+
+function computeConsensus() {
+  const { D, H4, M15 } = state.bias;
+  if (!D || !H4 || !M15) return { label:'Nastav všechny timeframy', cls:'', lit:[false,false] };
+  const sc = { bull:1, neut:0, bear:-1 };
+  const t = sc[D] + sc[H4] + sc[M15];
+
+  if (D==='bear' && H4==='bear')
+    return M15==='bear'
+      ? { label:'STRONG DOWNTREND — Všechny TF aligned ↓',   cls:'bear-strong', lit:[true,true] }
+      : { label:'DOWNTREND — Čekám M15 potvrzení',           cls:'bear-weak',   lit:[true,false] };
+  if (D==='bull' && H4==='bull')
+    return M15==='bull'
+      ? { label:'STRONG UPTREND — Všechny TF aligned ↑',    cls:'bull-strong', lit:[true,true] }
+      : { label:'UPTREND — Čekám M15 potvrzení',            cls:'bull-weak',   lit:[true,false] };
+  if (D==='bear' && H4==='bull')
+    return { label:'PULLBACK — Daily bearish, 4H relief rally',  cls:'neut', lit:[false,false] };
+  if (D==='bull' && H4==='bear')
+    return { label:'KOREKCE — Daily bullish, 4H opravuje',       cls:'neut', lit:[false,false] };
+  if (t===0) return { label:'NEUTRAL — Žádný jasný edge',          cls:'neut', lit:[false,false] };
+  return { label: t>0?'MÍRNÝ BULLISH BIAS':'MÍRNÝ BEARISH BIAS',
+           cls: t>0?'bull-weak':'bear-weak', lit:[false,false] };
+}
+
+function renderBias() {
+  document.querySelectorAll('.bias-btn').forEach(btn => {
+    btn.classList.toggle('on', state.bias[btn.dataset.tf] === btn.dataset.val);
+  });
+
+  const TF_LABELS = { D:'Daily', H4:'4H', M15:'M15' };
+  ['D','H4','M15'].forEach(tf => {
+    const fb = document.getElementById('fb-'+tf);
+    const v = state.bias[tf];
+    if (!v) { fb.textContent='—'; fb.className='flow-badge'; return; }
+    const map = { bull:'↑ BULL', neut:'— NEUT', bear:'↓ BEAR' };
+    fb.textContent = map[v];
+    fb.className = 'flow-badge ' + (v==='bull'?'bull':v==='bear'?'bear':'');
+  });
+
+  const c = computeConsensus();
+  document.getElementById('consensus').textContent = c.label;
+  document.getElementById('consensus').className = 'consensus-box ' + c.cls;
+
+  document.getElementById('fa-1').classList.toggle('lit', c.lit[0]);
+  document.getElementById('fa-2').classList.toggle('lit', c.lit[1]);
+}
+
+// ── CHECKLIST ─────────────────────────────────────────────────
+function buildChecklist() {
+  const list = document.getElementById('check-list');
+  list.innerHTML = CHECKS.map(c => `
+    <label class="check-row" data-key="${c.id}">
+      <div class="check-box"></div>
+      <span class="check-lbl">${c.label}</span>
+      <span class="check-w">+${c.weight}</span>
+    </label>
+  `).join('');
+
+  list.addEventListener('click', e => {
+    const row = e.target.closest('.check-row');
+    if (!row) return;
+    const key = row.dataset.key;
+    state.checks[key].checked = !state.checks[key].checked;
+    row.classList.toggle('checked', state.checks[key].checked);
+    renderScore();
+    renderSetup();
+  });
+}
+
+function renderChecklist() {
+  CHECKS.forEach(c => {
+    const row = document.querySelector(`.check-row[data-key="${c.id}"]`);
+    if (row) row.classList.toggle('checked', state.checks[c.id].checked);
+  });
+  const total = CHECKS.length;
+  const checked = Object.values(state.checks).filter(c=>c.checked).length;
+  document.getElementById('check-count').textContent = `${checked} / ${total}`;
+}
+
+// ── SCORE ─────────────────────────────────────────────────────
+function computeScore() {
+  return Object.values(state.checks).reduce((s,c) => s + (c.checked ? c.weight : 0), 0);
+}
+
+function renderScore() {
+  renderChecklist();
+  const score = computeScore();
+  renderGauge(score);
+  renderFactors(score);
+  renderSetup();
+}
+
+function renderGauge(score) {
+  const arc = document.getElementById('gauge-arc');
+  const num = document.getElementById('gauge-num');
+  const rat = document.getElementById('gauge-rating');
+  const C = 314.16;
+  arc.style.strokeDashoffset = C * (1 - score/100);
+
+  const color = score >= 70 ? 'var(--bull)' : score >= 45 ? 'var(--gold)' : 'var(--bear)';
+  arc.style.stroke = color;
+  const glowColor = score >= 70 ? 'oklch(67% 0.17 152 / 0.5)' : score >= 45 ? 'oklch(74% 0.16 82 / 0.5)' : 'oklch(65% 0.19 20 / 0.5)';
+  arc.style.filter = `drop-shadow(0 0 8px ${glowColor})`;
+  document.querySelector('.gauge-num').style.color = score > 0 ? color : 'var(--t-lo)';
+  document.querySelector('.gauge-num').style.textShadow = score > 0 ? `0 0 20px ${glowColor}` : 'none';
+
+  // Animate number
+  const from = parseInt(num.textContent) || 0;
+  const t0 = performance.now();
+  (function tick(now) {
+    const p = Math.min((now-t0)/600, 1);
+    const ep = 1-Math.pow(1-p,3);
+    num.textContent = Math.round(from + (score-from)*ep);
+    if (p<1) requestAnimationFrame(tick);
+  })(t0);
+
+  if (score >= 75) { rat.textContent='HIGH PROBABILITY'; rat.style.color='var(--bull)'; }
+  else if (score >= 60) { rat.textContent='VALID SETUP'; rat.style.color='var(--gold)'; }
+  else if (score >= 40) { rat.textContent='MARGINAL'; rat.style.color='var(--t-md)'; }
+  else { rat.textContent='AVOID'; rat.style.color='var(--bear)'; }
+}
+
+function renderFactors(score) {
+  // Factor groups: [bos+choch=35, fvg+sd=25, pd=15, npoc+htf=15, sfp=10]
+  const factors = [
+    { id:1, keys:['bos_conf','choch_key'], max:35 },
+    { id:2, keys:['fvg_id','sd_conf'],    max:25 },
+    { id:3, keys:['pd_zone'],             max:15 },
+    { id:4, keys:['npoc_mag','htf_align'],max:15 },
+    { id:5, keys:['sfp_vis'],             max:10 },
+  ];
+  factors.forEach(f => {
+    const earned = f.keys.reduce((s,k) => s+(state.checks[k]?.checked?state.checks[k].weight:0), 0);
+    const pct = f.max > 0 ? earned/f.max : 0;
+    const fill = document.getElementById('gf-'+f.id);
+    const val  = document.getElementById('gfv-'+f.id);
+    if (fill) fill.style.transform = `scaleX(${pct})`;
+    if (val) val.textContent = earned;
+  });
+}
+
+// ── SETUP SUMMARY ─────────────────────────────────────────────
+function renderSetup() {
+  const card = document.getElementById('setup-card');
+  const score = computeScore();
+  const dir = state.direction;
+  const { entry, sl, tp } = state.calc;
+
+  if (score < 40) {
+    card.innerHTML = '<div class="setup-empty">Score příliš nízký pro setup (min. 40)</div>';
+    return;
+  }
+
+  const dirColor = dir==='long' ? 'var(--bull)' : 'var(--bear)';
+  const dirLabel = dir==='long' ? 'LONG ▲' : 'SHORT ▼';
+
+  let rrHtml = '<span class="setup-val">—</span>';
+  if (entry && sl && tp) {
+    const slPips = Math.abs(entry-sl)*10000;
+    const tpPips = Math.abs(tp-entry)*10000;
+    const rr = slPips > 0 ? (tpPips/slPips).toFixed(2) : 0;
+    const rrClass = rr >= 2 ? 'bull' : rr < 1 ? 'bear' : '';
+    rrHtml = `<span class="setup-rr ${rrClass}">1 : ${rr}</span>`;
+  }
+
+  card.innerHTML = `
+    <div class="setup-dir">
+      <div class="dir-icon" style="background:${dirColor}"></div>
+      <span style="color:${dirColor}">${dirLabel}</span>
+      <span style="font-size:11px;color:var(--t-lo);margin-left:auto">${score}pts</span>
+    </div>
+    <div class="setup-rows">
+      <div class="setup-row">
+        <span class="setup-key">Entry zone</span>
+        <span class="setup-val">${entry||'—'}</span>
+      </div>
+      <div class="setup-row">
+        <span class="setup-key">Stop Loss</span>
+        <span class="setup-val bear">${sl||'—'}</span>
+      </div>
+      <div class="setup-row">
+        <span class="setup-key">Take Profit</span>
+        <span class="setup-val bull">${tp||'—'}</span>
+      </div>
+      <div class="setup-row">
+        <span class="setup-key">R:R Ratio</span>
+        ${rrHtml}
+      </div>
+    </div>
+  `;
+}
+
+// ── RISK CALC ─────────────────────────────────────────────────
+['c-entry','c-sl','c-tp','c-account','c-risk'].forEach(id => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', () => {
+    const key = id.replace('c-','').replace('-','');
+    const map = {'entry':'entry','sl':'sl','tp':'tp','account':'account','risk':'riskPct'};
+    state.calc[map[key] || key] = parseFloat(el.value) || 0;
+    renderCalc();
+    renderSetup();
+  });
+});
+
+function renderCalc() {
+  const { entry, sl, tp, account, riskPct } = state.calc;
+  const pipVal = PIP_VALUES[state.instrument] || 10;
+
+  if (!entry || !sl || !tp || !account || !riskPct) {
+    ['out-size','out-risk','out-reward','out-rr'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.textContent='—'; el.className='co-val'; }
+    });
+    return;
+  }
+
+  const riskAmt = account * (riskPct/100);
+  const slPips  = Math.abs(entry-sl) * (state.instrument==='XAUUSD'||state.instrument.includes('100')||state.instrument==='DE40' ? 1 : 10000);
+  const tpPips  = Math.abs(tp-entry) * (state.instrument==='XAUUSD'||state.instrument.includes('100')||state.instrument==='DE40' ? 1 : 10000);
+  const lots    = slPips > 0 ? riskAmt/(slPips*pipVal) : 0;
+  const reward  = lots * tpPips * pipVal;
+  const rr      = slPips > 0 ? tpPips/slPips : 0;
+
+  const el = id => document.getElementById(id);
+  el('out-size').textContent   = lots.toFixed(2) + ' lot';
+  el('out-risk').textContent   = '€' + riskAmt.toFixed(0);
+  el('out-reward').textContent = '€' + reward.toFixed(0);
+  el('out-rr').textContent     = '1 : ' + rr.toFixed(2);
+  el('out-rr').className = 'co-val ' + (rr>=2?'good':rr<1?'bad':'');
+  el('out-reward').className = 'co-val ' + (rr>=2?'good':'');
+}
+
+// ── KEY LEVELS ────────────────────────────────────────────────
+function renderLevels() {
+  const wrap = document.getElementById('levels-wrap');
+  const levels = LEVELS[state.instrument] || [];
+  const curPrice = state.currentPrice;
+
+  let html = '<div class="levels-list">';
+  let priceLine = false;
+
+  levels.forEach((lv, i) => {
+    // Insert price line between levels
+    if (curPrice && !priceLine && curPrice > lv.price) {
+      html += `<div class="price-line-wrap">
+        <div class="price-line"></div>
+        <div class="price-tag">${curPrice}</div>
+      </div>`;
+      priceLine = true;
+    }
+    html += `
+      <div class="level-row">
+        <div class="level-dot" style="background:${lv.color}"></div>
+        <span class="level-type">${lv.type}</span>
+        <span class="level-price">${lv.price.toFixed(state.instrument==='XAUUSD'?2:state.instrument.includes('100')||state.instrument==='DE40'?0:5)}</span>
+        <span class="level-status ${lv.status}">${lv.status.toUpperCase()}</span>
+      </div>`;
+  });
+
+  if (curPrice && !priceLine) {
+    html += `<div class="price-line-wrap">
+      <div class="price-line"></div>
+      <div class="price-tag">${curPrice}</div>
+    </div>`;
+  }
+
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+document.getElementById('cur-price').addEventListener('input', e => {
+  state.currentPrice = parseFloat(e.target.value) || null;
+  renderLevels();
+});
+
+// ── REFERENCE CARDS ───────────────────────────────────────────
+function buildRefCards() {
+  const wrap = document.getElementById('ref-cards');
+  wrap.innerHTML = '<span class="panel-lbl">SMC Reference</span>' +
+    SMC_CONCEPTS.map(c => `
+      <div class="ref-card">
+        <button class="ref-card-hdr" data-id="${c.id}" data-color="${c.color}" style="--dot-color:${c.color}">
+          <span>${c.title}</span>
+          <span class="ref-chev">▾</span>
+        </button>
+        <div class="ref-card-body" id="rc-${c.id}">
+          <p>${c.body}</p>
+        </div>
+      </div>
+    `).join('');
+
+  // Color the left border via inline style on ::before
+  wrap.querySelectorAll('.ref-card-hdr').forEach(hdr => {
+    const color = hdr.dataset.color;
+    hdr.style.cssText += ``;
+    // Apply via style tag trick
+    const swatch = document.createElement('span');
+    swatch.style.cssText = `display:inline-block;width:3px;height:14px;border-radius:1px;background:${color};margin-right:8px;flex-shrink:0;`;
+    hdr.insertBefore(swatch, hdr.firstChild);
+  });
+
+  wrap.addEventListener('click', e => {
+    const hdr = e.target.closest('.ref-card-hdr');
+    if (!hdr) return;
+    const id = hdr.dataset.id;
+    const body = document.getElementById('rc-'+id);
+    const chev = hdr.querySelector('.ref-chev');
+    const isOpen = state.openCards.has(id);
+    if (isOpen) {
+      state.openCards.delete(id);
+      body.style.maxHeight = '0';
+      chev.style.transform = 'rotate(0deg)';
+    } else {
+      state.openCards.add(id);
+      body.style.maxHeight = body.scrollHeight + 'px';
+      chev.style.transform = 'rotate(180deg)';
+    }
+  });
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+buildInstBar();
+buildChecklist();
+buildRefCards();
+renderBias();
+renderScore();
+renderCalc();
+renderLevels();
+
+// ── CANVAS BACKGROUND ─────────────────────────────────────────
+(function() {
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const blobs = [
+    { x: 0.15, y: 0.20, r: 0.38, dx: 0.00012, dy: 0.00008, h: 82,  s: 0.14, l: 0.74, a: 0.22 },
+    { x: 0.82, y: 0.75, r: 0.32, dx:-0.00009, dy:-0.00006, h: 200, s: 0.18, l: 0.55, a: 0.18 },
+    { x: 0.55, y: 0.15, r: 0.26, dx: 0.00007, dy: 0.00011, h: 280, s: 0.16, l: 0.45, a: 0.14 },
+    { x: 0.10, y: 0.70, r: 0.22, dx: 0.00010, dy:-0.00007, h: 20,  s: 0.19, l: 0.65, a: 0.13 },
+    { x: 0.70, y: 0.40, r: 0.20, dx:-0.00011, dy: 0.00009, h: 265, s: 0.15, l: 0.50, a: 0.10 },
+  ];
+
+  // Bounce blobs within [0.05, 0.95]
+  function updateBlobs() {
+    blobs.forEach(b => {
+      b.x += b.dx;
+      b.y += b.dy;
+      if (b.x < 0.05 || b.x > 0.95) b.dx *= -1;
+      if (b.y < 0.05 || b.y > 0.95) b.dy *= -1;
+    });
+  }
+
+  // oklch → rgb approximation via CSS trick using a temp element
+  const colorCache = {};
+  function oklchToRgb(h, s, l) {
+    const key = `${h}-${s}-${l}`;
+    if (colorCache[key]) return colorCache[key];
+    // Use canvas to resolve CSS color
+    const tmp = document.createElement('canvas');
+    tmp.width = tmp.height = 1;
+    const tc = tmp.getContext('2d');
+    tc.fillStyle = `oklch(${l*100}% ${s} ${h})`;
+    tc.fillRect(0, 0, 1, 1);
+    const d = tc.getImageData(0, 0, 1, 1).data;
+    colorCache[key] = [d[0], d[1], d[2]];
+    return colorCache[key];
+  }
+
+  function draw() {
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    // Dark base
+    ctx.fillStyle = 'oklch(4% 0.022 268)';
+    ctx.fillRect(0, 0, W, H);
+
+    // Draw blobs
+    blobs.forEach(b => {
+      const cx = b.x * W, cy = b.y * H;
+      const radius = b.r * Math.min(W, H);
+      const [r, g, bl] = oklchToRgb(b.h, b.s, b.l);
+      const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+      grd.addColorStop(0,   `rgba(${r},${g},${bl},${b.a})`);
+      grd.addColorStop(0.5, `rgba(${r},${g},${bl},${b.a * 0.4})`);
+      grd.addColorStop(1,   `rgba(${r},${g},${bl},0)`);
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  function loop() {
+    updateBlobs();
+    draw();
+    requestAnimationFrame(loop);
+  }
+  loop();
+})();
+</script>
+</body>
+</html>

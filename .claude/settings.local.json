@@ -9,7 +9,21 @@
       "Read(//c/Users/repto/Desktop/Antigravity/.agents/skills/**)",
       "Read(//c/Users/repto/.claude/**)",
       "Bash(mkdir -p \"c:\\\\Users\\\\repto\\\\Desktop\\\\Antigravity\\\\intro\\\\src\")",
-      "Read(//c/Users/repto/Desktop/Antigravity/**)"
+      "Read(//c/Users/repto/Desktop/Antigravity/**)",
+      "Bash(npm i:*)",
+      "Bash(start \"\" \"c:\\\\Users\\\\repto\\\\Desktop\\\\Antigravity\\\\game\\\\preview.html\")",
+      "Bash(start \"\" \"c:/Users/repto/Desktop/Antigravity/game/preview.html\")",
+      "Bash(start \"\" \"c:/Users/repto/Desktop/Antigravity/game/void.html\")",
+      "Bash(start \"\" \"http://127.0.0.1:3000/void.html\")",
+      "Bash(start \"\" \"http://127.0.0.1:3000/trade.html\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://127.0.0.1:3000/trade.html)",
+      "Bash(start \"\" \"http://127.0.0.1:52690/trade.html\")",
+      "Bash(start \"\" \"http://127.0.0.1:3000/download-calc.html\")",
+      "Read(//c/Users/repto/Desktop/**)",
+      "Bash(gh repo:*)",
+      "Bash(ls /c/Users/repto/Desktop/Antigravity/game/*.html)",
+      "WebFetch(domain:dowloadbar.netlify.app)",
+      "Bash(node server.js)"
     ]
   }
 }

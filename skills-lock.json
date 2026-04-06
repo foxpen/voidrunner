@@ -16,10 +16,35 @@
       "sourceType": "github",
       "computedHash": "28d4b05df72e585707be653d26c06119b3cc500518625871c1c7bc11164a5a61"
     },
+    "landing-page": {
+      "source": "jezweb/claude-skills",
+      "sourceType": "github",
+      "computedHash": "931acb68b5d4b782b5c43bb166ae1e0ea7333c1cb294b7478dabb30e90f24517"
+    },
+    "product-showcase": {
+      "source": "jezweb/claude-skills",
+      "sourceType": "github",
+      "computedHash": "e22c28772e7c3843b8943ec3164d54b802a433b9931fec0af62019091ce87208"
+    },
     "remotion-best-practices": {
       "source": "remotion-dev/skills",
       "sourceType": "github",
       "computedHash": "c3da3b9e371761d9e33a84360f952b0d5e3259ae19e46f8a8f439d2b6194d9c1"
+    },
+    "seo-local-business": {
+      "source": "jezweb/claude-skills",
+      "sourceType": "github",
+      "computedHash": "fdcd3c8a90c3e2a1da3edfc9eebf0904401e462e419c9b2fca302a7faec74ba8"
+    },
+    "shadcn-ui": {
+      "source": "jezweb/claude-skills",
+      "sourceType": "github",
+      "computedHash": "f86d41cbe62c1224b77b673413a0141930a7d5d7054ea60a8192e354198cd71e"
+    },
+    "tailwind-theme-builder": {
+      "source": "jezweb/claude-skills",
+      "sourceType": "github",
+      "computedHash": "80822952ad23dd67c5a3450f8b59d8adde664a04dae1fb9f5cc562c66163c0c0"
     }
   }
 }
