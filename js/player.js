@@ -298,7 +298,7 @@ const Player = (() => {
     const gap    = sz * 1.15;    // spacing between hearts
     const totalW = (stats.lives - 1) * gap;
     const startX = W / 2 - totalW / 2;
-    const y      = 52;           // below round display
+    const y      = 88;           // below round display (~80px DOM height)
     for (let i = 0; i < stats.lives; i++) {
       const fading = i === 0 && invincible > 0;
       ctx.globalAlpha = fading ? 0.25 : 1;

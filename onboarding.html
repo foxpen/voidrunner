@@ -818,17 +818,21 @@ let ssHovered = -1;
 let ssFrame   = 0;
 let ssOnDone  = null;
 
-// Triangle positions: 0=top-center, 1=bottom-left, 2=bottom-right
+// Ship positions — horizontally centred, capped spread so they stay close together
 function _ssTargetPos(i) {
   const narrow = ssW < 600;
   if (narrow) {
-    // Triangle layout for portrait
-    const tops  = [{ x: ssW*0.5, y: ssH*0.30 }, { x: ssW*0.22, y: ssH*0.60 }, { x: ssW*0.78, y: ssH*0.60 }];
-    return tops[i] || tops[0];
+    // Triangle: top-center, bottom-left, bottom-right
+    return [
+      { x: ssW * 0.50, y: ssH * 0.28 },
+      { x: ssW * 0.25, y: ssH * 0.58 },
+      { x: ssW * 0.75, y: ssH * 0.58 },
+    ][i];
   } else {
-    // Horizontal row for landscape
-    const gap = ssW / 4;
-    return { x: gap * (i + 1), y: ssH * 0.48 };
+    // Horizontal row, spread capped at 260px from center
+    const spread = Math.min(ssW * 0.26, 280);
+    const offsets = [-spread, 0, spread];
+    return { x: ssW * 0.5 + offsets[i], y: ssH * 0.46 };
   }
 }
 
@@ -993,32 +997,64 @@ function drawShipSelect() {
   if (!ssActive) return;
   shipCtx.clearRect(0, 0, ssW, ssH);
 
-  // Draw each ship
+  // ── Space background ──
+  // Dark gradient
+  const bgGrad = shipCtx.createRadialGradient(ssW*0.5, ssH*0.4, 0, ssW*0.5, ssH*0.4, Math.max(ssW,ssH)*0.75);
+  bgGrad.addColorStop(0,   'rgba(10,18,40,0.96)');
+  bgGrad.addColorStop(0.5, 'rgba(5,8,22,0.98)');
+  bgGrad.addColorStop(1,   'rgba(2,4,12,1)');
+  shipCtx.fillStyle = bgGrad;
+  shipCtx.fillRect(0, 0, ssW, ssH);
+
+  // Stars from the existing stars array
+  if (typeof stars !== 'undefined') {
+    stars.forEach(s => {
+      const a = 0.15 + s.bright * 0.5 * (0.7 + 0.3 * Math.sin(ssFrame * 0.02 + s.twinkle));
+      shipCtx.globalAlpha = a;
+      shipCtx.fillStyle = '#ffffff';
+      shipCtx.beginPath();
+      shipCtx.arc(s.bx, s.by, s.size, 0, Math.PI * 2);
+      shipCtx.fill();
+    });
+    shipCtx.globalAlpha = 1;
+  }
+
+  // Subtle nebula glow in center
+  const neb = shipCtx.createRadialGradient(ssW*0.5, ssH*0.45, 0, ssW*0.5, ssH*0.45, ssW*0.4);
+  neb.addColorStop(0,   'rgba(0,40,80,0.25)');
+  neb.addColorStop(0.5, 'rgba(0,20,50,0.12)');
+  neb.addColorStop(1,   'rgba(0,0,0,0)');
+  shipCtx.fillStyle = neb;
+  shipCtx.fillRect(0, 0, ssW, ssH);
+
+  // ── Ships ──
+  let hoveredShip = null;
   ssShips.forEach((s, i) => {
     if (s.alpha <= 0) return;
     const dx = s.displayX !== undefined ? s.displayX : s.x;
     const dy = s.displayY !== undefined ? s.displayY : s.y;
-    shipCtx.globalAlpha = s.alpha * (s.state === 'flying_away' ? s.alpha : 1);
-    const isHov = ssHovered === i;
+    shipCtx.globalAlpha = s.state === 'flying_away' ? s.alpha * s.alpha : s.alpha;
+    const isHov    = ssHovered === i;
     const isChosen = ssChosen === i;
     const ship = SHIPS[i];
 
     _ssDrawShip(shipCtx, ship, dx, dy, isHov || isChosen, s.exhaustFlicker, ssFrame);
-
-    // Stats panel on hover or chosen
-    if ((isHov && ssChosen < 0) || isChosen) {
-      _ssDrawStats(shipCtx, ship, dx, dy, ssW, ssH);
-    }
+    if ((isHov && ssChosen < 0) || isChosen) hoveredShip = { ship, s };
     shipCtx.globalAlpha = 1;
   });
 
-  // Hint text (while no ship is chosen and all settled)
-  if (ssChosen < 0 && ssShips.every(s => s.state === 'settled')) {
-    shipCtx.globalAlpha = 0.35 + 0.25 * Math.sin(ssFrame * 0.05);
-    shipCtx.font = '12px Orbitron, monospace';
-    shipCtx.fillStyle = '#fff';
+  // ── Stats panel — always at bottom center, not next to ship ──
+  if (hoveredShip) {
+    _ssDrawStats(shipCtx, hoveredShip.ship, ssW, ssH);
+  }
+
+  // Hint text
+  if (ssChosen < 0 && ssShips.every(s => s.state === 'settled') && !hoveredShip) {
+    shipCtx.globalAlpha = 0.30 + 0.20 * Math.sin(ssFrame * 0.05);
+    shipCtx.font = '11px Orbitron, monospace';
+    shipCtx.fillStyle = '#aaccff';
     shipCtx.textAlign = 'center';
-    shipCtx.fillText('KLIKNI NA LOĎ', ssW / 2, ssH * 0.88);
+    shipCtx.fillText('KLIKNI NA LOĎ', ssW / 2, ssH * 0.86);
     shipCtx.globalAlpha = 1;
   }
 }
@@ -1141,57 +1177,51 @@ function _ssDrawShip(ctx, ship, ox, oy, highlighted, exhaustFlicker, frame) {
   ctx.restore();
 }
 
-function _ssDrawStats(ctx, ship, sx, sy, W, H) {
-  const panelW = Math.min(200, W * 0.42);
-  const panelH = 140;
-  const margin = 16;
+// Stats panel — always drawn at bottom center, W and H are screen dims
+function _ssDrawStats(ctx, ship, W, H) {
+  const panelW = Math.min(420, W * 0.82);
+  const panelH = 110;
+  const px     = W / 2 - panelW / 2;
+  const py     = H - panelH - 28;
 
-  // Position panel: prefer right side, flip left if near edge
-  let px = sx + 80;
-  if (px + panelW + margin > W) px = sx - 80 - panelW;
-  let py = sy - panelH / 2;
-  py = Math.max(margin, Math.min(H - panelH - margin, py));
-
-  // Panel background
-  ctx.globalAlpha = 0.92;
+  // Backdrop
+  ctx.globalAlpha = 0.94;
   ctx.fillStyle = '#060c18';
-  _ssRoundRect(ctx, px, py, panelW, panelH, 8); ctx.fill();
-  ctx.strokeStyle = ship.color + '88';
-  ctx.lineWidth = 1.5;
-  ctx.shadowColor = ship.color; ctx.shadowBlur = 10;
-  _ssRoundRect(ctx, px, py, panelW, panelH, 8); ctx.stroke();
+  _ssRoundRect(ctx, px, py, panelW, panelH, 10); ctx.fill();
+  ctx.strokeStyle = ship.color + '99';
+  ctx.lineWidth   = 1.5;
+  ctx.shadowColor = ship.color; ctx.shadowBlur = 14;
+  _ssRoundRect(ctx, px, py, panelW, panelH, 10); ctx.stroke();
   ctx.shadowBlur = 0;
 
-  // Name
-  ctx.font = `bold 13px Orbitron, monospace`;
+  // Top color accent bar
+  ctx.fillStyle = ship.color;
+  _ssRoundRect(ctx, px, py, panelW, 3, { tl: 10, tr: 10, bl: 0, br: 0 }); ctx.fill();
+
+  // Name + desc on left
+  const textX = px + 16;
+  ctx.font = `bold 15px Orbitron, monospace`;
   ctx.fillStyle = ship.color; ctx.textAlign = 'left';
   ctx.shadowColor = ship.color; ctx.shadowBlur = 8;
-  ctx.fillText(ship.name, px + 12, py + 22);
-  ctx.shadowBlur = 0;
+  ctx.fillText(ship.name, textX, py + 26); ctx.shadowBlur = 0;
 
-  // Desc
-  ctx.font = '11px Rajdhani, sans-serif';
-  ctx.fillStyle = '#ffffff77';
-  const descLines = ship.desc.split('\n');
-  descLines.forEach((line, i) => ctx.fillText(line, px + 12, py + 38 + i * 15));
+  ctx.font = '12px Rajdhani, sans-serif';
+  ctx.fillStyle = '#ffffffaa';
+  ship.desc.split('\n').forEach((line, i) => ctx.fillText(line, textX, py + 46 + i * 16));
 
-  // Stat bars
-  const barY = py + 38 + descLines.length * 15 + 8;
+  // Stat bars on right half
+  const barsX  = px + panelW * 0.46;
+  const barsW  = panelW * 0.50;
   ['speed', 'armor', 'firepower'].forEach((key, i) => {
     const val = ship.stats[key];
-    const bx = px + 12, by = barY + i * 26;
-    const bw = panelW - 24;
-    ctx.font = '9px Orbitron, monospace';
-    ctx.fillStyle = '#ffffff44'; ctx.textAlign = 'left';
-    ctx.fillText(key.toUpperCase(), bx, by + 8);
-    ctx.fillStyle = '#ffffff22';
-    ctx.fillRect(bx, by + 12, bw, 4);
-    ctx.fillStyle = ship.color;
-    ctx.shadowColor = ship.color; ctx.shadowBlur = 6;
-    ctx.fillRect(bx, by + 12, bw * val, 4);
-    ctx.shadowBlur = 0;
-    ctx.font = '9px Orbitron, monospace'; ctx.textAlign = 'right'; ctx.fillStyle = '#ffffff66';
-    ctx.fillText(`${Math.round(val*100)}%`, px + panelW - 8, by + 8);
+    const by  = py + 22 + i * 28;
+    ctx.font = '9px Orbitron, monospace'; ctx.textAlign = 'left'; ctx.fillStyle = '#ffffff55';
+    ctx.fillText(key.toUpperCase(), barsX, by);
+    ctx.fillStyle = '#ffffff18'; ctx.fillRect(barsX, by + 5, barsW - 40, 5);
+    ctx.fillStyle = ship.color; ctx.shadowColor = ship.color; ctx.shadowBlur = 5;
+    ctx.fillRect(barsX, by + 5, (barsW - 40) * val, 5); ctx.shadowBlur = 0;
+    ctx.font = '10px Orbitron, monospace'; ctx.textAlign = 'right'; ctx.fillStyle = '#ffffffaa';
+    ctx.fillText(`${Math.round(val * 100)}%`, px + panelW - 10, by + 1);
   });
 
   ctx.globalAlpha = 1;

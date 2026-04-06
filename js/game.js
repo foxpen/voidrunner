@@ -375,11 +375,11 @@ function draw() {
     // ── VOIDRUNNER title top center — pod score display ──
     ctx.save();
     ctx.textAlign   = 'center';
-    ctx.font        = `700 ${Utils.clamp(10, W * 0.025, 13)}px Orbitron, monospace`;
+    ctx.font        = `700 ${Utils.clamp(W * 0.025, 10, 13)}px Orbitron, monospace`;
     ctx.fillStyle   = 'rgba(140,200,230,0.35)';
     ctx.shadowColor = '#00d4ff';
     ctx.shadowBlur  = 8;
-    ctx.fillText('V O I D R U N N E R', W / 2, Utils.clamp(52, H * 0.065, 72));
+    ctx.fillText('V O I D R U N N E R', W / 2, Utils.clamp(H * 0.065, 52, 72));
     ctx.shadowBlur  = 0;
     ctx.restore();
 
@@ -412,7 +412,7 @@ function draw() {
       });
       // Distance label
       if (dist > 60) {
-        ctx.font      = `bold ${Utils.clamp(9, 1.2 * W / 100, 11)}px Orbitron, monospace`;
+        ctx.font      = `bold ${Utils.clamp(1.2 * W / 100, 9, 11)}px Orbitron, monospace`;
         ctx.fillStyle = rc + 'cc';
         ctx.textAlign = 'center';
         ctx.shadowBlur = 6;
@@ -451,8 +451,8 @@ function draw() {
     const col    = W / 3;
     const labelY = hudY + 14;
     const valueY = hudY + 38;
-    const labelSz = Utils.clamp(8, W * 0.019, 10);
-    const valueSz = Utils.clamp(16, W * 0.048, 24);
+    const labelSz = Utils.clamp(W * 0.019, 8, 10);
+    const valueSz = Utils.clamp(W * 0.042, 14, 22);
 
     function _hudStat(label, value, cx2, accent) {
       ctx.textAlign   = 'center';

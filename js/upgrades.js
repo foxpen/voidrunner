@@ -198,13 +198,13 @@ const Upgrades = (() => {
     const firstCard = _cardPos(0, W, H);
     const titleY = firstCard.y - (vertical ? 36 : 52);
 
-    ctx.font = `bold ${Utils.clamp(16, W * 0.045, 22)}px Orbitron, monospace`;
+    ctx.font = `bold ${Utils.clamp(W * 0.045, 16, 22)}px Orbitron, monospace`;
     ctx.fillStyle = '#00ffc8'; ctx.textAlign = 'center';
     ctx.shadowColor = '#00ffc8'; ctx.shadowBlur = 18;
     ctx.fillText(title, W / 2, titleY);
     ctx.shadowBlur = 0;
 
-    ctx.font = `${Utils.clamp(10, W * 0.028, 13)}px Rajdhani, sans-serif`;
+    ctx.font = `${Utils.clamp(W * 0.028, 10, 13)}px Rajdhani, sans-serif`;
     ctx.fillStyle = '#ffffff55';
     ctx.fillText('Vyber jednu kartu  ·  1 · 2 · 3', W / 2, titleY + 18);
 
@@ -282,17 +282,17 @@ const Upgrades = (() => {
         ctx.fillText(card.icon, midX, y + hovOff + cardH * 0.38);
 
         // Name
-        ctx.font = `bold ${Utils.clamp(11, cardW * 0.065, 14)}px Orbitron, monospace`;
+        ctx.font = `bold ${Utils.clamp(cardW * 0.065, 11, 14)}px Orbitron, monospace`;
         ctx.fillStyle = card.color; ctx.shadowColor = card.color; ctx.shadowBlur = 8;
         ctx.fillText(card.name, midX, y + hovOff + cardH * 0.52); ctx.shadowBlur = 0;
 
         // Type
-        ctx.font = `${Utils.clamp(9, cardW * 0.05, 11)}px Orbitron, monospace`;
+        ctx.font = `${Utils.clamp(cardW * 0.05, 9, 11)}px Orbitron, monospace`;
         ctx.fillStyle = card.type === 'weapon' ? '#ff3388' : '#00ffc888';
         ctx.fillText(card.type === 'weapon' ? 'NOVÁ ZBRAŇ' : 'VYLEPŠENÍ', midX, y + hovOff + cardH * 0.62);
 
         // Desc
-        ctx.font = `${Utils.clamp(10, cardW * 0.06, 13)}px Rajdhani, sans-serif`;
+        ctx.font = `${Utils.clamp(cardW * 0.06, 10, 13)}px Rajdhani, sans-serif`;
         ctx.fillStyle = '#ffffffcc';
         _wrapText(ctx, card.desc, midX, y + hovOff + cardH * 0.72, cardW - 20, 16);
 
@@ -308,7 +308,7 @@ const Upgrades = (() => {
         ctx.fillText(card.icon, iconX, y + hovOff + cardH * 0.62);
 
         // Rarity small
-        ctx.font = `bold ${Utils.clamp(7, cardH * 0.13, 9)}px Orbitron, monospace`;
+        ctx.font = `bold ${Utils.clamp(cardH * 0.13, 7, 9)}px Orbitron, monospace`;
         ctx.textAlign = 'left';
         if (rarity === 'legendary') {
           const bHue = (frameCount * 2.5) % 360;
@@ -324,18 +324,18 @@ const Upgrades = (() => {
         ctx.shadowBlur = 0;
 
         // Name
-        ctx.font = `bold ${Utils.clamp(11, cardH * 0.22, 14)}px Orbitron, monospace`;
+        ctx.font = `bold ${Utils.clamp(cardH * 0.22, 11, 14)}px Orbitron, monospace`;
         ctx.fillStyle = card.color; ctx.shadowColor = card.color; ctx.shadowBlur = 8;
         ctx.fillText(card.name, textX, y + hovOff + cardH * 0.52); ctx.shadowBlur = 0;
 
         // Desc inline
-        ctx.font = `${Utils.clamp(10, cardH * 0.17, 13)}px Rajdhani, sans-serif`;
+        ctx.font = `${Utils.clamp(cardH * 0.17, 10, 13)}px Rajdhani, sans-serif`;
         ctx.fillStyle = '#ffffffcc'; ctx.textAlign = 'left';
         _wrapText(ctx, card.desc, textX, y + hovOff + cardH * 0.73, textMaxW, 15);
       }
 
       // Hotkey hint (1/2/3)
-      ctx.font = `bold ${Utils.clamp(9, cardW * 0.07, 12)}px Orbitron, monospace`;
+      ctx.font = `bold ${Utils.clamp(cardW * 0.07, 9, 12)}px Orbitron, monospace`;
       ctx.textAlign = 'center'; ctx.fillStyle = '#ffffff22';
       if (!vertical) {
         ctx.fillText(String(i + 1), midX, y + hovOff + cardH - 8);
