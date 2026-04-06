@@ -1,0 +1,52 @@
+workflows:
+
+  android-build:
+    name: Android Build
+    max_build_duration: 30
+    environment:
+      node: 20
+      java: 17
+    scripts:
+      - name: Install dependencies
+        script: npm install
+      - name: Build web assets
+        script: npm run build
+      - name: Capacitor sync
+        script: npx cap sync android
+      - name: Build APK
+        script: |
+          cd android
+          ./gradlew assembleDebug
+    artifacts:
+      - android/app/build/outputs/apk/debug/*.apk
+
+  ios-build:
+    name: iOS Build
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+    environment:
+      node: 20
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Install dependencies
+        script: npm install
+      - name: Build web assets
+        script: npm run build
+      - name: Capacitor sync
+        script: npx cap sync ios
+      - name: Install CocoaPods
+        script: |
+          cd ios/App
+          pod install
+      - name: Build iOS (simulator)
+        script: |
+          xcodebuild \
+            -workspace ios/App/App.xcworkspace \
+            -scheme App \
+            -sdk iphonesimulator \
+            -configuration Debug \
+            -derivedDataPath ios/build \
+            CODE_SIGNING_ALLOWED=NO
+    artifacts:
+      - ios/build/Build/Products/**/*.app

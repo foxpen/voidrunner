@@ -34,7 +34,8 @@
       "Bash(npx cap:*)",
       "Bash(rm -rf android)",
       "Bash(mkdir -p www)",
-      "Bash(node build.js)"
+      "Bash(node build.js)",
+      "Bash(winget install:*)"
     ]
   }
 }
