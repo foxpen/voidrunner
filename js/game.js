@@ -17,6 +17,7 @@ let state = STATE.MENU;
 let score = 0;
 let highScore = 0;
 let pickupsCollected = 0;
+let crystalsThisRun = 0;
 let shakeTime = 0;
 let shakeIntensity = 0;
 let slowmo = 0;
@@ -35,6 +36,7 @@ let comboTimer = 0;   // frames before combo expires
 let roundScoreStart = 0;
 let roundTargetHit  = false;
 let lastRoundsPhase = '';
+let _bossDefeatedHandled = false;
 
 // Warp transition
 let warpFlash = 0;
@@ -57,19 +59,21 @@ document.addEventListener('pointerdown', _initAudioOnGesture, { once: true });
 // ─── START GAME ────────────────────────────────────────────────────────────
 function startGame() {
   state = STATE.PLAYING;
-  score = 0; pickupsCollected = 0; frameCount = 0;
+  score = 0; pickupsCollected = 0; frameCount = 0; crystalsThisRun = 0;
   shakeTime = 0; slowmo = 0;
   activePU = { shield: 0, slow: 0, speed: 0, magnet: 0, double: 0, emp: 0 };
   empFlash = 0;
   screenFlash = { a: 0, r: 255, g: 51, b: 85 };
   comboCount = 0; comboTimer = 0;
   roundScoreStart = 0; roundTargetHit = false; lastRoundsPhase = '';
+  _bossDefeatedHandled = false;
   warpFlash = 0;
   // (no credits to reset)
 
   Player.resetStats();
   Player.reset(W, H);
   Weapons.reset();
+  Hangar.applyBonuses();   // after resetStats + Weapons.reset — so bonuses stick
   Enemies.clear();
   Particles.clear();
   Rounds.reset();
@@ -135,7 +139,10 @@ function die() {
   _lb.splice(5);
   localStorage.setItem('vr_scores', JSON.stringify(_lb));
 
-  UI.showGameOver(score, highScore, pickupsCollected, isNew);
+  // Save crystals earned this run
+  Hangar.addCrystals(crystalsThisRun);
+
+  UI.showGameOver(score, highScore, pickupsCollected, isNew, crystalsThisRun);
 }
 
 // ─── UPDATE ────────────────────────────────────────────────────────────────
@@ -202,7 +209,8 @@ function update() {
     if (frameCount % Math.floor(spawnRate) === 0) {
       Enemies.spawnObstacle(W, H, Rounds.getDifficulty(), activePU.slow > 0);
     }
-    const puRate = Math.max(120, 250 - score * 0.05);
+    const scavMult = 1 - Player.scavengerLevel * 0.175;  // -17.5% per level (up to -35%)
+    const puRate = Math.max(80, (250 - score * 0.05) * scavMult);
     if (frameCount % Math.floor(puRate) === 0) {
       Enemies.spawnPickupItem(W);
     }
@@ -252,8 +260,20 @@ function update() {
   if (Rounds.isBossRound()) {
     UI.updateBossBar(Boss.hp, Boss.maxHp, Boss.phase);
     if (Boss.checkPlayerBulletHit()) takeDamage();
+    // Spawn boss crystal reward when defeated
+    if (Boss.defeated && !_bossDefeatedHandled) {
+      _bossDefeatedHandled = true;
+      Enemies.spawnBossCrystals(W / 2, H * 0.35);
+    }
   } else {
     UI.hideBossBar();
+  }
+
+  // Crystal collection
+  const earnedCrystals = Enemies.checkCrystalCollision();
+  if (earnedCrystals > 0) {
+    crystalsThisRun += earnedCrystals;
+    UI.showNotify(`◆ +${earnedCrystals} KRYSTALŮ`, '#aa44ff');
   }
 
   // Pickup collection
@@ -602,7 +622,9 @@ function draw() {
   }
 
   // Overlay screens (drawn outside shake)
-  if (Rounds.isNarrative && Rounds.isNarrative() && typeof Narrative !== 'undefined') {
+  if (Hangar.showing) {
+    Hangar.draw(ctx, W, H, frameCount);
+  } else if (Rounds.isNarrative && Rounds.isNarrative() && typeof Narrative !== 'undefined') {
     Narrative.draw(ctx, W, H);
   } else if (Upgrades.showing) {
     Upgrades.draw(ctx, W, H, frameCount);
@@ -619,9 +641,15 @@ function draw() {
 function loop() {
   // Start/restart input
   if (Input.isStartPressed()) {
-    if (state === STATE.MENU) startGame();
-    else if (state === STATE.DEAD) startGame();
-    else if (Rounds.isGameDone()) startGame();
+    if (Hangar.showing) {
+      // Enter in hangar = buy selected item (handled by Hangar keydown listener)
+    } else if (state === STATE.MENU) {
+      startGame();
+    } else if (state === STATE.DEAD) {
+      startGame();
+    } else if (Rounds.isGameDone()) {
+      startGame();
+    }
   }
 
   if (slowmo > 0) {

@@ -28,9 +28,20 @@ const Player = (() => {
     tank:    { color: '#ff3355', sw: 1.25, sh: 0.85, noseH: 0.75  },
   };
 
+  function applyHangarBonus(id, level) {
+    switch (id) {
+      case 'hull':      stats.lives  += level; break;
+      case 'engine':    stats.speed  *= Math.pow(1.09, level); break;
+      case 'armor':     stats.lives  += level; break;
+      case 'scavenger': stats.scavengerLevel = level; break;
+      case 'warhead':   stats.warheadBonus   = level; break;
+    }
+  }
+
   function resetStats() {
     // Base stats
-    stats = { speed: p.SPEED, lives: 3, scoreMult: 1, permMagnet: false, dualFire: false, ship: 'fighter' };
+    stats = { speed: p.SPEED, lives: 3, scoreMult: 1, permMagnet: false, dualFire: false, ship: 'fighter',
+              scavengerLevel: 0, warheadBonus: 0 };
 
     // Apply ship selection from onboarding
     const vr = JSON.parse(localStorage.getItem('vr_player') || '{}');
@@ -336,10 +347,12 @@ const Player = (() => {
     get scoreMult() { return stats.scoreMult; },
     get permMagnet() { return stats.permMagnet; },
     get dualFire() { return stats.dualFire; },
+    get scavengerLevel() { return stats.scavengerLevel || 0; },
+    get warheadBonus() { return stats.warheadBonus || 0; },
 
     set invincible(v) { invincible = v; },
     set lives(v) { stats.lives = v; },
 
-    reset, resetStats, applyUpgrade, update, draw, drawLivesHUD,
+    reset, resetStats, applyHangarBonus, applyUpgrade, update, draw, drawLivesHUD,
   };
 })();

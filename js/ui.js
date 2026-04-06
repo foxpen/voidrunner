@@ -51,9 +51,10 @@ const UI = (() => {
     updateLeaderboard();
   }
 
-  function showGameOver(score, highScore, pickups, isNew) {
+  function showGameOver(score, highScore, pickups, isNew, crystals) {
     finalScore.textContent = score;
-    statsRow.textContent   = `VYLEPŠENÍ SEBRÁNO: ${pickups}`;
+    const crystalLine = crystals > 0 ? `  ◆ +${crystals} KRYSTALŮ` : '';
+    statsRow.textContent   = `VYLEPŠENÍ SEBRÁNO: ${pickups}${crystalLine}`;
     newRecord.textContent  = isNew ? '★ NOVÝ REKORD ★' : '';
     highVal.textContent    = highScore;
     setTimeout(() => gameOverScreen.classList.add('visible'), 600);

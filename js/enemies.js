@@ -3,9 +3,11 @@
 const Enemies = (() => {
   let list = [];
   let pickups = [];
+  let crystals = [];
   let recentKills = 0;
+  let crystalsCollectedThisFrame = 0;
 
-  function clear() { list = []; pickups = []; }
+  function clear() { list = []; pickups = []; crystals = []; }
 
   function spawnObstacle(W, H, difficulty, slowActive) {
     const side = Math.random();
@@ -74,11 +76,50 @@ const Enemies = (() => {
     return bonus;
   }
 
+  function _spawnCrystals(o) {
+    const c = CFG.CRYSTALS;
+    const chance = c.DROP_CHANCE[o.tier - 1] || 0;
+    if (Math.random() > chance) return;
+    const [mn, mx] = c.DROP_COUNT[o.tier - 1] || [0, 1];
+    const count = mn + Math.floor(Math.random() * (mx - mn + 1));
+    if (count <= 0) return;
+    crystals.push({
+      x: o.x + (Math.random() - 0.5) * 20,
+      y: o.y + (Math.random() - 0.5) * 20,
+      vy: 0.8 + Math.random() * 0.6,
+      vx: (Math.random() - 0.5) * 1.2,
+      bobPhase: Math.random() * Math.PI * 2,
+      value: count,
+      size: 9 + count * 1.5,
+    });
+  }
+
   function update(W, H, activePU) {
     recentKills = 0;
+    crystalsCollectedThisFrame = 0;
     const slowMult = activePU.slow > 0 ? 0.35 : 1;
 
     list.forEach(o => {
+      // ── Enemy AI per tier ──
+      if (o.tier === 2) {
+        // Strafe: nudge vx toward player X
+        const dx = Player.x - o.x;
+        o.baseVx += Math.sign(dx) * 0.03;
+        o.baseVx = Utils.clamp(o.baseVx, -Math.abs(o.baseVy) * 1.4, Math.abs(o.baseVy) * 1.4);
+      } else if (o.tier === 3) {
+        // Hunt: steer velocity toward player
+        const dx = Player.x - o.x;
+        const dy = Player.y - o.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 20) {
+          const spd = Math.hypot(o.baseVx, o.baseVy) || 1.2;
+          const tx = (dx / dist) * spd;
+          const ty = (dy / dist) * spd;
+          o.baseVx += (tx - o.baseVx) * 0.025;
+          o.baseVy += (ty - o.baseVy) * 0.025;
+        }
+      }
+
       o.vx = o.baseVx * slowMult;
       o.vy = o.baseVy * slowMult;
       o.x += o.vx;
@@ -89,6 +130,7 @@ const Enemies = (() => {
 
     // Pickups
     const hasMagnet = activePU.magnet > 0 || Player.permMagnet;
+    const magnetRange = 300;
     pickups.forEach(p => {
       p.y += p.vy * slowMult;
       p.bobPhase += 0.05;
@@ -96,8 +138,8 @@ const Enemies = (() => {
         const dx = Player.x - p.x;
         const dy = Player.y - p.y;
         const dist = Utils.dist(Player.x, Player.y, p.x, p.y);
-        if (dist < 300) {
-          const force = 4 * (1 - dist / 300);
+        if (dist < magnetRange) {
+          const force = 4 * (1 - dist / magnetRange);
           p.x += (dx / dist) * force;
           p.y += (dy / dist) * force;
         }
@@ -105,11 +147,33 @@ const Enemies = (() => {
     });
     pickups = pickups.filter(p => p.y < H + 60);
 
-    // Remove dead enemies — track kill count for juice
+    // Crystals movement + magnet pull
+    crystals.forEach(c => {
+      c.x += c.vx * slowMult;
+      c.y += c.vy * slowMult;
+      c.bobPhase += 0.06;
+      if (hasMagnet) {
+        const dx = Player.x - c.x;
+        const dy = Player.y - c.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < magnetRange && dist > 1) {
+          const force = 5 * (1 - dist / magnetRange);
+          c.x += (dx / dist) * force;
+          c.y += (dy / dist) * force;
+        }
+      }
+    });
+    crystals = crystals.filter(c => c.y < H + 60);
+
+    // Remove dead enemies — spawn crystals, track kill count
+    const dying = list.filter(o => o.hp <= 0);
+    dying.forEach(o => {
+      _spawnCrystals(o);
+      Particles.spawn(o.x, o.y, o.tier === 3 ? '#ff8800' : '#ff3355', 8 + o.tier * 4);
+    });
     const beforeKill = list.length;
     list = list.filter(o => o.hp > 0);
     recentKills = beforeKill - list.length;
-
   }
 
   function checkPlayerCollision(activePU) {
@@ -134,6 +198,37 @@ const Enemies = (() => {
       }
     }
     return collected;
+  }
+
+  function checkCrystalCollision() {
+    let total = 0;
+    for (let i = crystals.length - 1; i >= 0; i--) {
+      const c = crystals[i];
+      if (Utils.dist(Player.x, Player.y, c.x, c.y) < c.size + Player.w) {
+        total += c.value;
+        Particles.spawn(c.x, c.y, '#aa44ff', 10);
+        crystals.splice(i, 1);
+      }
+    }
+    return total;
+  }
+
+  function spawnBossCrystals(x, y) {
+    // Scatter a cluster of crystals when boss dies
+    const count = CFG.CRYSTALS.BOSS_REWARD;
+    const clumps = 8;
+    for (let i = 0; i < clumps; i++) {
+      const angle = (i / clumps) * Math.PI * 2;
+      crystals.push({
+        x: x + Math.cos(angle) * 40,
+        y: y + Math.sin(angle) * 40,
+        vx: Math.cos(angle) * 1.5,
+        vy: Math.sin(angle) * 1.5 + 1,
+        bobPhase: Math.random() * Math.PI * 2,
+        value: Math.round(count / clumps),
+        size: 14,
+      });
+    }
   }
 
   // ── Draw enemy ship (tier 2 = fighter, tier 3 = heavy) ──────────────────────
@@ -333,6 +428,7 @@ const Enemies = (() => {
       if (o.tier === 1) _drawAsteroid(ctx, o);
       else              _drawEnemyShip(ctx, o);
     });
+    crystals.forEach(c => _drawCrystal(ctx, c));
 
     // Pickups — teal diamond/hexagon gem
     pickups.forEach(p => {
@@ -385,6 +481,49 @@ const Enemies = (() => {
     });
   }
 
+  function _drawCrystal(ctx, c) {
+    const bob = Math.sin(c.bobPhase) * 4;
+    const pulse = 0.6 + 0.4 * Math.sin(c.bobPhase * 1.5);
+    ctx.save();
+    ctx.translate(c.x, c.y + bob);
+
+    // Outer aura
+    ctx.fillStyle = `rgba(160,60,255,${0.12 * pulse})`;
+    ctx.beginPath(); ctx.arc(0, 0, c.size * 2.2, 0, Math.PI * 2); ctx.fill();
+
+    // Crystal body — rotated square (diamond)
+    ctx.shadowColor = '#aa44ff';
+    ctx.shadowBlur  = 14 * pulse;
+    ctx.strokeStyle = '#cc77ff';
+    ctx.lineWidth   = 1.5;
+    ctx.fillStyle   = 'rgba(140,40,240,0.35)';
+    ctx.save();
+    ctx.rotate(Math.PI / 4);
+    ctx.beginPath();
+    ctx.rect(-c.size * 0.6, -c.size * 0.6, c.size * 1.2, c.size * 1.2);
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+
+    // Inner bright core
+    ctx.shadowBlur  = 8;
+    ctx.fillStyle   = `rgba(200,120,255,${0.80 * pulse})`;
+    ctx.beginPath();
+    ctx.arc(0, 0, c.size * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Value label if > 1
+    if (c.value > 1) {
+      ctx.shadowBlur  = 0;
+      ctx.font        = `bold ${Math.max(8, c.size * 0.65)}px Orbitron, monospace`;
+      ctx.fillStyle   = 'rgba(255,255,255,0.90)';
+      ctx.textAlign   = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(c.value, 0, 0);
+    }
+
+    ctx.restore();
+  }
+
   function nearest(px, py, maxDist) {
     let best = null, bestD = maxDist || Infinity;
     list.forEach(o => {
@@ -398,6 +537,7 @@ const Enemies = (() => {
     get list()        { return list; },
     get recentKills() { return recentKills; },
     clear, spawnObstacle, spawnPickupItem, triggerEMP,
-    update, checkPlayerCollision, checkPickupCollision, draw, nearest,
+    update, checkPlayerCollision, checkPickupCollision, checkCrystalCollision,
+    spawnBossCrystals, draw, nearest,
   };
 })();

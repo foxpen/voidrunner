@@ -156,6 +156,23 @@ const CFG = {
     double:  { icon: '×2', name: 'DOUBLE SKÓRE',  color: '#ff3388', duration: 420 },
   },
 
+  // Void Crystals — meta currency dropped by enemies
+  CRYSTALS: {
+    DROP_CHANCE: [0.45, 0.80, 1.0],   // chance per tier
+    DROP_COUNT:  [[0,1], [1,2], [2,4]], // [min,max] per tier
+    BOSS_REWARD: 45,
+  },
+
+  // Hangár — persistent upgrades bought between runs
+  HANGAR: [
+    { id: 'hull',      name: 'ZÁLOŽNÍ REAKTOR', desc: 'Začínáš s +1 životem',        icon: '❤️',  costs: [30, 55],     maxLevel: 2, color: '#ff4466' },
+    { id: 'cannon',    name: 'ZÁKLADNÍ KANÓN',  desc: 'Začínáš s odemčeným laserem', icon: '🔫',  costs: [50],         maxLevel: 1, color: '#00ffc8' },
+    { id: 'engine',    name: 'LODNÍ MOTOR',     desc: '+9% rychlost startu / level',  icon: '💨',  costs: [25, 38, 55], maxLevel: 3, color: '#00ff88' },
+    { id: 'armor',     name: 'PANCÍŘ',          desc: '+1 život navíc / level',       icon: '🛡',  costs: [40, 65],     maxLevel: 2, color: '#44aaff' },
+    { id: 'scavenger', name: 'SBĚRAČ',          desc: 'Power-upy spawnují 35% častěji',icon:'🧲', costs: [35, 58],     maxLevel: 2, color: '#ff8800' },
+    { id: 'warhead',   name: 'BOJOVÁ HLAVICE',  desc: '+1 poškození zbraní / level',  icon: '💥',  costs: [45, 72],     maxLevel: 2, color: '#ff44ff' },
+  ],
+
   // Boss
   BOSS: {
     HP: 200,

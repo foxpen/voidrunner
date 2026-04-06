@@ -29,7 +29,15 @@ const Weapons = (() => {
   }
 
   function unlockWeapon(id) {
-    if (!equipped.includes(id)) equipped.push(id);
+    if (!equipped.includes(id)) {
+      equipped.push(id);
+      // Apply warhead hangar bonus on unlock
+      const wb = (typeof Player !== 'undefined') ? Player.warheadBonus : 0;
+      if (wb > 0) {
+        stats[id] = stats[id] || {};
+        stats[id].damage = (CFG.WEAPONS[id]?.damage || 1) + wb;
+      }
+    }
   }
 
   function applyUpgrade(card) {
