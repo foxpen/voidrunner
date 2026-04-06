@@ -591,7 +591,9 @@ function draw() {
   }
 
   // Overlay screens (drawn outside shake)
-  if (Upgrades.showing) {
+  if (Rounds.isNarrative && Rounds.isNarrative() && typeof Narrative !== 'undefined') {
+    Narrative.draw(ctx, W, H);
+  } else if (Upgrades.showing) {
     Upgrades.draw(ctx, W, H, frameCount);
   } else if (Rounds.isCountdown() && state === STATE.PLAYING) {
     UI.drawCountdownOverlay(ctx, W, H, Rounds.countdownValue, frameCount);

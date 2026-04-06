@@ -23,6 +23,33 @@ const Rounds = (() => {
     intermissionTimer = 0;
     phase   = 'PLAYING';
     frameCount = 0;
+
+    // Show intro narrative for story/hardcore mode
+    if (gameMode !== 'endless') {
+      phase = 'NARRATIVE';
+      _showIntro();
+    }
+  }
+
+  // Scene queue for multi-panel intros
+  let _narrativeQueue = [];
+
+  function _showIntro() {
+    _narrativeQueue = ['signal', 'void', 'mission', 'approach'];
+    _runNextNarrative();
+  }
+
+  function _runNextNarrative() {
+    if (_narrativeQueue.length === 0) {
+      phase = 'PLAYING';
+      return;
+    }
+    const id = _narrativeQueue.shift();
+    if (typeof Narrative !== 'undefined') {
+      Narrative.show(id, _runNextNarrative);
+    } else {
+      _runNextNarrative();
+    }
   }
 
   function getDifficulty() {
@@ -42,6 +69,11 @@ const Rounds = (() => {
   function tick(W, H) {
     frameCount++;
 
+    if (phase === 'NARRATIVE') {
+      if (typeof Narrative !== 'undefined') Narrative.tick();
+      return;
+    }
+
     if (phase === 'INTERMISSION') {
       intermissionTimer--;
       if (intermissionTimer <= 0) {
@@ -50,15 +82,36 @@ const Rounds = (() => {
           card => { _applyCard(card); },
           () => {
             if (current >= TOTAL && gameMode !== 'endless') {
-              phase = 'BOSS';
-              Boss.spawn(W, H);
-              Enemies.clear();
-              Hazards.clear();
+              // Boss intro
+              phase = 'NARRATIVE';
+              if (typeof Narrative !== 'undefined') {
+                Narrative.show('guardian', () => {
+                  phase = 'BOSS';
+                  Boss.spawn(W, H);
+                  Enemies.clear();
+                  Hazards.clear();
+                });
+              } else {
+                phase = 'BOSS';
+                Boss.spawn(W, H);
+                Enemies.clear();
+                Hazards.clear();
+              }
             } else {
               current++;
               timer = gameMode === 'endless' ? Infinity : DUR * (gameMode === 'hardcore' ? 0.7 : 1);
-              countdownTimer = 180;
-              phase = 'COUNTDOWN';
+              // Narrative at key round transitions
+              const sceneId = current === 4 ? 'shift' : current === 7 ? 'unstable' : null;
+              if (sceneId && gameMode !== 'endless' && typeof Narrative !== 'undefined') {
+                phase = 'NARRATIVE';
+                Narrative.show(sceneId, () => {
+                  countdownTimer = 120;
+                  phase = 'COUNTDOWN';
+                });
+              } else {
+                countdownTimer = 180;
+                phase = 'COUNTDOWN';
+              }
             }
           }
         );
@@ -92,16 +145,29 @@ const Rounds = (() => {
     if (phase === 'BOSS_DEAD') {
       intermissionTimer--;
       if (intermissionTimer <= 0) {
-        current++;
-        timer = DUR * (gameMode === 'hardcore' ? 0.7 : 1);
-        phase = 'UPGRADE';
-        Upgrades.showShop(W, H,
-          card => { _applyCard(card); },
-          () => {
-            countdownTimer = 180;
-            phase = 'COUNTDOWN';
-          }
-        );
+        // Show ending narrative before upgrade/continue
+        if (gameMode !== 'endless' && typeof Narrative !== 'undefined') {
+          phase = 'NARRATIVE';
+          Narrative.show('passage', () => {
+            Narrative.show('beyond', () => {
+              current++;
+              timer = DUR * (gameMode === 'hardcore' ? 0.7 : 1);
+              phase = 'UPGRADE';
+              Upgrades.showShop(W, H,
+                card => { _applyCard(card); },
+                () => { countdownTimer = 180; phase = 'COUNTDOWN'; }
+              );
+            });
+          });
+        } else {
+          current++;
+          timer = DUR * (gameMode === 'hardcore' ? 0.7 : 1);
+          phase = 'UPGRADE';
+          Upgrades.showShop(W, H,
+            card => { _applyCard(card); },
+            () => { countdownTimer = 180; phase = 'COUNTDOWN'; }
+          );
+        }
       }
       return;
     }
@@ -128,6 +194,10 @@ const Rounds = (() => {
 
   function shouldSpawnEnemies() {
     return phase === 'PLAYING';
+  }
+
+  function isNarrative() {
+    return phase === 'NARRATIVE';
   }
 
   function isBossRound() {
@@ -168,7 +238,7 @@ const Rounds = (() => {
 
   return {
     reset, tick, getDifficulty, getSpawnRate,
-    shouldSpawnEnemies, isBossRound, isUpgradeScreen, isGameDone, isIntermission, isCountdown,
+    shouldSpawnEnemies, isBossRound, isUpgradeScreen, isGameDone, isIntermission, isCountdown, isNarrative,
     progress, timeLeft, forceEndRound, getScoreTarget,
     get current()        { return current; },
     get phase()          { return phase; },
