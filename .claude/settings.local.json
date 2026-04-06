@@ -29,7 +29,12 @@
       "Bash(\"C:/Program Files/Git/usr/bin/openssl\" req -x509 -newkey rsa:2048 -keyout cert.key -out cert.pem -days 365 -nodes -subj \"//CN=localhost\")",
       "Bash(curl -sk https://localhost:3443/)",
       "Bash(taskkill /F /IM node.exe)",
-      "Bash(taskkill //F //IM node.exe)"
+      "Bash(taskkill //F //IM node.exe)",
+      "Bash(npm --version)",
+      "Bash(npx cap:*)",
+      "Bash(rm -rf android)",
+      "Bash(mkdir -p www)",
+      "Bash(node build.js)"
     ]
   }
 }
