@@ -33,8 +33,10 @@ workflows:
         script: npm install
       - name: Build web assets
         script: npm run build
-      - name: Capacitor sync
-        script: npx cap sync ios
+      - name: Capacitor add & sync iOS
+        script: |
+          npx cap add ios
+          npx cap sync ios
       - name: Install CocoaPods
         script: |
           cd ios/App
