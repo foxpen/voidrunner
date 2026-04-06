@@ -2,10 +2,9 @@ const https = require('https');
 const http  = require('http');
 const fs    = require('fs');
 const path  = require('path');
-const os    = require('os');
 
-const PORT_HTTPS = 3443;
-const PORT_HTTP  = 3000;
+const PORT = process.env.PORT || 3443;
+const IS_LOCAL = !process.env.PORT;
 
 const mime = {
   '.html': 'text/html; charset=utf-8',
@@ -28,32 +27,26 @@ function handler(req, res) {
   });
 }
 
-// ── HTTPS server (pro tilt na mobilu) ───────────────────────────────────────
-try {
-  const ssl = {
-    key:  fs.readFileSync('cert.key'),
-    cert: fs.readFileSync('cert.pem'),
-  };
-  https.createServer(ssl, handler).listen(PORT_HTTPS);
-} catch(e) {
-  console.warn('  SSL cert nenalezen — HTTPS server nespuštěn');
-}
-
-// ── HTTP redirect → HTTPS ────────────────────────────────────────────────────
-http.createServer((req, res) => {
-  res.writeHead(301, { Location: `https://${req.headers.host?.replace(PORT_HTTP, PORT_HTTPS) || 'localhost:' + PORT_HTTPS}${req.url}` });
-  res.end();
-}).on('error', () => {
-  console.warn(`  HTTP redirect (port ${PORT_HTTP}) nelze spustit — port obsazen`);
-}).listen(PORT_HTTP);
-
-// ── Zobraz IP adresy ─────────────────────────────────────────────────────────
-const nets = os.networkInterfaces();
-const ips = [];
-for (const iface of Object.values(nets)) {
-  for (const n of iface) {
-    if (n.family === 'IPv4' && !n.internal) ips.push(n.address);
+if (IS_LOCAL) {
+  // Lokálně — HTTPS s self-signed certem (kvůli DeviceOrientation)
+  try {
+    const ssl = { key: fs.readFileSync('cert.key'), cert: fs.readFileSync('cert.pem') };
+    https.createServer(ssl, handler).listen(PORT, () => {
+      console.log(`\n  VOID RUNNER: https://localhost:${PORT}\n`);
+    });
+    // HTTP → HTTPS redirect
+    http.createServer((req, res) => {
+      res.writeHead(301, { Location: `https://localhost:${PORT}${req.url}` });
+      res.end();
+    }).on('error', () => {}).listen(3000);
+  } catch(e) {
+    http.createServer(handler).listen(PORT, () => {
+      console.log(`\n  VOID RUNNER: http://localhost:${PORT}\n`);
+    });
   }
+} else {
+  // OCP / produkce — plain HTTP, SSL řeší ingress
+  http.createServer(handler).listen(PORT, '0.0.0.0', () => {
+    console.log(`VOID RUNNER listening on port ${PORT}`);
+  });
 }
-
-console.log(`\n  VOID RUNNER: https://localhost:${PORT_HTTPS}\n`);

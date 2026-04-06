@@ -1,5 +1,10 @@
 {
-  "dependencies": {
-    "framer-motion": "^12.38.0"
+  "name": "void-runner",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
