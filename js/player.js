@@ -65,7 +65,8 @@ const Player = (() => {
     y += vy * stats.speed * speedMult;
 
     x = Utils.clamp(x, p.W, W - p.W);
-    y = Utils.clamp(y, p.H, H - p.H);
+    // Keep player above the bottom HUD zone (powerup icons 48px + bar 52px + gap)
+    y = Utils.clamp(y, p.H + 80, H - p.H - 120);
 
     if (invincible > 0) invincible--;
 
@@ -306,11 +307,11 @@ const Player = (() => {
   }
 
   function drawLivesHUD(ctx, W) {
-    const sz     = 28;           // heart font size
-    const gap    = sz * 1.15;    // spacing between hearts
+    const sz     = 24;           // heart font size
+    const gap    = sz * 1.1;     // spacing between hearts
     const totalW = (stats.lives - 1) * gap;
     const startX = W / 2 - totalW / 2;
-    const y      = 88;           // below round display (~80px DOM height)
+    const y      = 72;           // below compact top row
     for (let i = 0; i < stats.lives; i++) {
       const fading = i === 0 && invincible > 0;
       ctx.globalAlpha = fading ? 0.25 : 1;

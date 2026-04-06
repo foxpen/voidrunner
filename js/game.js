@@ -372,15 +372,13 @@ function draw() {
       ctx.restore();
     }
 
-    // ── VOIDRUNNER title top center — pod score display ──
+    // ── VOIDRUNNER watermark — very subtle, below HUD row ──
     ctx.save();
     ctx.textAlign   = 'center';
-    ctx.font        = `700 ${Utils.clamp(W * 0.025, 10, 13)}px Orbitron, monospace`;
-    ctx.fillStyle   = 'rgba(140,200,230,0.35)';
-    ctx.shadowColor = '#00d4ff';
-    ctx.shadowBlur  = 8;
-    ctx.fillText('V O I D R U N N E R', W / 2, Utils.clamp(H * 0.065, 52, 72));
+    ctx.font        = `700 ${Utils.clamp(W * 0.018, 8, 11)}px Orbitron, monospace`;
+    ctx.fillStyle   = 'rgba(140,200,230,0.12)';
     ctx.shadowBlur  = 0;
+    ctx.fillText('V O I D R U N N E R', W / 2, 96);
     ctx.restore();
 
     // ── Targeting reticle — tracks nearest enemy ──

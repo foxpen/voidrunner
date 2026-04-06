@@ -23,47 +23,61 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
   pointer-events: none; z-index: 10;
 }
 
-/* ─── SCORE ──────────────────────────────────────────────────────────────── */
+/* ─── TOP HUD ROW ────────────────────────────────────────────────────────── */
+/* Single flex row: score | round | highscore */
+#score-display, #highscore-display, #round-display {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  font-family: 'Orbitron', monospace;
+  opacity: 0; transition: opacity 0.5s;
+}
+#score-display.visible, #highscore-display.visible, #round-display.visible { opacity: 1; }
+
+/* ─── SCORE (left) ───────────────────────────────────────────────────────── */
 #score-display {
-  position: absolute; top: 24px; left: 32px;
-  font-family: 'Orbitron', monospace; font-size: 18px;
-  color: #00ffc8; letter-spacing: 3px;
-  text-shadow: 0 0 12px #00ffc866, 0 0 30px #00ffc833;
-  opacity: 0; transition: opacity 0.5s;
+  left: clamp(12px, 3vw, 32px);
+  color: #00ffc8;
+  text-shadow: 0 0 12px #00ffc866;
 }
-#score-display.visible { opacity: 1; }
-#score-display .label  { font-size: 11px; color: #00ffc888; letter-spacing: 5px; display: block; margin-bottom: 2px; }
-#score-display .value  { font-size: 36px; font-weight: 900; }
+#score-display .label {
+  font-size: clamp(8px, 1.5vw, 10px); color: #00ffc877; letter-spacing: 4px;
+  display: block; margin-bottom: 1px;
+}
+#score-display .value {
+  font-size: clamp(20px, 4vw, 32px); font-weight: 900;
+}
 
-/* ─── HIGHSCORE ───────────────────────────────────────────────────────────── */
+/* ─── HIGHSCORE (right) ───────────────────────────────────────────────────── */
 #highscore-display {
-  position: absolute; top: 24px; right: 32px;
-  font-family: 'Orbitron', monospace; font-size: 14px;
-  color: #ff6b00; letter-spacing: 2px;
+  right: clamp(12px, 3vw, 32px);
+  color: #ff6b00;
   text-shadow: 0 0 12px #ff6b0066; text-align: right;
-  opacity: 0; transition: opacity 0.5s;
 }
-#highscore-display.visible { opacity: 1; }
-#highscore-display .label  { font-size: 10px; color: #ff6b0088; letter-spacing: 4px; display: block; }
+#highscore-display .label {
+  font-size: clamp(8px, 1.5vw, 10px); color: #ff6b0077; letter-spacing: 4px; display: block;
+}
+#highscore-display .value {
+  font-size: clamp(16px, 3vw, 24px); font-weight: 700;
+}
 
-/* ─── ROUND DISPLAY ──────────────────────────────────────────────────────── */
+/* ─── ROUND DISPLAY (center) ─────────────────────────────────────────────── */
 #round-display {
-  position: absolute; top: 24px; left: 50%; transform: translateX(-50%);
-  font-family: 'Orbitron', monospace; font-size: 18px;
-  color: #ffffff; letter-spacing: 3px; text-align: center;
-  opacity: 0; transition: opacity 0.5s;
+  left: 50%; transform: translateX(-50%);
+  color: #ffffff; letter-spacing: 2px; text-align: center;
 }
-#round-display.visible { opacity: 1; }
-#round-display .label  { font-size: 10px; color: #ffffff55; letter-spacing: 5px; display: block; margin-bottom: 2px; }
-#round-display .value  { font-size: 28px; font-weight: 900; }
+#round-display .label {
+  font-size: clamp(8px, 1.4vw, 10px); color: #ffffff44; letter-spacing: 5px;
+  display: block; margin-bottom: 1px;
+}
+#round-display .value  { font-size: clamp(16px, 3vw, 24px); font-weight: 900; }
 #round-timer {
-  font-size: 12px; color: #ffffff44; letter-spacing: 3px;
-  display: block; margin-top: 2px;
+  font-size: clamp(9px, 1.5vw, 11px); color: #ffffff33; letter-spacing: 2px;
+  display: block; margin-top: 1px;
 }
 
 /* ─── BOSS HP BAR ────────────────────────────────────────────────────────── */
 #boss-bar-wrap {
-  position: absolute; top: 80px; left: 50%; transform: translateX(-50%);
+  position: absolute; top: calc(72px + env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%);
   width: min(500px, 80vw); text-align: center;
   opacity: 0; transition: opacity 0.4s;
 }
@@ -86,23 +100,25 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
 /* ─── POWER-UP HUD ───────────────────────────────────────────────────────── */
 #powerup-hud {
   position: absolute;
-  bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(58px + env(safe-area-inset-bottom, 0px));
   left: 50%;
   transform: translateX(-50%);
-  display: flex; gap: 8px; align-items: flex-end;
+  display: flex; gap: clamp(4px, 1vw, 8px); align-items: flex-end;
   opacity: 0; transition: opacity 0.5s;
 }
 #powerup-hud.visible { opacity: 1; }
 
 .pu-slot {
-  width: 48px; height: 48px; position: relative;
+  width: clamp(36px, 6vw, 48px);
+  height: clamp(36px, 6vw, 48px);
+  position: relative;
   border: 1px solid #ffffff15; border-radius: 8px;
   background: #0a0a0f88; backdrop-filter: blur(4px);
   display: flex; align-items: center; justify-content: center;
   transition: border-color 0.3s, box-shadow 0.3s;
 }
 .pu-slot.active { border-color: var(--pu-color); box-shadow: 0 0 14px var(--pu-glow); }
-.pu-slot .pu-icon { font-size: 22px; opacity: 0.25; transition: opacity 0.3s; }
+.pu-slot .pu-icon { font-size: clamp(16px, 3vw, 22px); opacity: 0.25; transition: opacity 0.3s; }
 .pu-slot.active .pu-icon { opacity: 1; }
 .pu-slot .pu-timer {
   position: absolute; bottom: -2px; left: 2px; right: 2px;
@@ -125,7 +141,7 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
 /* ─── GAMEPAD ────────────────────────────────────────────────────────────── */
 #gamepad-indicator {
   position: absolute;
-  bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(58px + env(safe-area-inset-bottom, 0px));
   right: 16px;
   font-family: 'Rajdhani', sans-serif; font-size: 13px;
   color: #ffffff44; letter-spacing: 2px;
@@ -441,29 +457,12 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
   .vr-menu__footer   { justify-content: center; }
 }
 
-/* ─── NARROW SCREEN HUD ADJUSTMENTS ────────────────────────────────────────── */
-@media (max-width: 520px) {
-  /* Shrink score on left so it doesn't crowd round display */
-  #score-display { top: 18px; left: 10px; }
-  #score-display .value { font-size: 22px; }
-  #score-display .label { font-size: 9px; }
-
-  /* Shrink highscore on right */
-  #highscore-display { top: 18px; right: 10px; }
-  #highscore-display .value { font-size: 16px; }
-
-  /* Shrink round display in center */
-  #round-display { top: 18px; }
-  #round-display .value { font-size: 20px; }
-
-  /* Audio buttons — move below highscore on narrow screens */
-  #audio-settings { top: auto; bottom: 64px; right: 8px; }
-  #audio-settings button { width: 28px; height: 28px; font-size: 13px; }
-
-  /* Powerup slots slightly smaller */
-  .pu-slot { width: 40px; height: 40px; }
-  .pu-slot .pu-icon { font-size: 18px; }
-  #powerup-hud { gap: 5px; }
+/* ─── AUDIO BUTTON SIZE ─────────────────────────────────────────────────── */
+/* Audio buttons are now positioned relative to top-right, margin keeps them left of highscore */
+#audio-settings button {
+  width: clamp(28px, 4vw, 34px);
+  height: clamp(28px, 4vw, 34px);
+  font-size: clamp(13px, 2vw, 16px);
 }
 
 /* ─── GAME OVER SCREEN ───────────────────────────────────────────────────── */
@@ -507,8 +506,11 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
 
 /* ─── AUDIO SETTINGS ────────────────────────────────────────────────────── */
 #audio-settings {
-  position: absolute; top: 20px; right: 140px;
-  display: flex; gap: 8px; z-index: 15;
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  right: clamp(12px, 3vw, 32px);
+  margin-right: clamp(60px, 10vw, 120px);
+  display: flex; gap: 6px; z-index: 15;
 }
 #audio-settings button {
   width: 34px; height: 34px;
