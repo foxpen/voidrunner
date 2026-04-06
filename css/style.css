@@ -441,6 +441,31 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
   .vr-menu__footer   { justify-content: center; }
 }
 
+/* ─── NARROW SCREEN HUD ADJUSTMENTS ────────────────────────────────────────── */
+@media (max-width: 520px) {
+  /* Shrink score on left so it doesn't crowd round display */
+  #score-display { top: 18px; left: 10px; }
+  #score-display .value { font-size: 22px; }
+  #score-display .label { font-size: 9px; }
+
+  /* Shrink highscore on right */
+  #highscore-display { top: 18px; right: 10px; }
+  #highscore-display .value { font-size: 16px; }
+
+  /* Shrink round display in center */
+  #round-display { top: 18px; }
+  #round-display .value { font-size: 20px; }
+
+  /* Audio buttons — move below highscore on narrow screens */
+  #audio-settings { top: auto; bottom: 64px; right: 8px; }
+  #audio-settings button { width: 28px; height: 28px; font-size: 13px; }
+
+  /* Powerup slots slightly smaller */
+  .pu-slot { width: 40px; height: 40px; }
+  .pu-slot .pu-icon { font-size: 18px; }
+  #powerup-hud { gap: 5px; }
+}
+
 /* ─── GAME OVER SCREEN ───────────────────────────────────────────────────── */
 #game-over-screen {
   position: absolute; top: 0; left: 0;
@@ -513,7 +538,7 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
 #onboarding-overlay {
   position: fixed; top: 0; left: 0;
   width: 100vw; height: 100vh;
-  background: #000008;
+  background: transparent;
   z-index: 50;
   overflow: hidden;
   /* Hidden by default — shown when Onboarding.start() is called */
@@ -569,6 +594,7 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
   z-index: 20; opacity: 0;
   transition: opacity 1.0s ease;
   pointer-events: none;
+  background: radial-gradient(ellipse at 50% 50%, #0a0e1a 0%, #02040a 100%);
 }
 .ob-screen.ob-active { opacity: 1; pointer-events: all; }
 
