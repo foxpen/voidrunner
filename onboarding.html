@@ -853,6 +853,9 @@ function startShipSelect(onDoneCallback) {
   ssHovered = -1;
   ssFrame   = 0;
 
+  // After engulf bhScale is ~14 — reset to a nice visible size for ship selection
+  bhScale = 0.45;
+
   ssShips = SHIPS.map((def, i) => {
     const start  = _ssStartPos(i);
     const target = _ssTargetPos(i);
