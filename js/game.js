@@ -463,58 +463,54 @@ function draw() {
     }
 
     // ── Bottom HUD bar — AMMO / SPEED / SHIELDS ──
-    const hudH  = 56;
+    const hudH  = 52;
     const hudY  = H - hudH;
 
-    // Dark gradient base
-    const hudBg = ctx.createLinearGradient(0, hudY - 18, 0, H);
-    hudBg.addColorStop(0,   'rgba(0,4,12,0)');
-    hudBg.addColorStop(0.35,'rgba(0,4,12,0.88)');
-    hudBg.addColorStop(1,   'rgba(0,2,8,0.97)');
+    const hudBg = ctx.createLinearGradient(0, hudY - 14, 0, H);
+    hudBg.addColorStop(0,    'rgba(0,2,8,0)');
+    hudBg.addColorStop(0.40, 'rgba(0,2,8,0.75)');
+    hudBg.addColorStop(1,    'rgba(0,1,5,0.92)');
     ctx.fillStyle = hudBg;
-    ctx.fillRect(0, hudY - 18, W, hudH + 18);
+    ctx.fillRect(0, hudY - 14, W, hudH + 14);
 
-    // Top separator line — subtle cyan
-    ctx.strokeStyle = 'rgba(0,212,255,0.18)';
+    // Separator — barely visible
+    ctx.strokeStyle = 'rgba(255,255,255,0.07)';
     ctx.lineWidth   = 1;
     ctx.beginPath(); ctx.moveTo(0, hudY); ctx.lineTo(W, hudY); ctx.stroke();
 
-    const col    = W / 3;
-    const labelY = hudY + 15;
-    const valueY = hudY + 42;
-    const labelSz = Utils.clamp(W * 0.017, 7, 9);
-    const valueSz = Utils.clamp(W * 0.040, 13, 21);
+    const col     = W / 3;
+    const labelY  = hudY + 14;
+    const valueY  = hudY + 40;
+    const labelSz = Utils.clamp(W * 0.016, 7, 9);
+    const valueSz = Utils.clamp(W * 0.038, 13, 20);
 
-    function _hudStat(label, value, cx2, accent) {
-      // Label
+    function _hudStat(label, value, cx2, warn) {
       ctx.textAlign  = 'center';
-      ctx.font       = `700 ${labelSz}px Orbitron, monospace`;
-      ctx.fillStyle  = 'rgba(0, 212, 255, 0.50)';
       ctx.shadowBlur = 0;
+      // Label
+      ctx.font      = `700 ${labelSz}px Orbitron, monospace`;
+      ctx.fillStyle = 'rgba(180, 210, 220, 0.38)';
       ctx.fillText(label, cx2, labelY);
-      // Value — white with colored glow + drop shadow
-      ctx.font       = `900 ${valueSz}px Orbitron, monospace`;
-      ctx.shadowColor = accent;
-      ctx.shadowBlur  = 14;
-      ctx.fillStyle   = '#ffffff';
-      ctx.fillText(value, cx2, valueY);
-      // Drop shadow pass for readability
-      ctx.shadowBlur  = 0;
-      ctx.fillStyle   = 'rgba(0,0,0,0.55)';
+      // Value
+      ctx.font      = `900 ${valueSz}px Orbitron, monospace`;
+      ctx.fillStyle = warn
+        ? 'rgba(240, 80, 90, 0.90)'
+        : 'rgba(255, 255, 255, 0.84)';
+      // Subtle drop shadow for depth
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
       ctx.fillText(value, cx2 + 1, valueY + 1);
-      ctx.fillStyle   = '#ffffff';
+      ctx.fillStyle = warn ? 'rgba(240,80,90,0.90)' : 'rgba(255,255,255,0.84)';
       ctx.fillText(value, cx2, valueY);
-      ctx.shadowBlur  = 0;
     }
 
     const ammoVal   = Weapons.magShots;
-    _hudStat('AMMO', ammoVal, col * 0.5, ammoVal <= 3 ? '#ff4455' : '#00d4ff');
+    _hudStat('AMMO',   ammoVal,        col * 0.5, ammoVal <= 3);
 
     const speedVal = Math.min(9999, score > 0 ? score * 4 + 400 : 400);
-    _hudStat('SPEED', speedVal, col * 1.5, '#00d4ff');
+    _hudStat('SPEED',  speedVal,       col * 1.5, false);
 
     const shieldPct = Math.round((Player.lives / 3) * 100);
-    _hudStat('SHIELDS', shieldPct + '%', col * 2.5, shieldPct <= 34 ? '#ff4455' : shieldPct <= 67 ? '#ffcc00' : '#00d4ff');
+    _hudStat('SHIELDS', shieldPct + '%', col * 2.5, shieldPct <= 34);
 
     // Progress bar
     if (Rounds.phase === 'PLAYING') {

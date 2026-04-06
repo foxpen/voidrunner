@@ -153,7 +153,6 @@ const UI = (() => {
   ];
 
   function _panelRect(ctx, x, y, w, h, r, borderColor) {
-    // Reusable dark panel helper
     ctx.save();
     ctx.beginPath();
     ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y);
@@ -162,119 +161,110 @@ const UI = (() => {
     ctx.lineTo(x + r, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - r);
     ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
     ctx.closePath();
-    ctx.fillStyle = 'rgba(0,4,12,0.82)';
+    ctx.fillStyle = 'rgba(0,2,8,0.70)';
     ctx.fill();
-    ctx.strokeStyle = borderColor || 'rgba(0,212,255,0.18)';
+    ctx.strokeStyle = borderColor || 'rgba(255,255,255,0.08)';
     ctx.lineWidth = 1;
     ctx.stroke();
     ctx.restore();
   }
 
   function drawIntermissionOverlay(ctx, W, H, round, totalRounds, frameCount) {
-    // Full dark overlay
-    ctx.fillStyle = 'rgba(0,4,12,0.72)';
+    ctx.fillStyle = 'rgba(0,2,8,0.65)';
     ctx.fillRect(0, 0, W, H);
     ctx.textAlign = 'center';
 
-    const fadeIn = Math.min(1, frameCount / 25);
+    const fadeIn = Math.min(1, frameCount / 22);
     ctx.globalAlpha = fadeIn;
 
-    const mainText = round >= totalRounds ? 'BOSS SE PROBOUZÍ...' : `KOLO ${round}  DOKONČENO`;
-    const mainSz   = Math.min(48, W * 0.055);
-    const subSz    = Math.min(22, W * 0.032);
+    const isBoss   = round >= totalRounds;
+    const mainText = isBoss ? 'BOSS SE PROBOUZÍ...' : `KOLO ${round}  DOKONČENO`;
+    const mainSz   = Math.min(42, W * 0.048);
+    const subSz    = Math.min(20, W * 0.028);
 
-    // Main panel
-    const pw = Math.min(W * 0.78, 680);
-    const ph = 110;
-    const px = W / 2 - pw / 2;
-    const py = H / 2 - ph / 2 - 16;
-    _panelRect(ctx, px, py, pw, ph, 8, round >= totalRounds ? 'rgba(255,51,85,0.28)' : 'rgba(0,212,255,0.22)');
+    const pw = Math.min(W * 0.72, 620), ph = 96;
+    const px = W / 2 - pw / 2, py = H / 2 - ph / 2 - 12;
+    _panelRect(ctx, px, py, pw, ph, 6, isBoss ? 'rgba(220,50,70,0.18)' : 'rgba(255,255,255,0.07)');
 
-    // Main heading
-    ctx.font        = `900 ${mainSz}px Orbitron, monospace`;
-    ctx.fillStyle   = '#ffffff';
-    ctx.shadowColor = round >= totalRounds ? '#ff3355' : '#00d4ff';
-    ctx.shadowBlur  = 28;
-    ctx.fillText(mainText, W / 2, H / 2 + mainSz * 0.3 - 16);
-    ctx.shadowBlur  = 0;
+    ctx.font      = `900 ${mainSz}px Orbitron, monospace`;
+    ctx.fillStyle = isBoss ? 'rgba(230,80,90,0.90)' : 'rgba(255,255,255,0.88)';
+    ctx.shadowBlur = 0;
+    // Subtle drop shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillText(mainText, W/2 + 1, H/2 + mainSz * 0.28 - 12 + 1);
+    ctx.fillStyle = isBoss ? 'rgba(230,80,90,0.90)' : 'rgba(255,255,255,0.88)';
+    ctx.fillText(mainText, W/2, H/2 + mainSz * 0.28 - 12);
 
-    // Round message
-    const msg = round >= totalRounds ? '' : (ROUND_MSGS[round] || '');
+    const msg = isBoss ? '' : (ROUND_MSGS[round] || '');
     if (msg) {
       ctx.font      = `500 ${subSz}px Rajdhani, sans-serif`;
-      ctx.fillStyle = 'rgba(255,200,100,0.9)';
-      ctx.shadowColor = 'rgba(255,140,0,0.4)';
-      ctx.shadowBlur  = 14;
-      ctx.fillText(msg, W / 2, H / 2 + mainSz * 0.3 + subSz * 1.4 - 16);
-      ctx.shadowBlur  = 0;
+      ctx.fillStyle = 'rgba(220, 175, 100, 0.70)';
+      ctx.fillText(msg, W / 2, H / 2 + mainSz * 0.28 + subSz * 1.5 - 12);
     }
 
-    // Subhint
-    ctx.font      = `500 ${Math.min(14, W * 0.018)}px Orbitron, monospace`;
-    ctx.fillStyle = 'rgba(0,212,255,0.45)';
-    ctx.fillText('VYBER  VYLEPŠENÍ', W / 2, py + ph + 28);
+    ctx.font      = `500 ${Math.min(12, W * 0.015)}px Orbitron, monospace`;
+    ctx.fillStyle = 'rgba(180, 210, 220, 0.35)';
+    ctx.fillText('VYBER  VYLEPŠENÍ', W / 2, py + ph + 24);
 
     ctx.globalAlpha = 1;
   }
 
   function drawCountdownOverlay(ctx, W, H, value, frameCount) {
-    const colors = { 3: '#00ffc8', 2: '#ffcc00', 1: '#ff4455' };
-    const glows  = { 3: '#00d4ff', 2: '#ffaa00', 1: '#ff0000' };
-    const col    = colors[value] || '#ffffff';
-    const glow   = glows[value]  || '#ffffff';
+    const col = value === 1 ? 'rgba(230,70,80,0.88)' : value === 2 ? 'rgba(220,180,60,0.85)' : 'rgba(255,255,255,0.88)';
 
     const frac  = (frameCount % 60) / 60;
-    const scale = 1.35 - frac * 0.35;
+    const scale = 1.30 - frac * 0.30;
     const alpha = Math.min(1, frac < 0.12 ? frac / 0.12 : 1.0);
-    const sz    = Math.floor(Math.min(160, W * 0.18) * scale);
+    const sz    = Math.floor(Math.min(148, W * 0.17) * scale);
 
     ctx.save();
     ctx.translate(W / 2, H / 2);
     ctx.globalAlpha = alpha;
     ctx.textAlign   = 'center';
 
-    // Dark backdrop circle
-    ctx.fillStyle = 'rgba(0,4,12,0.70)';
-    ctx.beginPath(); ctx.arc(0, 0, sz * 0.7, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = col + '44';
-    ctx.lineWidth   = 1.5;
-    ctx.beginPath(); ctx.arc(0, 0, sz * 0.72, 0, Math.PI * 2); ctx.stroke();
+    // Dark backdrop
+    ctx.fillStyle = 'rgba(0,2,8,0.60)';
+    ctx.beginPath(); ctx.arc(0, 0, sz * 0.68, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth   = 1;
+    ctx.beginPath(); ctx.arc(0, 0, sz * 0.70, 0, Math.PI * 2); ctx.stroke();
 
-    // Number
-    ctx.shadowColor = glow;
-    ctx.shadowBlur  = 60;
-    ctx.font        = `900 ${sz}px Orbitron, monospace`;
-    ctx.fillStyle   = '#ffffff';
+    // Number — drop shadow for readability
+    ctx.font      = `900 ${sz}px Orbitron, monospace`;
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillText(value, 1, sz * 0.36 + 1);
+    ctx.fillStyle = col;
     ctx.fillText(value, 0, sz * 0.36);
-    ctx.shadowBlur  = 0;
+    ctx.shadowBlur = 0;
 
     // Subtitle
-    ctx.globalAlpha = alpha * 0.75;
-    ctx.font        = `700 ${Math.max(11, Math.floor(W * 0.018))}px Orbitron, monospace`;
-    ctx.fillStyle   = 'rgba(0,212,255,0.8)';
-    ctx.fillText('PŘIPRAV  SE', 0, sz * 0.36 + 34);
+    ctx.globalAlpha = alpha * 0.55;
+    ctx.font        = `700 ${Math.max(10, Math.floor(W * 0.016))}px Orbitron, monospace`;
+    ctx.fillStyle   = 'rgba(200, 220, 225, 0.85)';
+    ctx.fillText('PŘIPRAV  SE', 0, sz * 0.36 + 30);
 
     ctx.restore();
     ctx.globalAlpha = 1;
   }
 
   function drawDoneOverlay(ctx, W, H, frameCount) {
-    ctx.fillStyle = 'rgba(0,4,12,0.88)';
+    ctx.fillStyle = 'rgba(0,2,8,0.80)';
     ctx.fillRect(0, 0, W, H);
     ctx.textAlign = 'center';
 
-    const pw = Math.min(W * 0.7, 560), ph = 120;
-    _panelRect(ctx, W/2 - pw/2, H/2 - ph/2, pw, ph, 8, 'rgba(255,200,60,0.35)');
+    const pw = Math.min(W * 0.65, 520), ph = 110;
+    _panelRect(ctx, W/2 - pw/2, H/2 - ph/2, pw, ph, 6, 'rgba(220,180,60,0.18)');
 
-    ctx.font      = `900 ${Math.min(52, W * 0.06)}px Orbitron, monospace`;
-    ctx.fillStyle = '#ffffff';
-    ctx.shadowColor = '#ffcc00'; ctx.shadowBlur = 40;
-    ctx.fillText('VÍTĚZ!', W / 2, H / 2 + 18);
-    ctx.shadowBlur = 0;
+    const sz = Math.min(46, W * 0.054);
+    ctx.font = `900 ${sz}px Orbitron, monospace`;
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.fillText('VÍTĚZ!', W/2 + 1, H/2 + 16 + 1);
+    ctx.fillStyle = 'rgba(255,255,255,0.90)';
+    ctx.fillText('VÍTĚZ!', W / 2, H / 2 + 16);
 
-    ctx.font      = `500 ${Math.min(15, W * 0.02)}px Orbitron, monospace`;
-    ctx.fillStyle = 'rgba(0,212,255,0.65)';
-    ctx.fillText('BOSS PORAŽEN  ·  STISKNI ENTER', W / 2, H / 2 + 52);
+    ctx.font      = `500 ${Math.min(13, W * 0.017)}px Orbitron, monospace`;
+    ctx.fillStyle = 'rgba(180, 210, 220, 0.45)';
+    ctx.fillText('BOSS PORAŽEN  ·  STISKNI ENTER', W / 2, H / 2 + 48);
   }
 
   function updateLeaderboard() {
