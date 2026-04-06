@@ -80,6 +80,38 @@ const Narrative = (() => {
   let _stars      = [];
   let _particles  = [];
   let _skipReady  = false;
+  // ── VOICE NARRATION — vlastní nahrávky ───────────────────────────────────
+  // Soubory: audio/narration/<sceneId>.mp3  (nebo .ogg / .wav)
+  // Např.  audio/narration/signal.mp3
+  let _voiceAudio = null;
+
+  function _playVoice(sceneId) {
+    _stopVoice();
+    if (typeof Audio === 'undefined') return;   // Audio module check
+    // Respect mute
+    if (typeof Audio !== 'undefined' && Audio.sfxEnabled === false) return;
+
+    // Try mp3, then ogg, then wav
+    const base = `audio/narration/${sceneId}`;   // sceneId = 1, 2 … 9
+    const el   = new window.Audio();            // native HTMLAudioElement
+    el.volume  = 0.90;
+
+    // Feature-detect supported format
+    const fmt = el.canPlayType('audio/mpeg') ? '.mp3'
+              : el.canPlayType('audio/ogg')  ? '.ogg'
+              : '.wav';
+    el.src = base + fmt;
+    el.play().catch(() => {});   // silently ignore if file missing
+    _voiceAudio = el;
+  }
+
+  function _stopVoice() {
+    if (_voiceAudio) {
+      _voiceAudio.pause();
+      _voiceAudio.currentTime = 0;
+      _voiceAudio = null;
+    }
+  }
 
   // ── STARS ─────────────────────────────────────────────────────────────────
   function _genStars(W, H) {
@@ -122,6 +154,7 @@ const Narrative = (() => {
     const scene = SCENES[sceneId];
     if (!scene) { if (onComplete) onComplete(); return; }
 
+    _stopVoice();
     _scene      = { ...scene, id: sceneId };
     _frame      = 0;
     _startTime  = performance.now();
@@ -133,11 +166,16 @@ const Narrative = (() => {
     _genStars(W, H);
     _genParticles(W, H, scene.style);
 
+    // Play voice narration — starts when body text appears (~900ms)
+    // Files named 1.mp3 … 9.mp3  (matching scene num without leading zero)
+    setTimeout(() => { if (_active) _playVoice(parseInt(scene.num)); }, 900);
+
     // Allow skip after 2 seconds (real time, independent of refresh rate)
     setTimeout(() => { _skipReady = true; }, 2000);
   }
 
   function _complete() {
+    _stopVoice();
     _active = false;
     _scene  = null;
     if (_onComplete) { const cb = _onComplete; _onComplete = null; cb(); }
