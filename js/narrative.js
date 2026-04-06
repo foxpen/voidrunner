@@ -160,21 +160,19 @@ const Narrative = (() => {
       }
     });
 
-    if (_frame >= _scene.duration) _complete();
+    // No auto-advance — player must confirm (Enter / Space / Escape / click)
   }
 
   // ── DRAW ──────────────────────────────────────────────────────────────────
   function draw(ctx, W, H) {
     if (!_active || !_scene) return;
 
-    const s     = _scene;
-    const f     = _frame;
-    const dur   = s.duration;
+    const s = _scene;
+    const f = _frame;
 
-    // Fade in / out
-    const fadeIn  = Math.min(1, f / 40);
-    const fadeOut = f > dur - 50 ? Math.max(0, (dur - f) / 50) : 1;
-    const alpha   = fadeIn * fadeOut;
+    // Fade in only — scene holds until player confirms
+    const fadeIn = Math.min(1, f / 40);
+    const alpha  = fadeIn;
 
     ctx.save();
 
