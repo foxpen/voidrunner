@@ -123,49 +123,125 @@
 
 <!-- START SCREEN -->
 <div id="start-screen">
-  <div class="vr-menu">
-    <header class="vr-menu__header">
-      <div class="vr-menu__title-block">
-        <span class="vr-menu__sys-label">NAV-SYS / VOID RUNNER 2.0 / CLASSIFIED</span>
-        <h1 class="vr-menu__title">VOID<br>RUNNER</h1>
-        <div class="vr-menu__tagline">naviguj prázdnotou</div>
-      </div>
-      <div class="vr-menu__badge" id="player-badge">10 KOL · BOSS FIGHT · ENDLESS MODE</div>
-    </header>
 
-    <div class="vr-menu__body">
-      <div class="vr-menu__lb">
-        <div class="vr-menu__section-label">NEJLEPŠÍ SKÓRE</div>
+  <!-- Top bar -->
+  <div class="m-topbar">
+    <div class="m-topbar-left">NAV-SYS // VOID RUNNER 2.0 // CLASSIFIED</div>
+    <div class="m-topbar-right">
+      <span id="player-badge">10 KOL · BOSS FIGHT · ENDLESS MODE</span>
+    </div>
+  </div>
+
+  <!-- Main layout -->
+  <div class="m-layout">
+
+    <!-- LEFT: Title + Navigation -->
+    <aside class="m-left">
+      <div class="m-edge-marks"><i></i><i></i><i></i><i></i><i></i></div>
+
+      <div class="m-title-block">
+        <h1 class="m-title">VOID<br>RUNNER<span class="m-tm">™</span></h1>
+        <p class="m-tagline">NAVIGUJ PRÁZDNOTOU</p>
+      </div>
+
+      <nav class="m-nav" id="main-menu-btns">
+        <button class="m-nav-btn m-nav-primary" id="btn-new-game">
+          <span class="m-nav-label">
+            <span class="m-nav-title">NOVÁ HRA</span>
+            <span class="m-nav-sub">ZAČÍT CESTU PRÁZDNOTOU</span>
+          </span>
+          <span class="m-nav-arrow">›</span>
+        </button>
+        <button class="m-nav-btn" id="btn-continue-game" style="display:none">
+          <span class="m-nav-label">
+            <span class="m-nav-title">POKRAČOVAT</span>
+            <span class="m-nav-sub">OBNOVIT POSLEDNÍ MISI</span>
+          </span>
+          <span class="m-nav-arrow">›</span>
+        </button>
+        <button class="m-nav-btn" id="btn-hangar-menu">
+          <span class="m-nav-label">
+            <span class="m-nav-title">UPGRADES</span>
+            <span class="m-nav-sub">VYLEPŠI SVOU LOĎ</span>
+          </span>
+          <span class="m-nav-arrow" style="font-size:11px;letter-spacing:2px">|||</span>
+        </button>
+        <button class="m-nav-btn" id="btn-archive">
+          <span class="m-nav-label">
+            <span class="m-nav-title">ARCHIV</span>
+            <span class="m-nav-sub">ZÁZNAMY Z MISE</span>
+          </span>
+          <span class="m-nav-arrow" style="font-size:8px">●</span>
+        </button>
+        <button class="m-nav-btn" id="btn-settings-menu">
+          <span class="m-nav-label">
+            <span class="m-nav-title">NASTAVENÍ</span>
+            <span class="m-nav-sub">OVLÁDÁNÍ, ZVUK, GRAFIKA</span>
+          </span>
+          <span class="m-nav-arrow" style="font-size:13px">⊟</span>
+        </button>
+        <button class="m-nav-btn m-nav-danger" id="btn-quit-menu">
+          <span class="m-nav-label">
+            <span class="m-nav-title">KONEC</span>
+            <span class="m-nav-sub">UKONČIT MISI</span>
+          </span>
+          <span class="m-nav-arrow">×</span>
+        </button>
+      </nav>
+
+      <div class="m-tip">
+        <span class="m-tip-dot"></span>
+        <span class="m-tip-text" id="m-tip-text">TIP: KAŽDÝ PRŮLET TĚ PŘIBLÍŽÍ K ODPOVĚDÍM.</span>
+        <span class="m-tip-bar"><span></span></span>
+      </div>
+    </aside>
+
+    <!-- RIGHT: Info -->
+    <aside class="m-right">
+      <div class="m-right-marks"><i></i><i></i><i></i></div>
+
+      <!-- Default: Power-ups + Controls -->
+      <div id="m-panel-default">
+        <div class="m-section-hdr">POWER-UPS</div>
+        <ul class="m-pu-list">
+          <li class="m-pu-row"><span class="m-pu-ico">🛡</span><span class="m-pu-name">ŠTÍT</span><span class="m-pu-desc">Ochrana před poškozením</span></li>
+          <li class="m-pu-row"><span class="m-pu-ico">⚡</span><span class="m-pu-name">EMP</span><span class="m-pu-desc">Vyřadí nepřátele</span></li>
+          <li class="m-pu-row"><span class="m-pu-ico">⏳</span><span class="m-pu-name">SLOW-MO</span><span class="m-pu-desc">Zpomalí čas</span></li>
+          <li class="m-pu-row"><span class="m-pu-ico">🚀</span><span class="m-pu-name">TURBO</span><span class="m-pu-desc">Krátký rychlostní boost</span></li>
+          <li class="m-pu-row"><span class="m-pu-ico">🧲</span><span class="m-pu-name">MAGNET</span><span class="m-pu-desc">Přitahuje zdroje</span></li>
+          <li class="m-pu-row"><span class="m-pu-ico" style="font-size:10px;font-weight:700">×2</span><span class="m-pu-name">DOUBLE</span><span class="m-pu-desc">Zdvojnásobí projektily</span></li>
+        </ul>
+        <div class="m-divider"></div>
+        <div class="m-controls">
+          <div><span class="m-ctrl-key">ŠIPKY / WASD</span><span class="m-ctrl-sep"> — </span>POHYB</div>
+          <div><span class="m-ctrl-key">GAMEPAD</span><span class="m-ctrl-sep"> — </span>NAKLONĚNÍ LÉTEJÍCI</div>
+          <div><span class="m-ctrl-key">PŘEŽIJ KOLA</span><span class="m-ctrl-sep"> — </span>NAKUPUJ UPGRADY</div>
+        </div>
+      </div>
+
+      <!-- Archive panel -->
+      <div id="m-panel-archive" style="display:none">
+        <div class="m-section-hdr">NEJLEPŠÍ SKÓRE</div>
         <div id="leaderboard"><div class="lb-empty">Zatím žádné záznamy</div></div>
       </div>
 
-      <div class="vr-menu__vdivider"></div>
-
-      <div class="vr-menu__right">
-        <div class="vr-menu__section-label">POWER-UPS</div>
-        <div class="powerup-legend">
-          <div class="pu-item"><span class="icon">🛡</span><span>Štít</span></div>
-          <div class="pu-item"><span class="icon">⚡</span><span>EMP</span></div>
-          <div class="pu-item"><span class="icon">⏳</span><span>Slow-Mo</span></div>
-          <div class="pu-item"><span class="icon">🚀</span><span>Turbo</span></div>
-          <div class="pu-item"><span class="icon">🧲</span><span>Magnet</span></div>
-          <div class="pu-item"><span class="icon" style="font-size:11px;font-weight:700">×2</span><span>Double</span></div>
+      <!-- Settings panel -->
+      <div id="m-panel-settings" style="display:none">
+        <div class="m-section-hdr">NASTAVENÍ</div>
+        <div class="m-settings-row">
+          <span>HUDBA</span>
+          <button id="btn-music-menu" class="m-toggle-btn" onclick="toggleMusic()">🎵</button>
         </div>
-        <div class="vr-menu__controls">
-          ŠIPKY / WASD — pohyb<br>
-          GAMEPAD · NAKLON TELEFONU<br>
-          Přežij kola · nakupuj upgrades
+        <div class="m-settings-row">
+          <span>ZVUKY</span>
+          <button id="btn-sfx-menu" class="m-toggle-btn" onclick="toggleSfx()">🔊</button>
         </div>
       </div>
-    </div>
 
-    <footer class="vr-menu__footer" id="menu-footer">
-      <div class="vr-menu__prompt" id="menu-prompt" style="display:none">STISKNI ENTER / START</div>
-      <div id="main-menu-btns">
-        <button class="vr-menu-btn primary" id="btn-new-game">NOVÁ HRA</button>
-        <button class="vr-menu-btn" id="btn-continue-game" style="display:none">POKRAČOVAT</button>
-      </div>
-    </footer>
+      <div class="m-sys-status">// SYS STATUS: NOMINAL <span class="m-status-green">●</span></div>
+      <div class="m-dot-row"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+    </aside>
+
   </div>
 </div>
 
@@ -182,44 +258,79 @@
 <div class="scanlines"></div>
 <div class="vignette"></div>
 
-<!-- Load player data from onboarding -->
+<!-- Menu logic -->
 <script>
   const _vr = JSON.parse(localStorage.getItem('vr_player') || '{}');
   if (_vr.name) {
-    document.getElementById('player-badge').textContent = `PILOT: ${_vr.name}  ·  ${(_vr.mode||'story').toUpperCase()}  ·  ${(_vr.ship||'fighter').toUpperCase()}`;
+    document.getElementById('player-badge').textContent =
+      `PILOT: ${_vr.name}  ·  ${(_vr.mode||'story').toUpperCase()}  ·  ${(_vr.ship||'fighter').toUpperCase()}`;
   }
 
-  // Auto-start handled by game.js (vr_autostart flag)
   if (!localStorage.getItem('vr_autostart')) {
-    // Main menu button logic
     const _hasSave = !!localStorage.getItem('vr_player');
     const _btnNew  = document.getElementById('btn-new-game');
     const _btnCont = document.getElementById('btn-continue-game');
+    const _pDef    = document.getElementById('m-panel-default');
+    const _pArch   = document.getElementById('m-panel-archive');
+    const _pSet    = document.getElementById('m-panel-settings');
 
-    if (_hasSave) {
-      _btnCont.style.display = '';
-      _btnCont.textContent = _vr.name ? `POKRAČOVAT · ${_vr.name}` : 'POKRAČOVAT';
+    function _showPanel(p) {
+      [_pDef, _pArch, _pSet].forEach(el => el.style.display = (el === p) ? '' : 'none');
     }
 
+    // Continue button — show if save exists
+    if (_hasSave) {
+      _btnCont.style.display = '';
+      const t = _btnCont.querySelector('.m-nav-title');
+      if (t) t.textContent = _vr.name ? `POKRAČOVAT · ${_vr.name}` : 'POKRAČOVAT';
+    }
+
+    // NOVÁ HRA
     _btnNew.addEventListener('click', () => {
-      // Show onboarding overlay instead of redirecting to onboarding.html
       localStorage.removeItem('vr_player');
       document.getElementById('start-screen').classList.add('hidden');
       Onboarding.start(() => {
-        // Update badge with new player data
         const vr2 = JSON.parse(localStorage.getItem('vr_player') || '{}');
         if (vr2.name) {
           document.getElementById('player-badge').textContent =
             `PILOT: ${vr2.name}  ·  ${(vr2.mode||'story').toUpperCase()}  ·  ${(vr2.ship||'fighter').toUpperCase()}`;
         }
-        // Start the game directly — no page reload
         startGame();
       });
     });
 
+    // POKRAČOVAT
     _btnCont.addEventListener('click', () => {
       document.getElementById('start-screen').style.display = 'none';
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+
+    // UPGRADES — open Hangar canvas overlay
+    document.getElementById('btn-hangar-menu').addEventListener('click', () => {
+      document.getElementById('start-screen').classList.add('hidden');
+      Hangar.show(() => {
+        document.getElementById('start-screen').classList.remove('hidden');
+      });
+    });
+
+    // ARCHIV — toggle leaderboard panel
+    document.getElementById('btn-archive').addEventListener('click', () => {
+      if (_pArch.style.display === 'none') {
+        _showPanel(_pArch);
+        UI.updateLeaderboard();
+      } else {
+        _showPanel(_pDef);
+      }
+    });
+
+    // NASTAVENÍ — toggle settings panel
+    document.getElementById('btn-settings-menu').addEventListener('click', () => {
+      _showPanel(_pSet.style.display === 'none' ? _pSet : _pDef);
+    });
+
+    // KONEC — no real quit on web
+    document.getElementById('btn-quit-menu').addEventListener('click', () => {
+      document.getElementById('m-tip-text').textContent = 'Ukončení není ve webové verzi dostupné.';
     });
   }
 </script>
@@ -247,11 +358,17 @@
 <script>
   function toggleMusic() {
     Audio.setMusic(!Audio.musicEnabled);
-    document.getElementById('btn-music').classList.toggle('muted', !Audio.musicEnabled);
+    ['btn-music', 'btn-music-menu'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('muted', !Audio.musicEnabled);
+    });
   }
   function toggleSfx() {
     Audio.setSfx(!Audio.sfxEnabled);
-    document.getElementById('btn-sfx').classList.toggle('muted', !Audio.sfxEnabled);
+    ['btn-sfx', 'btn-sfx-menu'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('muted', !Audio.sfxEnabled);
+    });
   }
 </script>
 

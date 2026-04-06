@@ -185,300 +185,392 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
   position: absolute; top: 0; left: 0;
   width: 100vw; height: 100vh;
   z-index: 20; pointer-events: all;
-  transition: opacity 0.6s;
+  background: transparent;
+  transition: opacity 0.5s;
 }
 #start-screen.hidden { opacity: 0; pointer-events: none; }
 
-.vr-menu {
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  height: 100vh;
-  padding: clamp(28px, 5vh, 56px) clamp(28px, 6vw, 80px);
-  background: radial-gradient(ellipse 90% 80% at 50% 50%,
-    oklch(12% 0.015 265 / 0.6) 0%,
-    oklch(5% 0.005 265 / 0.95) 100%);
-}
+/* Hide audio settings buttons when menu is visible */
+body:has(#start-screen:not(.hidden)) #audio-settings { display: none !important; }
 
-/* ── Header ── */
-.vr-menu__header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding-bottom: clamp(16px, 3vh, 36px);
-  border-bottom: 1px solid oklch(55% 0 0 / 0.12);
-}
-
-.vr-menu__sys-label {
-  display: block;
+/* ── Top bar ── */
+.m-topbar {
+  position: absolute; top: 0; left: 0; right: 0; height: 36px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 clamp(16px, 3vw, 36px);
+  background: rgba(0,1,4,0.72);
+  border-bottom: 1px solid rgba(255,140,0,0.14);
   font-family: 'Rajdhani', sans-serif;
-  font-size: clamp(9px, 0.9vw, 11px);
-  font-weight: 500;
-  color: oklch(72% 0.16 58 / 0.9);
-  letter-spacing: 0.35em;
-  text-transform: uppercase;
-  margin-bottom: clamp(6px, 1.2vh, 14px);
-  animation: flicker-a 6s linear infinite;
+  font-size: clamp(8px, 0.82vw, 10px);
+  letter-spacing: 0.30em;
+  z-index: 2;
+}
+.m-topbar-left { color: rgba(255,140,0,0.65); animation: flicker-a 6s linear infinite; }
+.m-topbar-right { color: rgba(255,140,0,0.55); text-align: right; }
+#player-badge { letter-spacing: 0.22em; }
+
+/* ── Main layout ── */
+.m-layout {
+  position: absolute; top: 36px; left: 0; right: 0; bottom: 0;
+  display: flex; pointer-events: none;
 }
 
-.vr-menu__title {
+/* ── LEFT panel ── */
+.m-left {
+  position: relative;
+  width: clamp(280px, 33vw, 480px);
+  height: 100%;
+  background: linear-gradient(90deg,
+    rgba(0,1,4,0.94) 0%,
+    rgba(0,1,4,0.80) 72%,
+    rgba(0,1,4,0) 100%);
+  display: flex; flex-direction: column;
+  padding: clamp(20px, 3.5vh, 44px) clamp(22px, 3.5vw, 52px) clamp(16px, 2.5vh, 28px);
+  pointer-events: all;
+}
+
+/* Edge decoration marks */
+.m-edge-marks {
+  position: absolute; left: 4px; top: 0; bottom: 0;
+  display: flex; flex-direction: column; justify-content: space-around;
+  pointer-events: none;
+}
+.m-edge-marks i {
+  display: block; width: 3px;
+  height: clamp(14px, 2.5vh, 22px);
+  background: rgba(255,140,0,0.22);
+}
+
+/* Title */
+.m-title-block { margin-bottom: clamp(18px, 3.5vh, 40px); }
+.m-title {
   font-family: 'Orbitron', monospace;
-  font-size: clamp(52px, 9vw, 128px);
+  font-size: clamp(48px, 8vw, 114px);
   font-weight: 900;
-  line-height: 0.9;
+  line-height: 0.88;
   color: #ffffff;
   letter-spacing: -0.01em;
   margin: 0;
-  text-shadow: 0 0 40px rgba(255,255,255,0.25), 0 0 80px rgba(180,160,255,0.1);
+  text-shadow: 0 2px 10px rgba(0,0,0,0.55);
   animation: flicker-title 5s linear infinite;
 }
-
-.vr-menu__tagline {
-  margin-top: clamp(8px, 1.5vh, 18px);
+.m-tm {
+  font-size: 0.20em;
+  vertical-align: super;
+  color: rgba(255,255,255,0.45);
+  font-weight: 400;
+}
+.m-tagline {
   font-family: 'Rajdhani', sans-serif;
-  font-size: clamp(10px, 1.2vw, 13px);
+  font-size: clamp(9px, 1.0vw, 12px);
   font-weight: 300;
-  color: oklch(74% 0 0 / 0.85);
-  letter-spacing: 0.55em;
+  color: rgba(210,210,210,0.62);
+  letter-spacing: 0.62em;
   text-transform: uppercase;
+  margin-top: clamp(6px, 1.2vh, 14px);
   animation: flicker-b 9s linear infinite;
 }
 
-.vr-menu__badge {
+/* ── Nav ── */
+.m-nav {
+  display: flex; flex-direction: column; gap: 3px;
+  flex: 1;
+}
+.m-nav-btn {
+  width: 100%;
+  background: rgba(0,2,8,0.38);
+  border: 1px solid rgba(255,255,255,0.055);
+  color: rgba(200,200,200,0.78);
+  cursor: pointer;
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: clamp(9px, 1.5vh, 13px) clamp(12px, 1.4vw, 18px);
+  transition: background 0.18s, border-color 0.18s;
+  text-align: left;
+}
+.m-nav-label { display: flex; flex-direction: column; gap: 1px; }
+.m-nav-title {
   font-family: 'Orbitron', monospace;
-  font-size: clamp(7px, 0.8vw, 10px);
-  color: oklch(65% 0.16 58);
-  letter-spacing: 0.28em;
-  text-align: right;
-  line-height: 2.4;
-  padding-top: 6px;
-  max-width: 180px;
-  opacity: 0.8;
-}
-
-/* ── Body ── */
-.vr-menu__body {
-  display: grid;
-  grid-template-columns: 1fr 1px clamp(160px, 22vw, 240px);
-  gap: clamp(24px, 4vw, 56px);
-  align-items: start;
-  padding: clamp(20px, 4vh, 44px) 0;
-}
-
-.vr-menu__vdivider {
-  background: oklch(50% 0 0 / 0.14);
-  align-self: stretch;
-}
-
-.vr-menu__section-label {
-  font-family: 'Orbitron', monospace;
-  font-size: clamp(8px, 0.8vw, 10px);
+  font-size: clamp(10px, 1.2vw, 14px);
   font-weight: 700;
-  color: oklch(82% 0.2 58);
-  letter-spacing: 0.42em;
+  letter-spacing: 0.26em;
+  color: rgba(240,240,240,0.80);
+  display: block;
+}
+.m-nav-sub {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: clamp(8px, 0.82vw, 10px);
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  color: rgba(170,170,170,0.42);
   text-transform: uppercase;
-  margin-bottom: clamp(10px, 2vh, 20px);
-  text-shadow: 0 0 12px oklch(72% 0.2 58 / 0.6);
+  display: block;
+}
+.m-nav-arrow {
+  font-size: clamp(16px, 1.6vw, 22px);
+  color: rgba(255,255,255,0.28);
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+/* Primary (NOVÁ HRA) */
+.m-nav-primary {
+  border-color: rgba(255,140,0,0.45);
+  background: rgba(255,100,0,0.09);
+}
+.m-nav-primary .m-nav-title { color: rgba(255,195,90,0.92); }
+.m-nav-primary .m-nav-arrow { color: rgba(255,150,50,0.70); }
+/* Hover */
+.m-nav-btn:hover {
+  background: rgba(255,100,0,0.11);
+  border-color: rgba(255,140,0,0.52);
+}
+.m-nav-btn:hover .m-nav-title { color: rgba(255,210,110,0.96); }
+.m-nav-btn:hover .m-nav-arrow { color: rgba(255,165,60,0.85); }
+/* Danger (KONEC) */
+.m-nav-danger:hover { background: rgba(255,40,55,0.09); border-color: rgba(255,60,75,0.38); }
+.m-nav-danger:hover .m-nav-title { color: rgba(255,130,130,0.88); }
+.m-nav-btn:active { transform: translateY(1px); }
+
+/* ── Tip bar ── */
+.m-tip {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: auto; padding-top: 12px;
+}
+.m-tip-dot {
+  width: 7px; height: 7px;
+  background: rgba(255,140,0,0.75);
+  flex-shrink: 0;
+}
+.m-tip-text {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: clamp(8px, 0.82vw, 10px);
+  font-weight: 500;
+  color: rgba(200,160,75,0.68);
+  letter-spacing: 0.14em;
+  flex: 1;
+}
+.m-tip-bar {
+  width: clamp(36px, 4.5vw, 62px);
+  height: 2px;
+  background: rgba(255,255,255,0.07);
+  flex-shrink: 0;
+}
+.m-tip-bar span {
+  display: block; height: 100%;
+  width: 42%;
+  background: rgba(255,140,0,0.60);
+}
+
+/* ── RIGHT panel ── */
+.m-right {
+  position: absolute; right: 0; top: 0; bottom: 0;
+  width: clamp(190px, 21vw, 305px);
+  background: linear-gradient(270deg,
+    rgba(0,1,4,0.92) 0%,
+    rgba(0,1,4,0.72) 72%,
+    rgba(0,1,4,0) 100%);
+  display: flex; flex-direction: column;
+  padding: clamp(18px, 3vh, 36px) clamp(16px, 2.2vw, 30px) clamp(12px, 2vh, 22px);
+  pointer-events: all;
+}
+.m-right-marks {
+  position: absolute; right: 5px; top: 0; bottom: 0;
+  display: flex; flex-direction: column; justify-content: space-around;
+  pointer-events: none;
+}
+.m-right-marks i {
+  display: block; width: 3px;
+  height: clamp(12px, 2vh, 18px);
+  background: rgba(255,140,0,0.18);
+}
+
+/* Section header */
+.m-section-hdr {
+  font-family: 'Orbitron', monospace;
+  font-size: clamp(7px, 0.76vw, 9px);
+  font-weight: 700;
+  color: rgba(255,140,0,0.80);
+  letter-spacing: 0.48em;
+  text-transform: uppercase;
+  text-align: right;
+  margin-bottom: clamp(9px, 1.6vh, 16px);
+  padding-right: 2px;
+  border-right: 2px solid rgba(255,140,0,0.45);
   animation: flicker-c 4.5s linear infinite;
 }
 
-/* ── Leaderboard ── */
-.lb-empty {
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 13px;
-  color: oklch(58% 0 0 / 0.9);
-  letter-spacing: 0.15em;
-  padding: 12px 0;
+/* Power-up list */
+.m-pu-list {
+  list-style: none;
+  display: flex; flex-direction: column;
+  gap: clamp(6px, 1.0vh, 10px);
+  padding: 0; margin: 0;
 }
-
-.lb-row {
+.m-pu-row {
   display: grid;
-  grid-template-columns: 26px 1fr auto;
-  align-items: baseline;
-  gap: 14px;
-  padding: clamp(7px, 1.3vh, 11px) 0;
-  border-bottom: 1px solid oklch(45% 0 0 / 0.1);
+  grid-template-columns: 22px auto 1fr;
+  align-items: center;
+  gap: 8px;
+}
+.m-pu-ico {
+  font-size: clamp(13px, 1.3vw, 16px);
+  text-align: center;
+  display: block;
+}
+.m-pu-name {
   font-family: 'Orbitron', monospace;
-}
-
-.lb-rank {
-  font-size: clamp(9px, 0.85vw, 11px);
-  color: oklch(58% 0 0 / 0.85);
-  font-weight: 400;
-}
-
-.lb-score {
-  font-size: clamp(18px, 2.4vw, 28px);
-  color: oklch(94% 0.008 80);
-  font-weight: 900;
-  letter-spacing: -0.01em;
-}
-
-.lb-meta {
-  font-size: clamp(8px, 0.75vw, 10px);
-  color: oklch(58% 0 0 / 0.85);
-  letter-spacing: 0.1em;
+  font-size: clamp(7px, 0.78vw, 10px);
+  font-weight: 700;
+  color: rgba(240,240,240,0.75);
+  letter-spacing: 0.22em;
   white-space: nowrap;
 }
-
-/* #1 gets amber highlight */
-.lb-row:first-child .lb-score { color: oklch(74% 0.17 62); }
-.lb-row:first-child .lb-rank  { color: oklch(70% 0.17 62 / 0.8); }
-
-/* ── Right panel ── */
-.powerup-legend {
-  display: flex;
-  flex-direction: column;
-  gap: clamp(8px, 1.3vh, 13px);
-  margin-bottom: clamp(18px, 3vh, 32px);
-}
-
-.powerup-legend .pu-item {
+.m-pu-desc {
   font-family: 'Rajdhani', sans-serif;
-  font-size: clamp(12px, 1.3vw, 15px);
-  color: oklch(76% 0 0 / 0.9);
-  letter-spacing: 0.1em;
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  font-size: clamp(8px, 0.82vw, 10px);
+  color: rgba(170,170,170,0.48);
+  letter-spacing: 0.06em;
+  text-align: right;
 }
 
-.powerup-legend .pu-item .icon {
-  font-size: 15px;
-  width: 20px;
-  text-align: center;
-  opacity: 0.9;
+/* Divider */
+.m-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.06);
+  margin: clamp(10px, 1.8vh, 18px) 0;
 }
 
-.vr-menu__controls {
+/* Controls */
+.m-controls {
   font-family: 'Rajdhani', sans-serif;
-  font-size: clamp(10px, 1.05vw, 12px);
-  color: oklch(62% 0 0 / 0.85);
-  letter-spacing: 0.08em;
-  line-height: 2.1;
-  border-top: 1px solid oklch(45% 0 0 / 0.12);
-  padding-top: clamp(10px, 1.8vh, 18px);
-}
-
-/* ── Footer ── */
-.vr-menu__footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  padding-top: clamp(12px, 2.5vh, 26px);
-  border-top: 1px solid oklch(50% 0 0 / 0.12);
-}
-
-.vr-menu__prompt {
-  font-family: 'Orbitron', monospace;
-  font-size: clamp(11px, 1.1vw, 13px);
+  font-size: clamp(8px, 0.82vw, 10px);
   font-weight: 700;
-  color: oklch(72% 0.17 62);
-  letter-spacing: 0.38em;
-  text-transform: uppercase;
-  animation: promptBlink 2s ease-in-out infinite;
+  color: rgba(200,200,200,0.65);
+  letter-spacing: 0.22em;
+  text-align: right;
+  line-height: 2.2;
 }
+.m-ctrl-key { color: rgba(220,220,220,0.70); }
+.m-ctrl-sep { color: rgba(160,160,160,0.40); }
 
-@keyframes promptBlink {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.32; }
+/* Leaderboard in archive */
+.lb-empty {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: clamp(10px, 1.0vw, 12px);
+  color: rgba(160,160,160,0.65);
+  letter-spacing: 0.15em;
+  padding: 10px 0;
+  text-align: right;
 }
-
-/* ── Main menu buttons ── */
-#main-menu-btns {
-  display: flex; gap: 16px; flex-wrap: wrap;
-}
-
-.vr-menu-btn {
+.lb-row {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: baseline;
+  gap: 8px;
+  padding: clamp(5px, 1.0vh, 8px) 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
   font-family: 'Orbitron', monospace;
-  font-size: clamp(10px, 1.1vw, 13px);
-  font-weight: 700; letter-spacing: 0.32em;
-  text-transform: uppercase; cursor: pointer;
-  padding: 13px 28px;
-  border: 1px solid rgba(255,160,60,0.45);
-  background: rgba(255,120,30,0.08);
-  color: rgba(255,200,100,0.9);
-  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.15s;
 }
-.vr-menu-btn.primary {
-  border-color: rgba(255,160,60,0.75);
-  background: rgba(255,120,30,0.15);
+.lb-rank {
+  font-size: clamp(8px, 0.78vw, 10px);
+  color: rgba(160,160,160,0.70);
+  font-weight: 400;
 }
-.vr-menu-btn:hover {
-  background: rgba(255,120,30,0.22);
-  border-color: rgba(255,160,60,0.95);
-  color: #fff;
-  transform: translateY(-2px);
+.lb-score {
+  font-size: clamp(14px, 1.8vw, 20px);
+  color: rgba(240,240,240,0.88);
+  font-weight: 900;
 }
-.vr-menu-btn:active { transform: translateY(1px); }
+.lb-meta {
+  font-size: clamp(7px, 0.72vw, 9px);
+  color: rgba(140,140,140,0.60);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  text-align: right;
+}
+.lb-row:first-child .lb-score { color: rgba(255,180,60,0.90); }
+.lb-row:first-child .lb-rank  { color: rgba(255,160,50,0.70); }
 
-/* ── Broken lightbulb flickers — each element has its own rhythm ── */
+/* Settings panel */
+.m-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: clamp(6px, 1.2vh, 10px) 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: clamp(9px, 0.90vw, 11px);
+  font-weight: 700;
+  color: rgba(200,200,200,0.70);
+  letter-spacing: 0.22em;
+}
+.m-toggle-btn {
+  font-size: clamp(12px, 1.3vw, 16px);
+  background: rgba(255,140,0,0.10);
+  border: 1px solid rgba(255,140,0,0.28);
+  color: rgba(255,180,80,0.80);
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background 0.18s;
+}
+.m-toggle-btn.muted { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.10); color: rgba(160,160,160,0.50); }
+.m-toggle-btn:hover { background: rgba(255,140,0,0.18); }
+
+/* Sys status */
+.m-sys-status {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: clamp(8px, 0.78vw, 10px);
+  font-weight: 500;
+  color: rgba(150,180,155,0.45);
+  letter-spacing: 0.16em;
+  text-align: right;
+  margin-top: auto;
+  padding-top: 14px;
+}
+.m-status-green { color: rgba(100,220,130,0.75); }
+
+/* Dot decorations */
+.m-dot-row {
+  display: flex; gap: 5px;
+  justify-content: flex-end;
+  margin-top: 7px;
+}
+.m-dot-row span {
+  width: 4px; height: 4px;
+  background: rgba(255,255,255,0.16);
+  border-radius: 50%;
+}
+
+/* ── Flicker animations (title + labels) ── */
 @keyframes flicker-title {
-  /* instantní bliknutí = dva těsně za sebou jdoucí keyframy */
-  0%,  3.9% { opacity: 1; }
-  4%         { opacity: 0; }
-  4.1%       { opacity: 1; }
-  5.9%       { opacity: 1; }
-  6%         { opacity: 0.08; }
-  6.1%       { opacity: 1; }
-  39.9%      { opacity: 1; }
-  40%        { opacity: 0; }
-  40.1%      { opacity: 1; }
-  41.9%      { opacity: 1; }
-  42%        { opacity: 0; }
+  0%,  3.9% { opacity: 1; }     4%  { opacity: 0; }     4.1% { opacity: 1; }
+  5.9%       { opacity: 1; }    6%  { opacity: 0.08; }   6.1% { opacity: 1; }
+  39.9%      { opacity: 1; }   40%  { opacity: 0; }     40.1%{ opacity: 1; }
+  41.9%      { opacity: 1; }   42%  { opacity: 0; }
   42.1%, 100%{ opacity: 1; }
 }
-
 @keyframes flicker-a {
-  /* Slow burn — occasionally dims then snaps off briefly */
-  0%, 14%          { opacity: 1; }
-  15%              { opacity: 0.7; }
-  15.5%            { opacity: 1; }
-  16%              { opacity: 0.06; }
-  16.5%            { opacity: 1; }
-  60%, 100%        { opacity: 1; }
-  60.3%            { opacity: 0.4; }
-  60.7%            { opacity: 0.05; }
-  61%              { opacity: 1; }
+  0%, 14%    { opacity: 1; }    15%  { opacity: 0.7; }   15.5%{ opacity: 1; }
+  16%        { opacity: 0.06; } 16.5%{ opacity: 1; }
+  60%, 100%  { opacity: 1; }   60.3%{ opacity: 0.4; }   60.7%{ opacity: 0.05; }
+  61%        { opacity: 1; }
 }
-
 @keyframes flicker-b {
-  /* Double-stutter — two rapid blinks then long break */
-  0%, 29%          { opacity: 1; }
-  30%              { opacity: 0.08; }
-  30.4%            { opacity: 1; }
-  30.7%            { opacity: 0.05; }
-  31.1%            { opacity: 1; }
-  72%, 100%        { opacity: 1; }
-  72.5%            { opacity: 0.5; }
-  73%              { opacity: 0.1; }
-  73.4%            { opacity: 0.8; }
-  73.8%            { opacity: 0.06; }
-  74.2%            { opacity: 1; }
+  0%, 29%    { opacity: 1; }    30%  { opacity: 0.08; }  30.4%{ opacity: 1; }
+  30.7%      { opacity: 0.05; } 31.1%{ opacity: 1; }
+  72%, 100%  { opacity: 1; }   72.5%{ opacity: 0.5; }   73%  { opacity: 0.1; }
+  73.4%      { opacity: 0.8; }  73.8%{ opacity: 0.06; }  74.2%{ opacity: 1; }
 }
-
 @keyframes flicker-c {
-  /* Triple micro-stutter — fast and irregular */
-  0%, 8%           { opacity: 1; }
-  8.2%             { opacity: 0.05; }
-  8.5%             { opacity: 1; }
-  8.7%             { opacity: 0.2; }
-  9%               { opacity: 1; }
-  44%, 100%        { opacity: 1; }
-  44.4%            { opacity: 0.08; }
-  44.7%            { opacity: 0.7; }
-  45%              { opacity: 0.05; }
-  45.4%            { opacity: 1; }
+  0%, 8%     { opacity: 1; }    8.2% { opacity: 0.05; }  8.5% { opacity: 1; }
+  8.7%       { opacity: 0.2; }  9%   { opacity: 1; }
+  44%, 100%  { opacity: 1; }   44.4%{ opacity: 0.08; }  44.7%{ opacity: 0.7; }
+  45%        { opacity: 0.05; } 45.4%{ opacity: 1; }
 }
 
-@media (max-width: 700px) {
-  .vr-menu__body {
-    grid-template-columns: 1fr;
-  }
-  .vr-menu__vdivider { display: none; }
-  .vr-menu__right    { display: none; }
-  .vr-menu__header   { flex-direction: column; gap: 10px; }
-  .vr-menu__badge    { text-align: left; max-width: none; }
-  .vr-menu__footer   { justify-content: center; }
+@media (max-width: 680px) {
+  .m-right { display: none; }
+  .m-left  { width: 100%; background: rgba(0,1,4,0.85); }
 }
 
 /* ─── AUDIO SETTINGS ────────────────────────────────────────────────────── */
