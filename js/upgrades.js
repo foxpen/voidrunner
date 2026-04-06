@@ -98,7 +98,9 @@ const Upgrades = (() => {
 
   // Alias kept for backward compat
   function showShop(W, H, onBuyCallback, onCloseCallback) {
-    show(W, H, card => { onBuyCallback && onBuyCallback(card); if (onCloseCallback) setTimeout(onCloseCallback, 0); }, null);
+    // Close callback fires at 360ms — AFTER hide() at 320ms — so Upgrades.showing=false
+    // before any narrative/round transition begins (prevents frozen cutscene bug)
+    show(W, H, card => { onBuyCallback && onBuyCallback(card); if (onCloseCallback) setTimeout(onCloseCallback, 360); }, null);
   }
 
   function hide() {

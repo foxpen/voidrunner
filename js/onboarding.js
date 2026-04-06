@@ -146,6 +146,11 @@ const Onboarding = (() => {
     _ssHovered = -1;
     _ssFrame   = 0;
     if (typeof BG !== 'undefined') BG.showSwarm(false);
+    // Explicitly show title/sub (may have been hidden from a previous call)
+    const titleEl = _el('ob-ship-title');
+    const subEl   = _el('ob-ship-sub');
+    if (titleEl) titleEl.style.display = '';
+    if (subEl)   subEl.style.display   = '';
 
     _ssShips = SHIPS.map((def, i) => {
       const start  = _ssStartPos(i);
@@ -180,8 +185,8 @@ const Onboarding = (() => {
     _shipCanvas.classList.remove('ob-ss-active');
     const titleEl = _el('ob-ship-title');
     const subEl   = _el('ob-ship-sub');
-    if (titleEl) titleEl.classList.remove('ob-show');
-    if (subEl)   subEl.classList.remove('ob-show');
+    if (titleEl) { titleEl.classList.remove('ob-show'); titleEl.style.display = 'none'; }
+    if (subEl)   { subEl.classList.remove('ob-show');   subEl.style.display   = 'none'; }
     _shipCanvas.removeEventListener('mousemove', _ssOnMove);
     _shipCanvas.removeEventListener('click',     _ssOnClick);
     _shipCanvas.removeEventListener('touchstart', _ssOnTouch);

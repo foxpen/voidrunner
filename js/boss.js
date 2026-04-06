@@ -327,108 +327,164 @@ const Boss = (() => {
   function draw(ctx, frameCount) {
     if (!active) return;
 
-    // Boss bullets
+    // ── Boss bullets — dark orbs with hot halo ──────────────────────────────
     bullets.forEach(bul => {
       const halo = bul.halo || '#ff8800';
-      const hg   = ctx.createRadialGradient(bul.x, bul.y, 0, bul.x, bul.y, bul.size * 2.5);
-      hg.addColorStop(0, halo + '88');
-      hg.addColorStop(1, 'rgba(0,0,0,0)');
+      // Outer glow
+      const hg = ctx.createRadialGradient(bul.x, bul.y, 0, bul.x, bul.y, bul.size * 3.5);
+      hg.addColorStop(0,   halo + 'aa');
+      hg.addColorStop(0.4, halo + '44');
+      hg.addColorStop(1,   'rgba(0,0,0,0)');
       ctx.fillStyle = hg;
-      ctx.beginPath(); ctx.arc(bul.x, bul.y, bul.size * 2.5, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#010001';
-      ctx.shadowColor = halo; ctx.shadowBlur = 12;
+      ctx.beginPath(); ctx.arc(bul.x, bul.y, bul.size * 3.5, 0, Math.PI * 2); ctx.fill();
+      // Dark core
+      const bg2 = ctx.createRadialGradient(bul.x, bul.y, 0, bul.x, bul.y, bul.size);
+      bg2.addColorStop(0,   '#000000');
+      bg2.addColorStop(0.7, '#1a0400');
+      bg2.addColorStop(1,   halo + '88');
+      ctx.fillStyle = bg2;
+      ctx.shadowColor = halo; ctx.shadowBlur = 16;
       ctx.beginPath(); ctx.arc(bul.x, bul.y, bul.size, 0, Math.PI * 2); ctx.fill();
+      // Hot rim
+      ctx.strokeStyle = halo; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(bul.x, bul.y, bul.size, 0, Math.PI * 2); ctx.stroke();
       ctx.shadowBlur = 0;
     });
 
-    // Boss body
     ctx.save();
     ctx.translate(b.x + b.shakeX, b.y);
     b.shakeX *= 0.7;
 
-    const pulse    = 0.7 + 0.3 * Math.sin(frameCount * (phase === 2 ? 0.12 : 0.06));
-    const ringColor = phase === 2 ? '#ff4400' : '#ff9922';
-    const edgeColor = phase === 2 ? '#ff4400' : '#ff8800';
+    const pulse     = 0.65 + 0.35 * Math.sin(frameCount * (phase === 2 ? 0.14 : 0.06));
+    const ringColor = phase === 2 ? '#ff3300' : '#ff8800';
+    const edgeColor = phase === 2 ? '#ff2200' : '#ff7700';
 
-    // Hit flash
-    if (b.hitFlash > 0) {
-      b.hitFlash--;
-      ctx.globalAlpha = (b.hitFlash / 8) * 0.55;
-      ctx.fillStyle   = '#ffffff';
-      ctx.beginPath(); ctx.arc(0, 0, b.size * 1.15, 0, Math.PI * 2); ctx.fill();
-      ctx.globalAlpha = 1;
+    // ── Far glow field ──────────────────────────────────────────────────────
+    const farGlow = ctx.createRadialGradient(0, 0, b.size * 0.5, 0, 0, b.size * 3.5);
+    farGlow.addColorStop(0,   `rgba(255,80,0,${0.08 * pulse})`);
+    farGlow.addColorStop(0.5, `rgba(180,30,0,${0.04 * pulse})`);
+    farGlow.addColorStop(1,   'rgba(0,0,0,0)');
+    ctx.fillStyle = farGlow;
+    ctx.beginPath(); ctx.arc(0, 0, b.size * 3.5, 0, Math.PI * 2); ctx.fill();
+
+    // ── Tentacle arms (8 rotating appendages) ──────────────────────────────
+    const armCount = phase === 2 ? 10 : 8;
+    for (let i = 0; i < armCount; i++) {
+      const baseA  = b.rot + (i / armCount) * Math.PI * 2;
+      const wobble = Math.sin(frameCount * 0.04 + i * 1.2) * 0.3;
+      const len    = b.size * (1.4 + 0.35 * Math.sin(frameCount * 0.06 + i));
+
+      ctx.strokeStyle = `rgba(${phase===2?'255,40,0':'220,80,0'},${(0.3 + 0.2 * pulse) * (1 - i % 2 * 0.3)})`;
+      ctx.lineWidth   = 3.5 - i * 0.2;
+      ctx.shadowColor = edgeColor;
+      ctx.shadowBlur  = 12;
+      ctx.lineCap     = 'round';
+
+      ctx.beginPath();
+      const sx = Math.cos(baseA) * b.size * 0.85;
+      const sy = Math.sin(baseA) * b.size * 0.85;
+      const cx2 = Math.cos(baseA + wobble) * len * 0.6;
+      const cy2 = Math.sin(baseA + wobble) * len * 0.6;
+      const ex  = Math.cos(baseA + wobble * 2) * len;
+      const ey  = Math.sin(baseA + wobble * 2) * len;
+      ctx.moveTo(sx, sy);
+      ctx.quadraticCurveTo(cx2, cy2, ex, ey);
+      ctx.stroke();
     }
+    ctx.shadowBlur = 0; ctx.lineCap = 'butt';
 
-    // ── Dying rings ──
+    // ── Dying expansion ─────────────────────────────────────────────────────
     if (b.dying) {
-      const dyingPct = 1 - dyingTimer / 150;
-      for (let r = 0; r < 3; r++) {
-        const ringR = b.size * (1 + dyingPct * (r + 1) * 0.9);
-        const ringA = Math.max(0, 0.8 - dyingPct * (r + 1) * 0.4);
-        ctx.strokeStyle = `rgba(255,${80 + r*60},0,${ringA})`;
-        ctx.lineWidth   = 3 - r * 0.8;
-        ctx.shadowColor = '#ff8800';
-        ctx.shadowBlur  = 18;
-        ctx.beginPath(); ctx.arc(0, 0, ringR, 0, Math.PI * 2); ctx.stroke();
+      const dyPct = 1 - dyingTimer / 150;
+      for (let r = 0; r < 4; r++) {
+        const rr = b.size * (1.1 + dyPct * (r + 1) * 1.1);
+        const ra = Math.max(0, 0.9 - dyPct * (r + 1) * 0.35);
+        ctx.strokeStyle = `rgba(255,${60 + r * 50},0,${ra})`;
+        ctx.lineWidth   = 3.5 - r * 0.7;
+        ctx.shadowColor = '#ff8800'; ctx.shadowBlur = 22;
+        ctx.beginPath(); ctx.arc(0, 0, rr, 0, Math.PI * 2); ctx.stroke();
       }
       ctx.shadowBlur  = 0;
-      ctx.globalAlpha = dyingTimer % 8 < 4 ? 0.55 : 1.0; // flicker
+      ctx.globalAlpha = dyingTimer % 8 < 4 ? 0.45 : 1.0;
     }
 
-    // Phase 2: corona
+    // ── Phase 2 corona flare ────────────────────────────────────────────────
     if (phase === 2) {
-      const corona = ctx.createRadialGradient(0, 0, b.size * 0.8, 0, 0, b.size * 1.7);
-      corona.addColorStop(0,   'rgba(0,0,0,0)');
-      corona.addColorStop(0.5, `rgba(255,60,0,${0.12 * pulse})`);
-      corona.addColorStop(1,   `rgba(255,20,0,${0.32 * pulse})`);
-      ctx.fillStyle = corona;
-      ctx.beginPath(); ctx.arc(0, 0, b.size * 1.7, 0, Math.PI * 2); ctx.fill();
+      for (let i = 0; i < 6; i++) {
+        const a  = b.rot * 2 + (i / 6) * Math.PI * 2;
+        const r1 = b.size * 0.9, r2 = b.size * (1.6 + 0.4 * Math.sin(frameCount * 0.08 + i));
+        ctx.strokeStyle = `rgba(255,60,0,${0.15 * pulse})`;
+        ctx.lineWidth   = 2;
+        ctx.beginPath(); ctx.moveTo(Math.cos(a)*r1, Math.sin(a)*r1);
+        ctx.lineTo(Math.cos(a)*r2, Math.sin(a)*r2); ctx.stroke();
+      }
     }
 
-    // Body
+    // ── Main body ───────────────────────────────────────────────────────────
     ctx.rotate(b.rot);
-    const bodyGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, b.size);
-    bodyGrad.addColorStop(0,   '#000000');
-    bodyGrad.addColorStop(0.8, '#050205');
-    bodyGrad.addColorStop(1,   '#0a0308');
-    ctx.fillStyle  = bodyGrad;
+    const bodyG = ctx.createRadialGradient(0, 0, 0, 0, 0, b.size);
+    bodyG.addColorStop(0,   '#000000');
+    bodyG.addColorStop(0.55,`#0a0203`);
+    bodyG.addColorStop(0.88,`#1a0405`);
+    bodyG.addColorStop(1,   `#2a0608`);
+    ctx.fillStyle   = bodyG;
     ctx.shadowColor = edgeColor;
-    ctx.shadowBlur  = 30 * pulse;
+    ctx.shadowBlur  = 40 * pulse;
     ctx.beginPath(); ctx.arc(0, 0, b.size, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur  = 0;
 
-    // Hexagon core
-    ctx.strokeStyle = `rgba(255,80,0,${0.12 + 0.08 * pulse})`;
-    ctx.lineWidth   = 1.5;
-    ctx.beginPath();
-    for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * Math.PI * 2;
-      const r = b.size * (0.65 + 0.15 * Math.sin(frameCount * 0.05 + i));
-      i === 0 ? ctx.moveTo(Math.cos(a)*r, Math.sin(a)*r) : ctx.lineTo(Math.cos(a)*r, Math.sin(a)*r);
+    // ── Inner vein pattern ──────────────────────────────────────────────────
+    for (let v = 0; v < 6; v++) {
+      const a   = (v / 6) * Math.PI * 2 + frameCount * 0.008;
+      const r1  = b.size * 0.18, r2 = b.size * 0.78;
+      const mid = b.size * (0.35 + 0.12 * Math.sin(frameCount * 0.04 + v));
+      const va  = a + 0.4 * Math.sin(frameCount * 0.03 + v);
+      ctx.strokeStyle = `rgba(255,${50 + v*15},0,${0.18 * pulse})`;
+      ctx.lineWidth   = 1;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * r1, Math.sin(a) * r1);
+      ctx.quadraticCurveTo(Math.cos(va) * mid, Math.sin(va) * mid,
+                            Math.cos(a + 0.2) * r2, Math.sin(a + 0.2) * r2);
+      ctx.stroke();
     }
-    ctx.closePath(); ctx.stroke();
-    ctx.shadowBlur = 0;
 
-    // Accretion ring
+    // ── Red eye core ────────────────────────────────────────────────────────
+    const eyeR = b.size * 0.22 * pulse;
+    const eyeG = ctx.createRadialGradient(0, 0, 0, 0, 0, eyeR * 2.2);
+    eyeG.addColorStop(0,   'rgba(255,255,200,0.95)');
+    eyeG.addColorStop(0.18,`rgba(255,100,0,0.9)`);
+    eyeG.addColorStop(0.55,`rgba(200,0,0,0.55)`);
+    eyeG.addColorStop(1,   'rgba(0,0,0,0)');
+    ctx.fillStyle   = eyeG;
+    ctx.shadowColor = '#ff4400'; ctx.shadowBlur = 35 * pulse;
+    ctx.beginPath(); ctx.arc(0, 0, eyeR * 2.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#000'; ctx.shadowBlur = 0;
+    ctx.beginPath(); ctx.arc(0, 0, eyeR * 0.28, 0, Math.PI * 2); ctx.fill();
+
+    // ── Accretion ring ──────────────────────────────────────────────────────
     ctx.rotate(-b.rot);
     ctx.save();
     ctx.rotate(b.orbitAngle);
-    ctx.scale(1, 0.26);
-    ctx.strokeStyle  = ringColor;
-    ctx.lineWidth    = phase === 2 ? 4 : 2.5;
-    ctx.shadowColor  = ringColor;
-    ctx.shadowBlur   = phase === 2 ? 28 : 16;
-    ctx.globalAlpha  = phase === 2 ? 0.9 : 0.72;
-    ctx.beginPath(); ctx.arc(0, 0, b.size * 1.18, 0, Math.PI * 2); ctx.stroke();
+    for (let r = 0; r < 3; r++) {
+      ctx.save();
+      ctx.scale(1, 0.22 + r * 0.03);
+      const rAlpha = (0.85 - r * 0.22) * (phase === 2 ? 1 : 0.75);
+      ctx.strokeStyle = r === 0 ? ringColor : ringColor + (r === 1 ? 'bb' : '66');
+      ctx.lineWidth   = phase === 2 ? 4 - r : 2.5 - r * 0.5;
+      ctx.shadowColor = ringColor; ctx.shadowBlur = phase === 2 ? 28 : 16;
+      ctx.globalAlpha = rAlpha;
+      ctx.beginPath(); ctx.arc(0, 0, b.size * (1.15 + r * 0.12), 0, Math.PI * 2); ctx.stroke();
+      ctx.restore();
+    }
     ctx.globalAlpha = 1; ctx.shadowBlur = 0;
     ctx.restore();
 
-    // Move state indicator — malý symbol nad bossem
-    if (moveState === 'CHARGE') {
-      ctx.globalAlpha = 0.5;
-      ctx.fillStyle   = '#ff4422';
-      ctx.font        = `bold ${b.size * 0.3}px monospace`;
-      ctx.textAlign   = 'center';
-      ctx.fillText('▼', 0, -b.size - 10);
+    // ── Hit flash ───────────────────────────────────────────────────────────
+    if (b.hitFlash > 0) {
+      b.hitFlash--;
+      ctx.globalAlpha = (b.hitFlash / 8) * 0.6;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath(); ctx.arc(0, 0, b.size * 1.1, 0, Math.PI * 2); ctx.fill();
       ctx.globalAlpha = 1;
     }
 

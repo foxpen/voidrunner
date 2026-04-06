@@ -174,6 +174,13 @@ const Narrative = (() => {
     const alpha   = fadeIn * fadeOut;
 
     ctx.save();
+
+    // Solid black base — covers game canvas fully before content fades in
+    const bgAlpha = Math.min(1, f / 20);
+    ctx.fillStyle = '#000';
+    ctx.globalAlpha = bgAlpha;
+    ctx.fillRect(0, 0, W, H);
+
     ctx.globalAlpha = alpha;
 
     // ── Background ────────────────────────────────────────────────────────
@@ -514,8 +521,9 @@ const Narrative = (() => {
   }
 
   // ── INPUT — skip on click or key ──────────────────────────────────────────
+  // Guard: only respond if no other overlay (upgrades) is open
   function _onInput() {
-    if (_active && _skipReady) _complete();
+    if (_active && _skipReady && (typeof Upgrades === 'undefined' || !Upgrades.showing)) _complete();
   }
 
   document.addEventListener('keydown',     e => { if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') _onInput(); });

@@ -142,8 +142,12 @@ function die() {
 function update() {
   frameCount++;
 
-  // If upgrade screen is showing — only tick upgrades, nothing else
-  if (Upgrades.showing) { Upgrades.update(); return; }
+  // If upgrade screen is showing — tick upgrades; also tick narrative if transitioning
+  if (Upgrades.showing) {
+    Upgrades.update();
+    if (typeof Narrative !== 'undefined' && Narrative.active) Narrative.tick();
+    return;
+  }
 
   if (state !== STATE.PLAYING) {
     Particles.update(state, frameCount, W, H, 1, false);
