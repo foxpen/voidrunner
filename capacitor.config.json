@@ -1,0 +1,13 @@
+{
+  "appId": "com.foxpen.voidrunner",
+  "appName": "Void Runner",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0
+    }
+  }
+}

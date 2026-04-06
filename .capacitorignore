@@ -1,0 +1,15 @@
+node_modules
+android
+ios
+server.js
+cert.key
+cert.pem
+package.json
+package-lock.json
+capacitor.config.json
+.git
+.claude
+.agent
+.agents
+design-picker-skill
+*.md
