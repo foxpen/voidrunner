@@ -155,7 +155,7 @@ function update() {
 
   // Update background — BH proximity based on round
   BG.setRound(Rounds.current);
-  BG.update(frameCount, W, H);
+  BG.update(frameCount, W, H, activePU.slow > 0 ? 0.35 : 1);
 
   // ── Round phase transitions ──
   const _curPhase = Rounds.phase;
@@ -376,15 +376,14 @@ function draw() {
       ctx.restore();
     }
 
-    // ── VOIDRUNNER title top center ──
+    // ── VOIDRUNNER title top center — pod score display ──
     ctx.save();
     ctx.textAlign   = 'center';
-    ctx.font        = '900 clamp(13px,2.5vw,18px) Orbitron, monospace';
-    ctx.letterSpacing = '0.2em';
-    ctx.fillStyle   = 'rgba(180,220,255,0.55)';
+    ctx.font        = `700 ${Utils.clamp(10, W * 0.025, 13)}px Orbitron, monospace`;
+    ctx.fillStyle   = 'rgba(140,200,230,0.35)';
     ctx.shadowColor = '#00d4ff';
-    ctx.shadowBlur  = 12;
-    ctx.fillText('VOIDRUNNER', W / 2, 22);
+    ctx.shadowBlur  = 8;
+    ctx.fillText('V O I D R U N N E R', W / 2, Utils.clamp(52, H * 0.065, 72));
     ctx.shadowBlur  = 0;
     ctx.restore();
 
@@ -440,72 +439,62 @@ function draw() {
     }
 
     // ── Bottom HUD bar — AMMO / SPEED / SHIELDS ──
-    const hudH  = 90;
+    const hudH  = 52;
     const hudY  = H - hudH;
-    // Background
-    const hudBg = ctx.createLinearGradient(0, hudY, 0, H);
-    hudBg.addColorStop(0, 'rgba(0,8,20,0)');
-    hudBg.addColorStop(0.3, 'rgba(0,8,20,0.85)');
-    hudBg.addColorStop(1, 'rgba(0,4,12,0.95)');
+    const hudBg = ctx.createLinearGradient(0, hudY - 10, 0, H);
+    hudBg.addColorStop(0, 'rgba(0,6,16,0)');
+    hudBg.addColorStop(0.4, 'rgba(0,6,16,0.82)');
+    hudBg.addColorStop(1,   'rgba(0,3,10,0.96)');
     ctx.fillStyle = hudBg;
-    ctx.fillRect(0, hudY, W, hudH);
+    ctx.fillRect(0, hudY - 10, W, hudH + 10);
 
-    // Separator line
-    ctx.strokeStyle = 'rgba(0,200,255,0.18)';
+    ctx.strokeStyle = 'rgba(0,180,255,0.15)';
     ctx.lineWidth   = 1;
-    ctx.beginPath(); ctx.moveTo(0, hudY + 1); ctx.lineTo(W, hudY + 1); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, hudY); ctx.lineTo(W, hudY); ctx.stroke();
 
-    const col = W / 3;
-    const labelY = hudY + 22;
-    const valueY = hudY + 52;
+    const col    = W / 3;
+    const labelY = hudY + 14;
+    const valueY = hudY + 38;
+    const labelSz = Utils.clamp(8, W * 0.019, 10);
+    const valueSz = Utils.clamp(16, W * 0.048, 24);
 
-    // Helper
-    function _hudStat(label, value, cx, accent) {
-      ctx.textAlign = 'center';
-      ctx.font = `700 ${Utils.clamp(9, W*0.023, 11)}px Orbitron, monospace`;
-      ctx.fillStyle   = 'rgba(160,200,220,0.6)';
+    function _hudStat(label, value, cx2, accent) {
+      ctx.textAlign   = 'center';
+      ctx.font        = `700 ${labelSz}px Orbitron, monospace`;
+      ctx.fillStyle   = 'rgba(140,190,210,0.55)';
       ctx.shadowBlur  = 0;
-      ctx.fillText(label, cx, labelY);
-
-      ctx.font = `900 ${Utils.clamp(22, W*0.068, 36)}px Orbitron, monospace`;
-      ctx.fillStyle   = '#f0f8ff';
+      ctx.fillText(label, cx2, labelY);
+      ctx.font        = `900 ${valueSz}px Orbitron, monospace`;
+      ctx.fillStyle   = '#e8f4ff';
       ctx.shadowColor = accent;
-      ctx.shadowBlur  = 14;
-      ctx.fillText(value, cx, valueY);
+      ctx.shadowBlur  = 10;
+      ctx.fillText(value, cx2, valueY);
       ctx.shadowBlur  = 0;
     }
 
-    // AMMO
     const ammoVal   = Weapons.magShots;
-    const ammoColor = ammoVal <= 3 ? '#ff4455' : '#00d4ff';
-    _hudStat('AMMO', ammoVal, col * 0.5, ammoColor);
+    _hudStat('AMMO', ammoVal, col * 0.5, ammoVal <= 3 ? '#ff4455' : '#00d4ff');
 
-    // SPEED — score jako proxy za rychlost
     const speedVal = Math.min(9999, score > 0 ? score * 4 + 400 : 400);
     _hudStat('SPEED', speedVal, col * 1.5, '#00d4ff');
 
-    // SHIELDS
     const shieldPct = Math.round((Player.lives / 3) * 100);
-    const shieldCol = shieldPct <= 34 ? '#ff4455' : shieldPct <= 67 ? '#ffcc00' : '#00d4ff';
-    _hudStat('SHIELDS', shieldPct + '%', col * 2.5, shieldCol);
+    _hudStat('SHIELDS', shieldPct + '%', col * 2.5, shieldPct <= 34 ? '#ff4455' : shieldPct <= 67 ? '#ffcc00' : '#00d4ff');
 
-    // Bottom progress bar
+    // Progress bar
     if (Rounds.phase === 'PLAYING') {
       const target = Rounds.getScoreTarget();
       if (target > 0) {
         const pct    = Math.min(1, (score - roundScoreStart) / target);
-        const bw     = W * 0.55;
+        const bw     = W * 0.5;
         const bx     = (W - bw) / 2;
-        const by     = H - 14;
-        const bh     = 4;
+        const by     = H - 5;
         const barCol = pct >= 1 ? '#00ff88' : pct > 0.6 ? '#ffcc00' : '#00d4ff';
-        ctx.fillStyle = 'rgba(255,255,255,0.08)';
-        ctx.fillRect(bx, by, bw, bh);
-        ctx.fillStyle   = barCol;
-        ctx.shadowColor = barCol;
-        ctx.shadowBlur  = 8;
-        ctx.fillRect(bx, by, bw * pct, bh);
-        ctx.shadowBlur  = 0;
+        ctx.fillStyle = 'rgba(255,255,255,0.07)';
+        ctx.fillRect(bx, by, bw, 3);
+        ctx.fillStyle = barCol; ctx.shadowColor = barCol; ctx.shadowBlur = 6;
+        ctx.fillRect(bx, by, bw * pct, 3);
+        ctx.shadowBlur = 0;
       }
     }
 

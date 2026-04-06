@@ -157,7 +157,7 @@ const Hazards = (() => {
   function _playerHits(h) {
     const px = Player.x, py = Player.y, pw = Player.w;
     if (h.type === 'planet') {
-      return Utils.dist(px, py, h.x, h.y) < h.size * 0.85 + pw * 0.4;
+      return false; // planety jsou jen dekorace — bez damage
     }
     if (h.type === 'asteroid') {
       return Utils.dist(px, py, h.x, h.y) < h.size * 0.7 + pw * 0.4;

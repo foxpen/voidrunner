@@ -6,6 +6,14 @@ const BG = (() => {
   let debris = [];
   let debrisTimer = 0;
 
+  // ── Parallax asteroid swarm — always-on flight sensation ──
+  const SWARM_LAYERS = [
+    { count: 60,  speed: 0.6,  sizeMin: 1,  sizeMax: 2.5, alpha: 0.18, shape: 'dot'  },   // far dust
+    { count: 35,  speed: 1.6,  sizeMin: 2,  sizeMax: 5,   alpha: 0.30, shape: 'rock' },   // mid rocks
+    { count: 18,  speed: 3.2,  sizeMin: 4,  sizeMax: 9,   alpha: 0.45, shape: 'rock' },   // close rocks
+  ];
+  let swarm = [];
+
   // BH background state
   let bhBgScale  = 0;   // current rendered scale
   let bhBgTarget = 0;   // target scale for this round
@@ -25,6 +33,89 @@ const BG = (() => {
     1.80,  // 10 BOSS — obrovská ale arena ještě viditelná
   ];
 
+  function _initSwarm(W, H) {
+    swarm = [];
+    SWARM_LAYERS.forEach((layer, li) => {
+      for (let i = 0; i < layer.count; i++) {
+        swarm.push(_makeSwarmParticle(layer, li, W, H, true));
+      }
+    });
+  }
+
+  function _makeSwarmParticle(layer, layerIdx, W, H, randomY) {
+    const size = layer.sizeMin + Math.random() * (layer.sizeMax - layer.sizeMin);
+    const nv   = layer.shape === 'rock' ? 5 + Math.floor(Math.random() * 4) : 0;
+    const verts = [];
+    if (nv > 0) {
+      for (let i = 0; i < nv; i++) {
+        const a = (i / nv) * Math.PI * 2;
+        const r = size * (0.55 + Math.random() * 0.45);
+        verts.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
+      }
+    }
+    const hue = 180 + Math.random() * 60;
+    return {
+      x: Math.random() * W,
+      y: randomY ? Math.random() * H : -size - Math.random() * 40,
+      vy: layer.speed * (0.8 + Math.random() * 0.4),
+      vx: (Math.random() - 0.5) * layer.speed * 0.15,
+      size, verts, layerIdx,
+      rot:      Math.random() * Math.PI * 2,
+      rotSpeed: (Math.random() - 0.5) * 0.03 * (layerIdx + 1),
+      alpha:    layer.alpha * (0.6 + Math.random() * 0.4),
+      hue,
+    };
+  }
+
+  function _updateSwarm(W, H, slowMult) {
+    if (swarm.length === 0) _initSwarm(W, H);
+    swarm.forEach(p => {
+      const spd = slowMult !== undefined ? slowMult : 1;
+      p.y += p.vy * spd;
+      p.x += p.vx * spd;
+      p.rot += p.rotSpeed * spd;
+    });
+    // Recycle off-screen particles back to top
+    for (let i = 0; i < swarm.length; i++) {
+      const p = swarm[i];
+      if (p.y > H + p.size + 10) {
+        const layer = SWARM_LAYERS[p.layerIdx];
+        const fresh = _makeSwarmParticle(layer, p.layerIdx, W, H, false);
+        fresh.x = Math.random() * W;
+        swarm[i] = fresh;
+      }
+    }
+  }
+
+  function _drawSwarm(ctx) {
+    swarm.forEach(p => {
+      ctx.save();
+      ctx.globalAlpha = p.alpha;
+      if (p.verts.length === 0) {
+        // Dot
+        ctx.fillStyle = `hsl(${p.hue}, 50%, 70%)`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        // Rock shape
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.strokeStyle = `hsl(${p.hue}, 55%, 55%)`;
+        ctx.lineWidth   = 0.8;
+        ctx.fillStyle   = `hsla(${p.hue}, 40%, 18%, 0.5)`;
+        ctx.beginPath();
+        ctx.moveTo(p.verts[0].x, p.verts[0].y);
+        for (let i = 1; i < p.verts.length; i++) ctx.lineTo(p.verts[i].x, p.verts[i].y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      ctx.restore();
+    });
+  }
+
   function setRound(round) {
     const target = ROUND_SCALES[Math.min(round - 1, ROUND_SCALES.length - 1)] || 0.28;
     // Na začátku kola skočí na novou hodnotu okamžitě (bez lerpu)
@@ -32,10 +123,13 @@ const BG = (() => {
     bhBgTarget = target;
   }
 
-  function update(_fc, W, H) {
+  function update(_fc, W, H, slowMult) {
     // Lerp
     bhBgScale += (bhBgTarget - bhBgScale) * 0.012;
     dustAngle += 0.0003;
+
+    // Parallax swarm — always on
+    _updateSwarm(W, H, slowMult !== undefined ? slowMult : 1);
 
     // Debris flying past
     debrisTimer--;
@@ -94,7 +188,7 @@ const BG = (() => {
 
   function draw(ctx, W, H, frameCount, isBossRound) {
     const s = bhBgScale;
-    if (s < 0.005) { _drawDebris(ctx); return; }
+    if (s < 0.005) { _drawSwarm(ctx); _drawDebris(ctx); return; }
 
     const cx = W * 0.5, cy = H * 0.35; // BH in upper half
 
@@ -225,6 +319,7 @@ const BG = (() => {
       ctx.fillRect(0, 0, W, H);
     }
 
+    _drawSwarm(ctx);
     _drawDebris(ctx);
   }
 
@@ -251,7 +346,7 @@ const BG = (() => {
     ctx.globalAlpha = 1;
   }
 
-  function clear() { debris = []; bhBgScale = ROUND_SCALES[0]; bhBgTarget = ROUND_SCALES[0]; }
+  function clear() { debris = []; swarm = []; bhBgScale = ROUND_SCALES[0]; bhBgTarget = ROUND_SCALES[0]; }
 
   return { setRound, update, draw, clear, get scale() { return bhBgScale; } };
 })();

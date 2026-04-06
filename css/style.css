@@ -85,9 +85,11 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
 
 /* ─── POWER-UP HUD ───────────────────────────────────────────────────────── */
 #powerup-hud {
-  position: absolute; bottom: 28px; left: 50%;
+  position: absolute;
+  bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
   transform: translateX(-50%);
-  display: flex; gap: 10px; align-items: flex-end;
+  display: flex; gap: 8px; align-items: flex-end;
   opacity: 0; transition: opacity 0.5s;
 }
 #powerup-hud.visible { opacity: 1; }
@@ -122,7 +124,9 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
 
 /* ─── GAMEPAD ────────────────────────────────────────────────────────────── */
 #gamepad-indicator {
-  position: absolute; bottom: 24px; right: 32px;
+  position: absolute;
+  bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+  right: 16px;
   font-family: 'Rajdhani', sans-serif; font-size: 13px;
   color: #ffffff44; letter-spacing: 2px;
   display: flex; align-items: center; gap: 8px;

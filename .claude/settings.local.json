@@ -35,7 +35,23 @@
       "Bash(rm -rf android)",
       "Bash(mkdir -p www)",
       "Bash(node build.js)",
-      "Bash(winget install:*)"
+      "Bash(winget install:*)",
+      "Bash(winget search:*)",
+      "Read(//c/Program Files/Android/**)",
+      "Read(//c/Users/repto/**)",
+      "Bash(mkdir -p \"Sdk/cmdline-tools\")",
+      "Bash(powershell -Command \"Expand-Archive -Path 'cmdtools.zip' -DestinationPath 'Sdk/cmdline-tools' -Force\")",
+      "Bash(mv \"Sdk/cmdline-tools/cmdline-tools\" \"Sdk/cmdline-tools/latest\")",
+      "Bash(rm cmdtools.zip)",
+      "Bash(\"C:/Users/repto/AppData/Local/Android/Sdk/cmdline-tools/latest/bin/sdkmanager.bat\" --sdk_root=\"C:/Users/repto/AppData/Local/Android/Sdk\" \"platform-tools\" \"platforms;android-34\" \"build-tools;34.0.0\")",
+      "Bash(JAVA_HOME=\"C:/Program Files/Android/Android Studio/jbr\" \"C:/Users/repto/AppData/Local/Android/Sdk/cmdline-tools/latest/bin/sdkmanager.bat\" --sdk_root=\"C:/Users/repto/AppData/Local/Android/Sdk\" \"platform-tools\" \"platforms;android-34\" \"build-tools;34.0.0\")",
+      "Bash(export JAVA_HOME=\"C:/Program Files/Android/Android Studio/jbr\")",
+      "Bash(yes y:*)",
+      "Bash(\"C:/Users/repto/AppData/Local/Android/Sdk/cmdline-tools/latest/bin/sdkmanager.bat\" --sdk_root=\"C:/Users/repto/AppData/Local/Android/Sdk\" --licenses)",
+      "Bash(powershell -Command \"Enable-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform -NoRestart\")",
+      "Bash(powershell -Command \"Get-WindowsOptionalFeature -Online -FeatureName HypervisorPlatform | Select-Object State\")",
+      "Bash(bcdedit /enum)",
+      "Bash(powershell -Command \"Get-ComputerInfo | Select-Object HyperVisorPresent, HyperVRequirementVirtualizationFirmwareEnabled, HyperVRequirementVMMonitorModeExtensions\")"
     ]
   }
 }
