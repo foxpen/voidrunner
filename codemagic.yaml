@@ -37,6 +37,10 @@ workflows:
         script: |
           npx cap add ios
           npx cap sync ios
+          echo "--- www contents ---"
+          ls -la www/
+          echo "--- iOS public contents ---"
+          ls -la ios/App/App/public/
       - name: Build iOS (simulator)
         script: |
           xcodebuild \
