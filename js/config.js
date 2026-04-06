@@ -6,7 +6,7 @@ const CFG = {
 
   // Player
   PLAYER: {
-    W: 18, H: 26,
+    W: 26, H: 36,
     SPEED: 5,
     ACCEL: 0.4,
     FRICTION: 0.85,

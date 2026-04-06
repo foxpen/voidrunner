@@ -72,40 +72,34 @@ const Player = (() => {
   }
 
   function _drawEngines(ctx, px, py, shipColor, isBoosting, frameCount) {
-    // 3 engine ports: center + 2 side
     const ports = [
-      { ox: 0,           oy: p.H * 0.55,  w: 7 },
-      { ox: -p.W * 0.25, oy: p.H * 0.45,  w: 4 },
-      { ox:  p.W * 0.25, oy: p.H * 0.45,  w: 4 },
+      { ox: 0,            oy: p.H * 0.55, w: 9  },
+      { ox: -p.W * 0.42,  oy: p.H * 0.42, w: 6  },
+      { ox:  p.W * 0.42,  oy: p.H * 0.42, w: 6  },
+      { ox: -p.W * 0.78,  oy: p.H * 0.35, w: 4  },
+      { ox:  p.W * 0.78,  oy: p.H * 0.35, w: 4  },
     ];
     ports.forEach((port, i) => {
-      const base = isBoosting ? 16 + Math.random() * 20 : 8 + Math.random() * 10;
-      const fl   = base * (i === 0 ? 1 : 0.65);
+      const base    = isBoosting ? 20 + Math.random() * 28 : 10 + Math.random() * 14;
+      const fl      = base * (i === 0 ? 1 : i <= 2 ? 0.7 : 0.45);
       const flicker = 0.5 + Math.random() * 0.5;
-
-      // Outer glow
-      const grad = ctx.createLinearGradient(
-        px + port.ox, py + port.oy,
-        px + port.ox, py + port.oy + fl
-      );
+      const grad    = ctx.createLinearGradient(px+port.ox, py+port.oy, px+port.ox, py+port.oy+fl);
       if (isBoosting) {
-        grad.addColorStop(0, `rgba(0,255,136,${0.8 * flicker})`);
-        grad.addColorStop(0.4, `rgba(0,200,255,${0.4 * flicker})`);
-        grad.addColorStop(1, 'rgba(0,80,255,0)');
+        grad.addColorStop(0, `rgba(80,255,180,${0.95*flicker})`);
+        grad.addColorStop(0.35, `rgba(0,200,255,${0.5*flicker})`);
+        grad.addColorStop(1, 'rgba(0,60,200,0)');
       } else {
-        grad.addColorStop(0, `rgba(0,255,200,${0.6 * flicker})`);
-        grad.addColorStop(0.5, `rgba(0,150,255,${0.25 * flicker})`);
-        grad.addColorStop(1, 'rgba(0,50,200,0)');
+        grad.addColorStop(0, `rgba(0,240,200,${0.75*flicker})`);
+        grad.addColorStop(0.5, `rgba(0,140,255,${0.3*flicker})`);
+        grad.addColorStop(1, 'rgba(0,40,180,0)');
       }
-
-      ctx.fillStyle = grad;
+      ctx.fillStyle   = grad;
       ctx.shadowColor = isBoosting ? '#00ff88' : '#00ffc8';
-      ctx.shadowBlur  = isBoosting ? 20 : 10;
-
+      ctx.shadowBlur  = isBoosting ? 24 : 14;
       ctx.beginPath();
-      ctx.moveTo(px + port.ox - port.w, py + port.oy);
-      ctx.lineTo(px + port.ox,          py + port.oy + fl);
-      ctx.lineTo(px + port.ox + port.w, py + port.oy);
+      ctx.moveTo(px+port.ox - port.w, py+port.oy);
+      ctx.lineTo(px+port.ox,          py+port.oy + fl);
+      ctx.lineTo(px+port.ox + port.w, py+port.oy);
       ctx.closePath();
       ctx.fill();
     });
@@ -113,20 +107,20 @@ const Player = (() => {
   }
 
   function draw(ctx, frameCount, activePU) {
-    const shipColor = activePU.speed > 0 ? '#00ff88'
+    const shipColor = activePU.speed  > 0 ? '#00ff88'
                     : activePU.shield > 0 ? '#00aaff'
-                    : '#00ffc8';
+                    : '#00d4ff';
 
-    // ── Trail — tapered glow ribbon ──
+    // ── Trail ──
     for (let i = 0; i < trail.length; i++) {
-      const t    = trail[i];
+      const t = trail[i];
       if (t.life <= 0) continue;
       const frac = i / trail.length;
-      ctx.globalAlpha = t.life * frac * 0.45;
+      ctx.globalAlpha = t.life * frac * 0.5;
       ctx.fillStyle   = t.color || shipColor;
       ctx.shadowColor = t.color || shipColor;
-      ctx.shadowBlur  = 6;
-      const s = (2.5 + frac * 3) * t.life;
+      ctx.shadowBlur  = 8;
+      const s = (3 + frac * 4) * t.life;
       ctx.beginPath();
       ctx.arc(t.x, t.y + p.H * 0.5, s, 0, Math.PI * 2);
       ctx.fill();
@@ -134,72 +128,138 @@ const Player = (() => {
     ctx.globalAlpha = 1;
     ctx.shadowBlur  = 0;
 
-    // Blink when invincible
     const blink = invincible > 0 && Math.floor(invincible / 4) % 2;
     if (blink) return;
 
     const isBoosting = activePU.speed > 0;
 
-    // ── Engines (drawn behind hull) ──
     _drawEngines(ctx, x, y, shipColor, isBoosting, frameCount);
 
     ctx.save();
     ctx.translate(x, y);
+
+    // ── Outer glow halo ──
+    const haloGrad = ctx.createRadialGradient(0, 0, p.W * 0.3, 0, 0, p.W * 2.2);
+    haloGrad.addColorStop(0, shipColor + '22');
+    haloGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = haloGrad;
+    ctx.beginPath(); ctx.arc(0, 0, p.W * 2.2, 0, Math.PI * 2); ctx.fill();
+
     ctx.shadowColor = shipColor;
-    ctx.shadowBlur  = 18;
+    ctx.shadowBlur  = 22;
 
-    // ── Hull — main body ──
-    ctx.fillStyle = shipColor;
+    // ── Outer wing panels ──
+    ctx.fillStyle = '#0a1a2a';
+    ctx.strokeStyle = shipColor + '88';
+    ctx.lineWidth = 1;
+    // Left outer wing
     ctx.beginPath();
-    ctx.moveTo(0,          -p.H);           // nose
-    ctx.lineTo(-p.W * 0.5,  p.H * 0.1);    // inner left shoulder
-    ctx.lineTo(-p.W,         p.H * 0.5);    // left wing tip
-    ctx.lineTo(-p.W * 0.55,  p.H * 0.6);   // left wing trailing
-    ctx.lineTo(-p.W * 0.25,  p.H * 0.45);  // left engine notch
-    ctx.lineTo(0,             p.H * 0.55);  // center tail
-    ctx.lineTo( p.W * 0.25,  p.H * 0.45);  // right engine notch
-    ctx.lineTo( p.W * 0.55,  p.H * 0.6);   // right wing trailing
-    ctx.lineTo( p.W,          p.H * 0.5);   // right wing tip
-    ctx.lineTo( p.W * 0.5,   p.H * 0.1);   // inner right shoulder
+    ctx.moveTo(-p.W * 0.55,  p.H * 0.08);
+    ctx.lineTo(-p.W * 1.35,  p.H * 0.42);
+    ctx.lineTo(-p.W * 1.1,   p.H * 0.62);
+    ctx.lineTo(-p.W * 0.55,  p.H * 0.5);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+    // Right outer wing
+    ctx.beginPath();
+    ctx.moveTo( p.W * 0.55,  p.H * 0.08);
+    ctx.lineTo( p.W * 1.35,  p.H * 0.42);
+    ctx.lineTo( p.W * 1.1,   p.H * 0.62);
+    ctx.lineTo( p.W * 0.55,  p.H * 0.5);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+
+    // ── Main hull body ──
+    ctx.fillStyle = '#0d2035';
+    ctx.strokeStyle = shipColor;
+    ctx.lineWidth = 1.5;
+    ctx.shadowBlur = 22;
+    ctx.beginPath();
+    ctx.moveTo(0,             -p.H);           // nose
+    ctx.lineTo(-p.W * 0.28,  -p.H * 0.4);     // upper left
+    ctx.lineTo(-p.W * 0.55,   p.H * 0.08);    // left shoulder
+    ctx.lineTo(-p.W * 0.72,   p.H * 0.48);    // left engine pod
+    ctx.lineTo(-p.W * 0.42,   p.H * 0.58);    // left tail
+    ctx.lineTo(-p.W * 0.18,   p.H * 0.48);    // left center notch
+    ctx.lineTo(0,              p.H * 0.58);    // center tail
+    ctx.lineTo( p.W * 0.18,   p.H * 0.48);
+    ctx.lineTo( p.W * 0.42,   p.H * 0.58);
+    ctx.lineTo( p.W * 0.72,   p.H * 0.48);
+    ctx.lineTo( p.W * 0.55,   p.H * 0.08);
+    ctx.lineTo( p.W * 0.28,  -p.H * 0.4);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+
+    // ── Center fuselage stripe ──
+    ctx.fillStyle = shipColor + '33';
+    ctx.shadowBlur = 0;
+    ctx.beginPath();
+    ctx.moveTo(0,            -p.H * 0.75);
+    ctx.lineTo(-p.W * 0.22,  p.H * 0.05);
+    ctx.lineTo(-p.W * 0.12,  p.H * 0.35);
+    ctx.lineTo(0,             p.H * 0.45);
+    ctx.lineTo( p.W * 0.12,  p.H * 0.35);
+    ctx.lineTo( p.W * 0.22,  p.H * 0.05);
     ctx.closePath();
     ctx.fill();
 
-    // ── Hull accent stripe ──
-    ctx.fillStyle   = shipColor + '66';
-    ctx.shadowBlur  = 0;
+    // ── Engine pods ──
+    ctx.fillStyle = '#081828';
+    ctx.strokeStyle = shipColor + 'aa';
+    ctx.lineWidth = 1;
+    // Left pod
     ctx.beginPath();
-    ctx.moveTo(0,           -p.H * 0.7);
-    ctx.lineTo(-p.W * 0.3,   p.H * 0.05);
-    ctx.lineTo(0,             p.H * 0.2);
-    ctx.lineTo( p.W * 0.3,   p.H * 0.05);
-    ctx.closePath();
-    ctx.fill();
+    ctx.ellipse(-p.W * 0.6, p.H * 0.3, p.W * 0.18, p.H * 0.22, 0.2, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+    // Right pod
+    ctx.beginPath();
+    ctx.ellipse( p.W * 0.6, p.H * 0.3, p.W * 0.18, p.H * 0.22, -0.2, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
 
     // ── Cockpit ──
-    ctx.fillStyle = '#060610';
-    ctx.beginPath();
-    ctx.moveTo(0,           -p.H * 0.65);
-    ctx.lineTo(-p.W * 0.32,  p.H * 0.05);
-    ctx.lineTo(0,             p.H * 0.18);
-    ctx.lineTo( p.W * 0.32,  p.H * 0.05);
-    ctx.closePath();
-    ctx.fill();
-
-    // Cockpit glow dot
+    ctx.fillStyle = '#020810';
+    ctx.strokeStyle = shipColor + 'cc';
+    ctx.lineWidth = 1;
     ctx.shadowColor = shipColor;
-    ctx.shadowBlur  = 12;
-    ctx.fillStyle   = shipColor;
+    ctx.shadowBlur = 10;
     ctx.beginPath();
-    ctx.arc(0, -p.H * 0.2, 2.5, 0, Math.PI * 2);
+    ctx.moveTo(0,            -p.H * 0.72);
+    ctx.lineTo(-p.W * 0.2,  -p.H * 0.18);
+    ctx.lineTo(0,             p.H * 0.05);
+    ctx.lineTo( p.W * 0.2,  -p.H * 0.18);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+
+    // Cockpit glow
+    ctx.shadowColor = shipColor;
+    ctx.shadowBlur  = 16;
+    ctx.fillStyle   = shipColor + 'cc';
+    ctx.beginPath();
+    ctx.arc(0, -p.H * 0.3, 3.5, 0, Math.PI * 2);
     ctx.fill();
 
-    // ── Wing-tip running lights ──
-    const blink2 = Math.floor(frameCount / 18) % 2;
-    ctx.shadowBlur = 10;
-    ctx.fillStyle  = blink2 ? '#ff4444' : '#ff000066';
-    ctx.beginPath(); ctx.arc(-p.W, p.H * 0.5, 2.2, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle  = blink2 ? '#44ff44' : '#00ff0066';
-    ctx.beginPath(); ctx.arc( p.W, p.H * 0.5, 2.2, 0, Math.PI * 2); ctx.fill();
+    // ── Accent lines on wings ──
+    ctx.shadowBlur  = 0;
+    ctx.strokeStyle = shipColor + '55';
+    ctx.lineWidth   = 1;
+    [-1, 1].forEach(side => {
+      ctx.beginPath();
+      ctx.moveTo(side * p.W * 0.3,  -p.H * 0.15);
+      ctx.lineTo(side * p.W * 0.65,  p.H * 0.35);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(side * p.W * 0.42,  p.H * 0.1);
+      ctx.lineTo(side * p.W * 0.95,  p.H * 0.5);
+      ctx.stroke();
+    });
+
+    // ── Wing-tip lights ──
+    const blinkLight = Math.floor(frameCount / 18) % 2;
+    ctx.shadowBlur = 12;
+    ctx.fillStyle  = blinkLight ? '#ff4455' : '#ff334455';
+    ctx.beginPath(); ctx.arc(-p.W * 1.3, p.H * 0.44, 2.8, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle  = blinkLight ? '#44ff88' : '#33ff5533';
+    ctx.beginPath(); ctx.arc( p.W * 1.3, p.H * 0.44, 2.8, 0, Math.PI * 2); ctx.fill();
 
     ctx.shadowBlur = 0;
     ctx.restore();

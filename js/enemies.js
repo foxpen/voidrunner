@@ -193,10 +193,19 @@ const Enemies = (() => {
     });
   }
 
+  function nearest(px, py, maxDist) {
+    let best = null, bestD = maxDist || Infinity;
+    list.forEach(o => {
+      const d = Math.hypot(o.x - px, o.y - py);
+      if (d < bestD) { bestD = d; best = o; }
+    });
+    return best;
+  }
+
   return {
     get list()        { return list; },
     get recentKills() { return recentKills; },
     clear, spawnObstacle, spawnPickupItem, triggerEMP,
-    update, checkPlayerCollision, checkPickupCollision, draw,
+    update, checkPlayerCollision, checkPickupCollision, draw, nearest,
   };
 })();

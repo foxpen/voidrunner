@@ -376,45 +376,145 @@ function draw() {
       ctx.restore();
     }
 
-    // ── Round target progress bar — vpravo nahoře ──
+    // ── VOIDRUNNER title top center ──
+    ctx.save();
+    ctx.textAlign   = 'center';
+    ctx.font        = '900 clamp(13px,2.5vw,18px) Orbitron, monospace';
+    ctx.letterSpacing = '0.2em';
+    ctx.fillStyle   = 'rgba(180,220,255,0.55)';
+    ctx.shadowColor = '#00d4ff';
+    ctx.shadowBlur  = 12;
+    ctx.fillText('VOIDRUNNER', W / 2, 22);
+    ctx.shadowBlur  = 0;
+    ctx.restore();
+
+    // ── Targeting reticle — tracks nearest enemy ──
+    const nearestEnemy = Enemies.nearest(Player.x, Player.y);
+    if (nearestEnemy) {
+      const dx   = nearestEnemy.x - Player.x;
+      const dy   = nearestEnemy.y - Player.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const isClose = dist < 200;
+      const rc  = isClose ? '#ff4455' : '#00d4ff';
+      const rPulse = 0.7 + 0.3 * Math.sin(frameCount * 0.1);
+      ctx.save();
+      ctx.translate(nearestEnemy.x, nearestEnemy.y);
+      ctx.strokeStyle = rc + (isClose ? 'cc' : '99');
+      ctx.lineWidth   = isClose ? 2 : 1.5;
+      ctx.shadowColor = rc;
+      ctx.shadowBlur  = 12;
+      // Outer circle
+      const rr = Math.max(nearestEnemy.r + 14, 22) * rPulse;
+      ctx.beginPath(); ctx.arc(0, 0, rr, 0, Math.PI * 2); ctx.stroke();
+      // 4 corner ticks
+      const tl = rr * 0.35;
+      [0, Math.PI/2, Math.PI, Math.PI*1.5].forEach(a => {
+        const cx2 = Math.cos(a), cy2 = Math.sin(a);
+        ctx.beginPath();
+        ctx.moveTo(cx2 * rr * 0.7, cy2 * rr * 0.7);
+        ctx.lineTo(cx2 * (rr + tl), cy2 * (rr + tl));
+        ctx.stroke();
+      });
+      // Distance label
+      if (dist > 60) {
+        ctx.font      = `bold ${Utils.clamp(9, 1.2 * W / 100, 11)}px Orbitron, monospace`;
+        ctx.fillStyle = rc + 'cc';
+        ctx.textAlign = 'center';
+        ctx.shadowBlur = 6;
+        ctx.fillText(`${Math.round(dist)}m`, 0, -rr - 8);
+      }
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+
+    // ── Warning overlay — close big asteroid ──
+    const dangerEnemy = Enemies.nearest(Player.x, Player.y, 140);
+    if (dangerEnemy) {
+      const wa = 0.06 + 0.04 * Math.sin(frameCount * 0.25);
+      ctx.fillStyle = `rgba(255,20,20,${wa})`;
+      ctx.fillRect(0, 0, W, H);
+      // Warning border
+      ctx.strokeStyle = `rgba(255,60,60,${0.3 + 0.2*Math.sin(frameCount*0.3)})`;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(4, 4, W-8, H-8);
+    }
+
+    // ── Bottom HUD bar — AMMO / SPEED / SHIELDS ──
+    const hudH  = 90;
+    const hudY  = H - hudH;
+    // Background
+    const hudBg = ctx.createLinearGradient(0, hudY, 0, H);
+    hudBg.addColorStop(0, 'rgba(0,8,20,0)');
+    hudBg.addColorStop(0.3, 'rgba(0,8,20,0.85)');
+    hudBg.addColorStop(1, 'rgba(0,4,12,0.95)');
+    ctx.fillStyle = hudBg;
+    ctx.fillRect(0, hudY, W, hudH);
+
+    // Separator line
+    ctx.strokeStyle = 'rgba(0,200,255,0.18)';
+    ctx.lineWidth   = 1;
+    ctx.beginPath(); ctx.moveTo(0, hudY + 1); ctx.lineTo(W, hudY + 1); ctx.stroke();
+
+    const col = W / 3;
+    const labelY = hudY + 22;
+    const valueY = hudY + 52;
+
+    // Helper
+    function _hudStat(label, value, cx, accent) {
+      ctx.textAlign = 'center';
+      ctx.font = `700 ${Utils.clamp(9, W*0.023, 11)}px Orbitron, monospace`;
+      ctx.fillStyle   = 'rgba(160,200,220,0.6)';
+      ctx.shadowBlur  = 0;
+      ctx.fillText(label, cx, labelY);
+
+      ctx.font = `900 ${Utils.clamp(22, W*0.068, 36)}px Orbitron, monospace`;
+      ctx.fillStyle   = '#f0f8ff';
+      ctx.shadowColor = accent;
+      ctx.shadowBlur  = 14;
+      ctx.fillText(value, cx, valueY);
+      ctx.shadowBlur  = 0;
+    }
+
+    // AMMO
+    const ammoVal   = Weapons.magShots;
+    const ammoColor = ammoVal <= 3 ? '#ff4455' : '#00d4ff';
+    _hudStat('AMMO', ammoVal, col * 0.5, ammoColor);
+
+    // SPEED — score jako proxy za rychlost
+    const speedVal = Math.min(9999, score > 0 ? score * 4 + 400 : 400);
+    _hudStat('SPEED', speedVal, col * 1.5, '#00d4ff');
+
+    // SHIELDS
+    const shieldPct = Math.round((Player.lives / 3) * 100);
+    const shieldCol = shieldPct <= 34 ? '#ff4455' : shieldPct <= 67 ? '#ffcc00' : '#00d4ff';
+    _hudStat('SHIELDS', shieldPct + '%', col * 2.5, shieldCol);
+
+    // Bottom progress bar
     if (Rounds.phase === 'PLAYING') {
       const target = Rounds.getScoreTarget();
       if (target > 0) {
         const pct    = Math.min(1, (score - roundScoreStart) / target);
-        const bw     = 160, bh = 10;
-        const bx     = W - bw - 16, by = 56;
-        const barCol = pct >= 1 ? '#00ff88' : pct > 0.6 ? '#ffcc00' : '#00ffc8';
-
-        // Background track
-        ctx.fillStyle = '#ffffff11';
+        const bw     = W * 0.55;
+        const bx     = (W - bw) / 2;
+        const by     = H - 14;
+        const bh     = 4;
+        const barCol = pct >= 1 ? '#00ff88' : pct > 0.6 ? '#ffcc00' : '#00d4ff';
+        ctx.fillStyle = 'rgba(255,255,255,0.08)';
         ctx.fillRect(bx, by, bw, bh);
-
-        // Fill
         ctx.fillStyle   = barCol;
         ctx.shadowColor = barCol;
-        ctx.shadowBlur  = 12;
+        ctx.shadowBlur  = 8;
         ctx.fillRect(bx, by, bw * pct, bh);
         ctx.shadowBlur  = 0;
-
-        // Border
-        ctx.strokeStyle = barCol + '55';
-        ctx.lineWidth   = 1;
-        ctx.strokeRect(bx, by, bw, bh);
-
-        // Label + percent
-        ctx.font      = 'bold 11px Orbitron, monospace';
-        ctx.fillStyle = '#ffffffaa';
-        ctx.textAlign = 'right';
-        ctx.fillText(`CÍL  ${Math.min(100, Math.floor(pct * 100))}%`, W - 14, by - 5);
       }
     }
 
     // ── Tilt indicator (mobile) ──
     if (Input.tiltEnabled) {
       ctx.font      = '10px Orbitron, monospace';
-      ctx.fillStyle = '#00ffc833';
+      ctx.fillStyle = '#00d4ff22';
       ctx.textAlign = 'center';
-      ctx.fillText('↕↔ NAKLON  •  KLEPNI = REKALIBRUJ', W / 2, H - 14);
+      ctx.fillText('↕↔ NAKLON', W / 2, hudY - 8);
     }
   }
 
