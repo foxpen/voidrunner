@@ -50,9 +50,5 @@ workflows:
             -configuration Debug \
             -derivedDataPath ios/build \
             CODE_SIGNING_ALLOWED=NO
-      - name: Zip app for Quick Launch
-        script: |
-          cd ios/build/Build/Products/Debug-iphonesimulator
-          zip -r App.zip App.app
     artifacts:
-      - ios/build/Build/Products/Debug-iphonesimulator/App.zip
+      - ios/build/Build/Products/Debug-iphonesimulator/App.app
