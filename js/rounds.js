@@ -92,7 +92,6 @@ const Rounds = (() => {
     if (phase === 'BOSS_DEAD') {
       intermissionTimer--;
       if (intermissionTimer <= 0) {
-        window.shopCredits = (window.shopCredits || 0) + 800;
         current++;
         timer = DUR * (gameMode === 'hardcore' ? 0.7 : 1);
         phase = 'UPGRADE';

@@ -38,7 +38,7 @@ let lastRoundsPhase = '';
 
 // Warp transition
 let warpFlash = 0;
-window.shopCredits = 600; // starting credits
+// Credits system removed — upgrades are free (pick one per round)
 
 Particles.initStars(W, H);
 
@@ -65,7 +65,7 @@ function startGame() {
   comboCount = 0; comboTimer = 0;
   roundScoreStart = 0; roundTargetHit = false; lastRoundsPhase = '';
   warpFlash = 0;
-  window.shopCredits = 600;
+  // (no credits to reset)
 
   Player.resetStats();
   Player.reset(W, H);
@@ -165,10 +165,6 @@ function update() {
   }
   if (_curPhase === 'INTERMISSION' && lastRoundsPhase === 'PLAYING') {
     warpFlash = 50;
-    const _credBonus = roundTargetHit ? 200 : 0;
-    const _credEarned = 300 + Rounds.current * 40 + _credBonus;
-    window.shopCredits = (window.shopCredits || 0) + _credEarned;
-    UI.showNotify(`+${_credEarned} KREDITY`, '#ffcc00');
   }
   lastRoundsPhase = _curPhase;
 
