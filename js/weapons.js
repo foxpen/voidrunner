@@ -149,6 +149,7 @@ const Weapons = (() => {
             if (e.takeDmg) e.takeDmg(b.damage); else e.hp -= b.damage;
             Particles.spawn(e.x, e.y, CFG.WEAPONS.orbit.color, 6);
             Particles.spawnDebris(e.x, e.y, CFG.WEAPONS.orbit.color, 2);
+            if (e.hp <= 0) Particles.spawnExplosion(e.x, e.y, e.size || 20);
           }
         }
       }
@@ -190,12 +191,14 @@ const Weapons = (() => {
             if (e.takeDmg) e.takeDmg(proj.damage); else e.hp -= proj.damage;
             Particles.spawn(e.x, e.y, proj.color, 8);
             Particles.spawnDebris(e.x, e.y, proj.color, 3);
+            if (e.hp <= 0) Particles.spawnExplosion(e.x, e.y, e.size || 20);
           }
         } else {
           if (Utils.dist(proj.x, proj.y, e.x, e.y) < hitDist) {
             if (e.takeDmg) e.takeDmg(proj.damage); else e.hp -= proj.damage;
             Particles.spawn(e.x, e.y, proj.color, 8);
             Particles.spawnDebris(e.x, e.y, proj.color, 3);
+            if (e.hp <= 0) Particles.spawnExplosion(e.x, e.y, e.size || 20);
             if (!proj.piercing) { proj.dead = true; break; }
           }
         }

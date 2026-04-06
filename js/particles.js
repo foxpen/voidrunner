@@ -75,6 +75,9 @@ const Particles = (() => {
     }
   }
 
+  // Explosion fireball list
+  let explosions = [];
+
   function spawn(x, y, color, count = 40) {
     for (let i = 0; i < count; i++) {
       const a = Math.random() * Math.PI * 2;
@@ -88,6 +91,36 @@ const Particles = (() => {
         color,
       });
     }
+  }
+
+  // Cinematic explosion — orange fireball + white flash + debris
+  function spawnExplosion(x, y, radius) {
+    const r = radius || 20;
+    // Core flash
+    explosions.push({ x, y, radius: r * 0.4, maxR: r * 3.5, life: 1, type: 'flash' });
+    // Fireball expand
+    explosions.push({ x, y, radius: r * 0.2, maxR: r * 2.8, life: 1, type: 'fire' });
+    // Shockwave ring
+    explosions.push({ x, y, radius: r * 0.1, maxR: r * 4.0, life: 1, type: 'ring' });
+
+    // Ember particles
+    const emberCount = 8 + Math.floor(r * 0.6);
+    for (let i = 0; i < emberCount; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const s = (1 + Math.random() * 5) * (r / 20);
+      const warm = Math.random() < 0.6;
+      list.push({
+        x, y,
+        vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1,
+        life: 1,
+        decay: 0.008 + Math.random() * 0.018,
+        size: 1.5 + Math.random() * 3.5,
+        color: warm ? (Math.random() < 0.5 ? '#ff9933' : '#ffcc44') : '#ffffff',
+      });
+    }
+
+    // Rock debris chunks
+    spawnDebris(x, y, '#7a6040', 4 + Math.floor(r / 8));
   }
 
   function spawnEmpWave(x, y, W, H) {
@@ -133,6 +166,12 @@ const Particles = (() => {
 
     empWaves.forEach(w => { w.radius += 18; w.life -= 0.025; });
     empWaves = empWaves.filter(w => w.life > 0);
+
+    explosions.forEach(e => {
+      e.radius += (e.maxR - e.radius) * (e.type === 'flash' ? 0.22 : e.type === 'fire' ? 0.14 : 0.10);
+      e.life   -= e.type === 'flash' ? 0.07 : e.type === 'fire' ? 0.04 : 0.05;
+    });
+    explosions = explosions.filter(e => e.life > 0);
   }
 
   function drawStars(ctx, frameCount) {
@@ -198,15 +237,23 @@ const Particles = (() => {
   }
 
   function drawSpeedLines(ctx, difficulty) {
-    const spd = Math.min(1, (difficulty || 1) / 3.5); // normalizovaná rychlost 0-1
+    const spd = Math.min(1, (difficulty || 1) / 3.5);
     if (spd < 0.05) return;
     speedLines.forEach(s => {
       const alpha = s.alpha * spd;
-      if (alpha < 0.01) return;
-      const color = s.hue === 0
-        ? `rgba(255,255,255,${alpha})`
-        : `rgba(0,220,255,${alpha * 0.8})`;
-      ctx.strokeStyle = color;
+      if (alpha < 0.008) return;
+      // Gradient line — bright tip, fades upward
+      const grad = ctx.createLinearGradient(s.x, s.y - s.len, s.x, s.y);
+      if (s.hue === 190) {
+        // Cyan streak
+        grad.addColorStop(0, 'rgba(0,200,255,0)');
+        grad.addColorStop(1, `rgba(0,220,255,${alpha})`);
+      } else {
+        // White streak
+        grad.addColorStop(0, 'rgba(255,255,255,0)');
+        grad.addColorStop(1, `rgba(220,240,255,${alpha})`);
+      }
+      ctx.strokeStyle = grad;
       ctx.lineWidth   = s.width;
       ctx.beginPath();
       ctx.moveTo(s.x, s.y - s.len);
@@ -286,7 +333,38 @@ const Particles = (() => {
     ctx.globalAlpha = 1;
   }
 
-  function clear() { list = []; empWaves = []; debrisList = []; }
+  function drawExplosions(ctx) {
+    explosions.forEach(e => {
+      if (e.type === 'flash') {
+        // White-hot core flash
+        const g = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, e.radius);
+        g.addColorStop(0,   `rgba(255,255,220,${e.life * 0.9})`);
+        g.addColorStop(0.3, `rgba(255,200,80,${e.life * 0.5})`);
+        g.addColorStop(1,   'rgba(255,100,0,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2); ctx.fill();
+      } else if (e.type === 'fire') {
+        // Orange fireball
+        const g = ctx.createRadialGradient(e.x, e.y, 0, e.x, e.y, e.radius);
+        g.addColorStop(0,   `rgba(255,160,20,${e.life * 0.75})`);
+        g.addColorStop(0.4, `rgba(220,60,0,${e.life * 0.45})`);
+        g.addColorStop(0.75,`rgba(80,20,0,${e.life * 0.2})`);
+        g.addColorStop(1,   'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2); ctx.fill();
+      } else {
+        // Shockwave ring
+        ctx.strokeStyle = `rgba(255,140,40,${e.life * 0.5})`;
+        ctx.lineWidth   = 2;
+        ctx.shadowColor = '#ff8820';
+        ctx.shadowBlur  = 12;
+        ctx.beginPath(); ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2); ctx.stroke();
+        ctx.shadowBlur = 0;
+      }
+    });
+  }
 
-  return { initStars, initSpeedLines, spawn, spawnEmpWave, spawnDebris, update, drawStars, drawSpeedLines, drawEmpWaves, drawParticles, drawDebris, clear };
+  function clear() { list = []; empWaves = []; debrisList = []; explosions = []; }
+
+  return { initStars, initSpeedLines, spawn, spawnEmpWave, spawnDebris, spawnExplosion, update, drawStars, drawSpeedLines, drawEmpWaves, drawParticles, drawDebris, drawExplosions, clear };
 })();

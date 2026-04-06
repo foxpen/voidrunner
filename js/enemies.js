@@ -136,30 +136,90 @@ const Enemies = (() => {
     return collected;
   }
 
-  function draw(ctx) {
-    list.forEach(o => {
-      ctx.save();
-      ctx.translate(o.x, o.y);
-      ctx.rotate(o.rot);
+  // ── Draw a filled asteroid with depth shading ──────────────────────────────
+  function _drawAsteroid(ctx, o) {
+    ctx.save();
+    ctx.translate(o.x, o.y);
+    ctx.rotate(o.rot);
 
-      const sat  = o.tier === 1 ? 90 : o.tier === 2 ? 100 : 80;
-      const lit  = o.tier === 1 ? 58 : o.tier === 2 ? 52  : 40;
-      const glow = o.tier === 3 ? 28 : 18;
-      const lw   = o.tier === 3 ? 2.5 : 1.5;
-      ctx.shadowColor = `hsl(${o.hue}, ${sat}%, ${lit}%)`;
-      ctx.shadowBlur = glow;
-      ctx.strokeStyle = `hsl(${o.hue}, ${sat}%, ${lit}%)`;
-      ctx.lineWidth = lw;
-      ctx.beginPath();
-      ctx.moveTo(o.vertices[0].x, o.vertices[0].y);
-      for (let i = 1; i < o.vertices.length; i++) ctx.lineTo(o.vertices[i].x, o.vertices[i].y);
-      ctx.closePath();
+    // Filled body — dark grey base
+    ctx.beginPath();
+    ctx.moveTo(o.vertices[0].x, o.vertices[0].y);
+    for (let i = 1; i < o.vertices.length; i++) ctx.lineTo(o.vertices[i].x, o.vertices[i].y);
+    ctx.closePath();
+
+    // Radial gradient — lit from top-left (matches BH light source)
+    const grd = ctx.createRadialGradient(-o.size * 0.3, -o.size * 0.3, o.size * 0.05, 0, 0, o.size * 1.1);
+    if (o.tier === 1) {
+      // Small — cool blue-grey
+      grd.addColorStop(0,   '#6a7a8a');
+      grd.addColorStop(0.5, '#3a4550');
+      grd.addColorStop(1,   '#1a2028');
+    } else if (o.tier === 2) {
+      // Mid — warm grey with slight red tint
+      grd.addColorStop(0,   '#7a6060');
+      grd.addColorStop(0.5, '#3d2e2e');
+      grd.addColorStop(1,   '#1a1010');
+    } else {
+      // Large — dark with orange warmth from BH
+      grd.addColorStop(0,   '#6a5040');
+      grd.addColorStop(0.5, '#2e1e14');
+      grd.addColorStop(1,   '#0e0808');
+    }
+    ctx.fillStyle = grd;
+    ctx.fill();
+
+    // Edge rim — thin highlight
+    const rimAlpha = o.tier === 1 ? 0.55 : o.tier === 2 ? 0.45 : 0.35;
+    ctx.strokeStyle = o.tier === 1 ? `rgba(120,150,180,${rimAlpha})`
+                    : o.tier === 2 ? `rgba(160,100,80,${rimAlpha})`
+                    :                `rgba(180,110,60,${rimAlpha})`;
+    ctx.lineWidth = o.tier === 3 ? 1.5 : 1;
+    ctx.stroke();
+
+    // Subtle surface crack lines for large asteroids
+    if (o.tier === 3 && o.vertices.length > 6) {
+      ctx.strokeStyle = 'rgba(255,180,80,0.08)';
+      ctx.lineWidth = 0.8;
+      for (let i = 0; i < 3; i++) {
+        const v1 = o.vertices[i * 2 % o.vertices.length];
+        const v2 = o.vertices[(i * 2 + 3) % o.vertices.length];
+        ctx.beginPath();
+        ctx.moveTo(v1.x * 0.5, v1.y * 0.5);
+        ctx.lineTo(v2.x * 0.5, v2.y * 0.5);
+        ctx.stroke();
+      }
+    }
+
+    // BH orange ambient glow on large asteroids
+    if (o.tier >= 2) {
+      const glowAlpha = o.tier === 3 ? 0.22 : 0.12;
+      ctx.shadowColor = o.tier === 3 ? '#ff8820' : '#ff4422';
+      ctx.shadowBlur  = o.tier === 3 ? 18 : 10;
+      ctx.strokeStyle = 'transparent';
       ctx.stroke();
-      ctx.fillStyle = `hsla(${o.hue}, 50%, 20%, ${o.tier === 3 ? 0.3 : 0.12})`;
-      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+
+    // HP damage cracks — red when low HP
+    if (o.hp < o.maxHp) {
+      const dmgFrac = 1 - o.hp / o.maxHp;
+      ctx.strokeStyle = `rgba(255,60,20,${dmgFrac * 0.6})`;
+      ctx.lineWidth = 1;
+      ctx.shadowColor = '#ff3300';
+      ctx.shadowBlur  = 8 * dmgFrac;
+      ctx.beginPath();
+      ctx.moveTo(o.vertices[0].x * 0.6, o.vertices[0].y * 0.6);
+      ctx.lineTo(o.vertices[2 % o.vertices.length].x * 0.6, o.vertices[2 % o.vertices.length].y * 0.6);
+      ctx.stroke();
       ctx.shadowBlur = 0;
-      ctx.restore();
-    });
+    }
+
+    ctx.restore();
+  }
+
+  function draw(ctx) {
+    list.forEach(o => _drawAsteroid(ctx, o));
 
     // Pickups
     pickups.forEach(p => {
