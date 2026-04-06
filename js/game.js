@@ -463,35 +463,46 @@ function draw() {
     }
 
     // ── Bottom HUD bar — AMMO / SPEED / SHIELDS ──
-    const hudH  = 52;
+    const hudH  = 56;
     const hudY  = H - hudH;
-    const hudBg = ctx.createLinearGradient(0, hudY - 10, 0, H);
-    hudBg.addColorStop(0, 'rgba(0,6,16,0)');
-    hudBg.addColorStop(0.4, 'rgba(0,6,16,0.82)');
-    hudBg.addColorStop(1,   'rgba(0,3,10,0.96)');
-    ctx.fillStyle = hudBg;
-    ctx.fillRect(0, hudY - 10, W, hudH + 10);
 
-    ctx.strokeStyle = 'rgba(0,180,255,0.15)';
+    // Dark gradient base
+    const hudBg = ctx.createLinearGradient(0, hudY - 18, 0, H);
+    hudBg.addColorStop(0,   'rgba(0,4,12,0)');
+    hudBg.addColorStop(0.35,'rgba(0,4,12,0.88)');
+    hudBg.addColorStop(1,   'rgba(0,2,8,0.97)');
+    ctx.fillStyle = hudBg;
+    ctx.fillRect(0, hudY - 18, W, hudH + 18);
+
+    // Top separator line — subtle cyan
+    ctx.strokeStyle = 'rgba(0,212,255,0.18)';
     ctx.lineWidth   = 1;
     ctx.beginPath(); ctx.moveTo(0, hudY); ctx.lineTo(W, hudY); ctx.stroke();
 
     const col    = W / 3;
-    const labelY = hudY + 14;
-    const valueY = hudY + 38;
-    const labelSz = Utils.clamp(W * 0.019, 8, 10);
-    const valueSz = Utils.clamp(W * 0.042, 14, 22);
+    const labelY = hudY + 15;
+    const valueY = hudY + 42;
+    const labelSz = Utils.clamp(W * 0.017, 7, 9);
+    const valueSz = Utils.clamp(W * 0.040, 13, 21);
 
     function _hudStat(label, value, cx2, accent) {
-      ctx.textAlign   = 'center';
-      ctx.font        = `700 ${labelSz}px Orbitron, monospace`;
-      ctx.fillStyle   = 'rgba(140,190,210,0.55)';
-      ctx.shadowBlur  = 0;
+      // Label
+      ctx.textAlign  = 'center';
+      ctx.font       = `700 ${labelSz}px Orbitron, monospace`;
+      ctx.fillStyle  = 'rgba(0, 212, 255, 0.50)';
+      ctx.shadowBlur = 0;
       ctx.fillText(label, cx2, labelY);
-      ctx.font        = `900 ${valueSz}px Orbitron, monospace`;
-      ctx.fillStyle   = '#e8f4ff';
+      // Value — white with colored glow + drop shadow
+      ctx.font       = `900 ${valueSz}px Orbitron, monospace`;
       ctx.shadowColor = accent;
-      ctx.shadowBlur  = 10;
+      ctx.shadowBlur  = 14;
+      ctx.fillStyle   = '#ffffff';
+      ctx.fillText(value, cx2, valueY);
+      // Drop shadow pass for readability
+      ctx.shadowBlur  = 0;
+      ctx.fillStyle   = 'rgba(0,0,0,0.55)';
+      ctx.fillText(value, cx2 + 1, valueY + 1);
+      ctx.fillStyle   = '#ffffff';
       ctx.fillText(value, cx2, valueY);
       ctx.shadowBlur  = 0;
     }
