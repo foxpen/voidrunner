@@ -13,6 +13,7 @@ const BG = (() => {
     { count: 18,  speed: 3.2,  sizeMin: 4,  sizeMax: 9,   alpha: 0.45, shape: 'rock' },   // close rocks
   ];
   let swarm = [];
+  let swarmEnabled = true;
 
   // BH background state
   let bhBgScale  = 0;   // current rendered scale
@@ -128,8 +129,8 @@ const BG = (() => {
     bhBgScale += (bhBgTarget - bhBgScale) * 0.012;
     dustAngle += 0.0003;
 
-    // Parallax swarm — always on
-    _updateSwarm(W, H, slowMult !== undefined ? slowMult : 1);
+    // Parallax swarm
+    if (swarmEnabled) _updateSwarm(W, H, slowMult !== undefined ? slowMult : 1);
 
     // Debris flying past
     debrisTimer--;
@@ -319,7 +320,7 @@ const BG = (() => {
       ctx.fillRect(0, 0, W, H);
     }
 
-    _drawSwarm(ctx);
+    if (swarmEnabled) _drawSwarm(ctx);
     _drawDebris(ctx);
   }
 
@@ -348,5 +349,7 @@ const BG = (() => {
 
   function clear() { debris = []; swarm = []; bhBgScale = ROUND_SCALES[0]; bhBgTarget = ROUND_SCALES[0]; }
 
-  return { setRound, update, draw, clear, get scale() { return bhBgScale; } };
+  function showSwarm(v) { swarmEnabled = v; }
+
+  return { setRound, update, draw, clear, showSwarm, get scale() { return bhBgScale; } };
 })();

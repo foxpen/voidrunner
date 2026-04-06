@@ -21,12 +21,20 @@ const Player = (() => {
     trail = [];
   }
 
+  // Ship visual config — matches onboarding definitions
+  const SHIP_CFG = {
+    scout:   { color: '#00ffc8', sw: 1.0,  sh: 1.15, noseH: 1.15 },
+    fighter: { color: '#ff8c00', sw: 1.0,  sh: 1.0,  noseH: 1.0  },
+    tank:    { color: '#ff3355', sw: 1.25, sh: 0.85, noseH: 0.75  },
+  };
+
   function resetStats() {
     // Base stats
-    stats = { speed: p.SPEED, lives: 3, scoreMult: 1, permMagnet: false, dualFire: false };
+    stats = { speed: p.SPEED, lives: 3, scoreMult: 1, permMagnet: false, dualFire: false, ship: 'fighter' };
 
     // Apply ship selection from onboarding
     const vr = JSON.parse(localStorage.getItem('vr_player') || '{}');
+    stats.ship = vr.ship || 'fighter';
     if (vr.ship === 'scout')   { stats.speed *= 1.35; stats.lives = 3; }
     if (vr.ship === 'fighter') { stats.speed *= 1.0;  stats.lives = 3; }
     if (vr.ship === 'tank')    { stats.speed *= 0.65; stats.lives = 5; }
@@ -71,13 +79,13 @@ const Player = (() => {
     trail.forEach(t => t.life -= 0.05);
   }
 
-  function _drawEngines(ctx, px, py, shipColor, isBoosting, frameCount) {
+  function _drawEngines(ctx, px, py, shipColor, isBoosting, frameCount, pw, ph) {
     const ports = [
-      { ox: 0,            oy: p.H * 0.55, w: 9  },
-      { ox: -p.W * 0.42,  oy: p.H * 0.42, w: 6  },
-      { ox:  p.W * 0.42,  oy: p.H * 0.42, w: 6  },
-      { ox: -p.W * 0.78,  oy: p.H * 0.35, w: 4  },
-      { ox:  p.W * 0.78,  oy: p.H * 0.35, w: 4  },
+      { ox: 0,           oy: ph * 0.55, w: 9  },
+      { ox: -pw * 0.42,  oy: ph * 0.42, w: 6  },
+      { ox:  pw * 0.42,  oy: ph * 0.42, w: 6  },
+      { ox: -pw * 0.78,  oy: ph * 0.35, w: 4  },
+      { ox:  pw * 0.78,  oy: ph * 0.35, w: 4  },
     ];
     ports.forEach((port, i) => {
       const base    = isBoosting ? 20 + Math.random() * 28 : 10 + Math.random() * 14;
@@ -107,9 +115,13 @@ const Player = (() => {
   }
 
   function draw(ctx, frameCount, activePU) {
+    const cfg       = SHIP_CFG[stats.ship] || SHIP_CFG.fighter;
+    const baseColor = cfg.color;
     const shipColor = activePU.speed  > 0 ? '#00ff88'
                     : activePU.shield > 0 ? '#00aaff'
-                    : '#00d4ff';
+                    : baseColor;
+    const pw = p.W * cfg.sw;
+    const ph = p.H * cfg.sh;
 
     // ── Trail ──
     for (let i = 0; i < trail.length; i++) {
@@ -122,7 +134,7 @@ const Player = (() => {
       ctx.shadowBlur  = 8;
       const s = (3 + frac * 4) * t.life;
       ctx.beginPath();
-      ctx.arc(t.x, t.y + p.H * 0.5, s, 0, Math.PI * 2);
+      ctx.arc(t.x, t.y + ph * 0.5, s, 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.globalAlpha = 1;
@@ -133,17 +145,17 @@ const Player = (() => {
 
     const isBoosting = activePU.speed > 0;
 
-    _drawEngines(ctx, x, y, shipColor, isBoosting, frameCount);
+    _drawEngines(ctx, x, y, shipColor, isBoosting, frameCount, pw, ph);
 
     ctx.save();
     ctx.translate(x, y);
 
     // ── Outer glow halo ──
-    const haloGrad = ctx.createRadialGradient(0, 0, p.W * 0.3, 0, 0, p.W * 2.2);
+    const haloGrad = ctx.createRadialGradient(0, 0, pw * 0.3, 0, 0, pw * 2.2);
     haloGrad.addColorStop(0, shipColor + '22');
     haloGrad.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = haloGrad;
-    ctx.beginPath(); ctx.arc(0, 0, p.W * 2.2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, 0, pw * 2.2, 0, Math.PI * 2); ctx.fill();
 
     ctx.shadowColor = shipColor;
     ctx.shadowBlur  = 22;
@@ -154,18 +166,18 @@ const Player = (() => {
     ctx.lineWidth = 1;
     // Left outer wing
     ctx.beginPath();
-    ctx.moveTo(-p.W * 0.55,  p.H * 0.08);
-    ctx.lineTo(-p.W * 1.35,  p.H * 0.42);
-    ctx.lineTo(-p.W * 1.1,   p.H * 0.62);
-    ctx.lineTo(-p.W * 0.55,  p.H * 0.5);
+    ctx.moveTo(-pw * 0.55,  ph * 0.08);
+    ctx.lineTo(-pw * 1.35,  ph * 0.42);
+    ctx.lineTo(-pw * 1.1,   ph * 0.62);
+    ctx.lineTo(-pw * 0.55,  ph * 0.5);
     ctx.closePath();
     ctx.fill(); ctx.stroke();
     // Right outer wing
     ctx.beginPath();
-    ctx.moveTo( p.W * 0.55,  p.H * 0.08);
-    ctx.lineTo( p.W * 1.35,  p.H * 0.42);
-    ctx.lineTo( p.W * 1.1,   p.H * 0.62);
-    ctx.lineTo( p.W * 0.55,  p.H * 0.5);
+    ctx.moveTo( pw * 0.55,  ph * 0.08);
+    ctx.lineTo( pw * 1.35,  ph * 0.42);
+    ctx.lineTo( pw * 1.1,   ph * 0.62);
+    ctx.lineTo( pw * 0.55,  ph * 0.5);
     ctx.closePath();
     ctx.fill(); ctx.stroke();
 
@@ -175,18 +187,18 @@ const Player = (() => {
     ctx.lineWidth = 1.5;
     ctx.shadowBlur = 22;
     ctx.beginPath();
-    ctx.moveTo(0,             -p.H);           // nose
-    ctx.lineTo(-p.W * 0.28,  -p.H * 0.4);     // upper left
-    ctx.lineTo(-p.W * 0.55,   p.H * 0.08);    // left shoulder
-    ctx.lineTo(-p.W * 0.72,   p.H * 0.48);    // left engine pod
-    ctx.lineTo(-p.W * 0.42,   p.H * 0.58);    // left tail
-    ctx.lineTo(-p.W * 0.18,   p.H * 0.48);    // left center notch
-    ctx.lineTo(0,              p.H * 0.58);    // center tail
-    ctx.lineTo( p.W * 0.18,   p.H * 0.48);
-    ctx.lineTo( p.W * 0.42,   p.H * 0.58);
-    ctx.lineTo( p.W * 0.72,   p.H * 0.48);
-    ctx.lineTo( p.W * 0.55,   p.H * 0.08);
-    ctx.lineTo( p.W * 0.28,  -p.H * 0.4);
+    ctx.moveTo(0,             -ph * cfg.noseH); // nose
+    ctx.lineTo(-pw * 0.28,   -ph * 0.4);
+    ctx.lineTo(-pw * 0.55,    ph * 0.08);
+    ctx.lineTo(-pw * 0.72,    ph * 0.48);
+    ctx.lineTo(-pw * 0.42,    ph * 0.58);
+    ctx.lineTo(-pw * 0.18,    ph * 0.48);
+    ctx.lineTo(0,              ph * 0.58);
+    ctx.lineTo( pw * 0.18,    ph * 0.48);
+    ctx.lineTo( pw * 0.42,    ph * 0.58);
+    ctx.lineTo( pw * 0.72,    ph * 0.48);
+    ctx.lineTo( pw * 0.55,    ph * 0.08);
+    ctx.lineTo( pw * 0.28,   -ph * 0.4);
     ctx.closePath();
     ctx.fill(); ctx.stroke();
 
@@ -194,12 +206,12 @@ const Player = (() => {
     ctx.fillStyle = shipColor + '33';
     ctx.shadowBlur = 0;
     ctx.beginPath();
-    ctx.moveTo(0,            -p.H * 0.75);
-    ctx.lineTo(-p.W * 0.22,  p.H * 0.05);
-    ctx.lineTo(-p.W * 0.12,  p.H * 0.35);
-    ctx.lineTo(0,             p.H * 0.45);
-    ctx.lineTo( p.W * 0.12,  p.H * 0.35);
-    ctx.lineTo( p.W * 0.22,  p.H * 0.05);
+    ctx.moveTo(0,            -ph * 0.75);
+    ctx.lineTo(-pw * 0.22,   ph * 0.05);
+    ctx.lineTo(-pw * 0.12,   ph * 0.35);
+    ctx.lineTo(0,             ph * 0.45);
+    ctx.lineTo( pw * 0.12,   ph * 0.35);
+    ctx.lineTo( pw * 0.22,   ph * 0.05);
     ctx.closePath();
     ctx.fill();
 
@@ -209,11 +221,11 @@ const Player = (() => {
     ctx.lineWidth = 1;
     // Left pod
     ctx.beginPath();
-    ctx.ellipse(-p.W * 0.6, p.H * 0.3, p.W * 0.18, p.H * 0.22, 0.2, 0, Math.PI * 2);
+    ctx.ellipse(-pw * 0.6, ph * 0.3, pw * 0.18, ph * 0.22, 0.2, 0, Math.PI * 2);
     ctx.fill(); ctx.stroke();
     // Right pod
     ctx.beginPath();
-    ctx.ellipse( p.W * 0.6, p.H * 0.3, p.W * 0.18, p.H * 0.22, -0.2, 0, Math.PI * 2);
+    ctx.ellipse( pw * 0.6, ph * 0.3, pw * 0.18, ph * 0.22, -0.2, 0, Math.PI * 2);
     ctx.fill(); ctx.stroke();
 
     // ── Cockpit ──
@@ -223,10 +235,10 @@ const Player = (() => {
     ctx.shadowColor = shipColor;
     ctx.shadowBlur = 10;
     ctx.beginPath();
-    ctx.moveTo(0,            -p.H * 0.72);
-    ctx.lineTo(-p.W * 0.2,  -p.H * 0.18);
-    ctx.lineTo(0,             p.H * 0.05);
-    ctx.lineTo( p.W * 0.2,  -p.H * 0.18);
+    ctx.moveTo(0,            -ph * 0.72 * cfg.noseH);
+    ctx.lineTo(-pw * 0.2,   -ph * 0.18);
+    ctx.lineTo(0,             ph * 0.05);
+    ctx.lineTo( pw * 0.2,   -ph * 0.18);
     ctx.closePath();
     ctx.fill(); ctx.stroke();
 
@@ -235,7 +247,7 @@ const Player = (() => {
     ctx.shadowBlur  = 16;
     ctx.fillStyle   = shipColor + 'cc';
     ctx.beginPath();
-    ctx.arc(0, -p.H * 0.3, 3.5, 0, Math.PI * 2);
+    ctx.arc(0, -ph * 0.3, 3.5, 0, Math.PI * 2);
     ctx.fill();
 
     // ── Accent lines on wings ──
@@ -244,12 +256,12 @@ const Player = (() => {
     ctx.lineWidth   = 1;
     [-1, 1].forEach(side => {
       ctx.beginPath();
-      ctx.moveTo(side * p.W * 0.3,  -p.H * 0.15);
-      ctx.lineTo(side * p.W * 0.65,  p.H * 0.35);
+      ctx.moveTo(side * pw * 0.3,  -ph * 0.15);
+      ctx.lineTo(side * pw * 0.65,  ph * 0.35);
       ctx.stroke();
       ctx.beginPath();
-      ctx.moveTo(side * p.W * 0.42,  p.H * 0.1);
-      ctx.lineTo(side * p.W * 0.95,  p.H * 0.5);
+      ctx.moveTo(side * pw * 0.42,  ph * 0.1);
+      ctx.lineTo(side * pw * 0.95,  ph * 0.5);
       ctx.stroke();
     });
 
@@ -257,9 +269,9 @@ const Player = (() => {
     const blinkLight = Math.floor(frameCount / 18) % 2;
     ctx.shadowBlur = 12;
     ctx.fillStyle  = blinkLight ? '#ff4455' : '#ff334455';
-    ctx.beginPath(); ctx.arc(-p.W * 1.3, p.H * 0.44, 2.8, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-pw * 1.3, ph * 0.44, 2.8, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle  = blinkLight ? '#44ff88' : '#33ff5533';
-    ctx.beginPath(); ctx.arc( p.W * 1.3, p.H * 0.44, 2.8, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc( pw * 1.3, ph * 0.44, 2.8, 0, Math.PI * 2); ctx.fill();
 
     ctx.shadowBlur = 0;
     ctx.restore();

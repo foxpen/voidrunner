@@ -73,7 +73,6 @@ const Onboarding = (() => {
   let _ssHovered = -1;
   let _ssFrame   = 0;
   let _ssRafId   = null;
-  let _ssStars   = [];
 
   // ── OVERLAY HELPERS ───────────────────────────────────────────────────────
   function _overlay()  { return document.getElementById('onboarding-overlay'); }
@@ -141,60 +140,12 @@ const Onboarding = (() => {
     return 52 * Math.max(cfg.sw, cfg.sh);
   }
 
-  function _ssGenStars() {
-    _ssStars = [];
-    const n = Math.round((_ssW * _ssH) / 1800);
-    for (let i = 0; i < n; i++) {
-      _ssStars.push({
-        x: Math.random() * _ssW,
-        y: Math.random() * _ssH,
-        r: Math.random() < 0.15 ? 1.4 : 0.7,
-        a: 0.4 + Math.random() * 0.6,
-        twinkle: Math.random() * Math.PI * 2,
-      });
-    }
-  }
-
-  function _ssDrawBackground(ctx) {
-    // Deep space gradient
-    const grad = ctx.createRadialGradient(_ssW*0.5, _ssH*0.5, 0, _ssW*0.5, _ssH*0.5, Math.max(_ssW, _ssH)*0.75);
-    grad.addColorStop(0, '#0a0e1a');
-    grad.addColorStop(0.6, '#04080f');
-    grad.addColorStop(1, '#010205');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, _ssW, _ssH);
-
-    // Stars
-    _ssStars.forEach(s => {
-      s.twinkle += 0.015;
-      const a = s.a * (0.6 + 0.4 * Math.sin(s.twinkle));
-      ctx.globalAlpha = a;
-      ctx.fillStyle = '#ffffff';
-      ctx.shadowColor = '#aaccff';
-      ctx.shadowBlur = s.r > 1 ? 3 : 0;
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-      ctx.fill();
-    });
-    ctx.globalAlpha = 1;
-    ctx.shadowBlur  = 0;
-
-    // Subtle nebula blobs
-    [[_ssW*0.2, _ssH*0.3, '#00aaff', 0.04], [_ssW*0.8, _ssH*0.7, '#ff44aa', 0.03], [_ssW*0.6, _ssH*0.2, '#ff8800', 0.03]].forEach(([nx, ny, nc, na]) => {
-      const ng = ctx.createRadialGradient(nx, ny, 0, nx, ny, _ssW * 0.28);
-      ng.addColorStop(0, nc + Math.round(na * 255).toString(16).padStart(2,'0'));
-      ng.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = ng;
-      ctx.fillRect(0, 0, _ssW, _ssH);
-    });
-  }
-
   function _startShipSelect() {
     _ssActive  = true;
     _ssChosen  = -1;
     _ssHovered = -1;
     _ssFrame   = 0;
-    _ssGenStars();
+    if (typeof BG !== 'undefined') BG.showSwarm(false);
 
     _ssShips = SHIPS.map((def, i) => {
       const start  = _ssStartPos(i);
@@ -224,6 +175,7 @@ const Onboarding = (() => {
 
   function _stopShipSelect() {
     _ssActive = false;
+    if (typeof BG !== 'undefined') BG.showSwarm(true);
     if (_ssRafId) { cancelAnimationFrame(_ssRafId); _ssRafId = null; }
     _shipCanvas.classList.remove('ob-ss-active');
     const titleEl = _el('ob-ship-title');
@@ -334,7 +286,7 @@ const Onboarding = (() => {
 
   function _drawShipSelect() {
     if (!_ssActive || !_shipCtx) return;
-    _ssDrawBackground(_shipCtx);
+    _shipCtx.clearRect(0, 0, _ssW, _ssH);
 
     let hoveredShip = null;
     _ssShips.forEach((s, i) => {
@@ -663,7 +615,6 @@ const Onboarding = (() => {
     window.addEventListener('resize', () => {
       if (_ssActive) {
         _ssResize();
-        _ssGenStars();
         _ssShips.forEach((s, i) => {
           const t = _ssTargetPos(i);
           s.tx = t.x; s.ty = t.y;
