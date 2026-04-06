@@ -294,17 +294,23 @@ const Player = (() => {
   }
 
   function drawLivesHUD(ctx, W) {
-    const heartSize = 10;
-    const startX = W / 2 - (stats.lives * 22) / 2;
+    const sz     = 28;           // heart font size
+    const gap    = sz * 1.15;    // spacing between hearts
+    const totalW = (stats.lives - 1) * gap;
+    const startX = W / 2 - totalW / 2;
+    const y      = 52;           // below round display
     for (let i = 0; i < stats.lives; i++) {
-      ctx.fillStyle = i === 0 && invincible > 0 ? '#ff003355' : '#ff3355';
-      ctx.shadowColor = '#ff3355';
-      ctx.shadowBlur = 8;
-      ctx.font = `${heartSize * 2}px sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.fillText('♥', startX + i * 22, 30);
+      const fading = i === 0 && invincible > 0;
+      ctx.globalAlpha = fading ? 0.25 : 1;
+      ctx.fillStyle   = '#ff3355';
+      ctx.shadowColor = '#ff2244';
+      ctx.shadowBlur  = fading ? 0 : 14;
+      ctx.font        = `${sz}px sans-serif`;
+      ctx.textAlign   = 'center';
+      ctx.fillText('♥', startX + i * gap, y);
     }
-    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+    ctx.shadowBlur  = 0;
   }
 
   return {
