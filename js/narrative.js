@@ -74,7 +74,8 @@ const Narrative = (() => {
   // ── STATE ─────────────────────────────────────────────────────────────────
   let _active     = false;
   let _scene      = null;
-  let _frame      = 0;
+  let _frame      = 0;      // 60fps-normalised frame counter (display-rate independent)
+  let _startTime  = 0;      // performance.now() at scene start
   let _onComplete = null;
   let _stars      = [];
   let _particles  = [];
@@ -123,6 +124,7 @@ const Narrative = (() => {
 
     _scene      = { ...scene, id: sceneId };
     _frame      = 0;
+    _startTime  = performance.now();
     _active     = true;
     _onComplete = onComplete || null;
     _skipReady  = false;
@@ -131,8 +133,8 @@ const Narrative = (() => {
     _genStars(W, H);
     _genParticles(W, H, scene.style);
 
-    // Allow skip after 60 frames
-    setTimeout(() => { _skipReady = true; }, 1000);
+    // Allow skip after 2 seconds (real time, independent of refresh rate)
+    setTimeout(() => { _skipReady = true; }, 2000);
   }
 
   function _complete() {
@@ -144,7 +146,8 @@ const Narrative = (() => {
   // ── TICK ──────────────────────────────────────────────────────────────────
   function tick() {
     if (!_active || !_scene) return;
-    _frame++;
+    // Normalise to 60fps so durations are display-rate independent
+    _frame = Math.round((performance.now() - _startTime) / (1000 / 60));
 
     _stars.forEach(s => { s.t += s.ts; });
     _particles.forEach(p => {
