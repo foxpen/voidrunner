@@ -508,3 +508,174 @@ canvas { display: block; position: absolute; top: 0; left: 0; }
   pointer-events: none; z-index: 99;
   background: radial-gradient(ellipse at center, transparent 50%, #0a0a0f 100%);
 }
+
+/* ─── ONBOARDING OVERLAY ─────────────────────────────────────────────────── */
+#onboarding-overlay {
+  position: fixed; top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background: #000008;
+  z-index: 50;
+  overflow: hidden;
+  /* Hidden by default — shown when Onboarding.start() is called */
+  display: none;
+}
+#onboarding-overlay.ob-visible { display: block; }
+
+/* Ship-select canvas inside overlay */
+#ship-canvas-ob {
+  display: block; position: absolute; top: 0; left: 0;
+  width: 100%; height: 100%; z-index: 5;
+  pointer-events: none;
+}
+#ship-canvas-ob.ob-ss-active { pointer-events: all; }
+
+/* Ship-select floating labels */
+#ob-ship-title {
+  position: absolute; top: 8vh; left: 0; width: 100%; text-align: center;
+  font-family: 'Orbitron', monospace; font-weight: 900;
+  font-size: clamp(18px, 3.5vw, 28px); letter-spacing: 8px; color: #fff;
+  text-shadow: 0 0 20px #ff8c0066; z-index: 25;
+  opacity: 0; transition: opacity 0.8s ease; pointer-events: none;
+}
+#ob-ship-title.ob-show { opacity: 1; }
+
+#ob-ship-sub {
+  position: absolute; top: calc(8vh + clamp(28px,4.5vw,42px)); left: 0; width: 100%;
+  text-align: center; font-size: 12px; color: #ffffff33; letter-spacing: 5px;
+  z-index: 25; opacity: 0; transition: opacity 0.8s ease 0.3s; pointer-events: none;
+}
+#ob-ship-sub.ob-show { opacity: 1; }
+
+/* LETĚT button */
+#ob-btn-fly {
+  position: absolute; bottom: 12vh; left: 50%; transform: translateX(-50%);
+  font-family: 'Orbitron', monospace; font-size: 14px; font-weight: 900;
+  color: #000; background: linear-gradient(135deg, #ff8c00, #ffcc00);
+  border: none; letter-spacing: 6px; padding: 16px 52px;
+  cursor: pointer; border-radius: 2px; z-index: 30;
+  transition: transform 0.15s, box-shadow 0.3s, opacity 0.5s;
+  opacity: 0; pointer-events: none;
+  box-shadow: 0 0 30px #ff8c0066;
+}
+#ob-btn-fly.ob-ready { opacity: 1; pointer-events: all; }
+#ob-btn-fly:hover { transform: translateX(-50%) scale(1.04); box-shadow: 0 0 50px #ff8c00aa; }
+
+/* ── Onboarding screens ── */
+.ob-screen {
+  position: absolute; top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  z-index: 20; opacity: 0;
+  transition: opacity 1.0s ease;
+  pointer-events: none;
+}
+.ob-screen.ob-active { opacity: 1; pointer-events: all; }
+
+.ob-screen-title {
+  font-family: 'Orbitron', monospace; font-size: clamp(18px, 3vw, 28px);
+  font-weight: 900; letter-spacing: 6px; color: #fff;
+  text-shadow: 0 0 20px #ff8c0066;
+  margin-bottom: 8px;
+}
+.ob-screen-sub {
+  font-size: 13px; color: #ffffff44; letter-spacing: 4px;
+  margin-bottom: 32px;
+}
+
+/* Name input */
+#ob-name-input {
+  background: transparent; border: none;
+  border-bottom: 2px solid #ff8c0066;
+  font-family: 'Orbitron', monospace; font-size: 28px;
+  font-weight: 700; color: #ff8c00; letter-spacing: 6px;
+  text-align: center; width: 320px; padding: 8px 16px;
+  outline: none; caret-color: #ff8c00;
+  transition: border-color 0.3s;
+}
+#ob-name-input:focus { border-color: #ff8c00; }
+#ob-name-input::placeholder { color: #ffffff22; font-size: 16px; letter-spacing: 8px; }
+
+#ob-btn-name-next {
+  margin-top: 24px;
+  font-family: 'Orbitron', monospace; font-size: 12px;
+  color: #000; background: #ff8c00; border: none;
+  letter-spacing: 4px; padding: 14px 40px; cursor: pointer;
+  border-radius: 2px; transition: background 0.3s, transform 0.15s;
+}
+#ob-btn-name-next:hover { background: #ffaa00; transform: scale(1.03); }
+
+/* Mode cards */
+.ob-modes-row {
+  display: flex; gap: 20px; margin-top: 8px; flex-wrap: wrap; justify-content: center;
+}
+.ob-mode-card {
+  width: 200px; padding: 28px 20px;
+  border: 1px solid #ffffff11; border-radius: 4px;
+  background: #ffffff05; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  transition: border-color 0.3s, background 0.3s, transform 0.2s;
+  position: relative; color: #fff;
+}
+.ob-mode-card:hover, .ob-mode-card.ob-selected {
+  border-color: var(--ob-mode-color);
+  background: color-mix(in srgb, var(--ob-mode-color) 8%, transparent);
+  transform: translateY(-4px);
+}
+.ob-mode-card .ob-mode-icon { font-size: 36px; }
+.ob-mode-card .ob-mode-name {
+  font-family: 'Orbitron', monospace; font-size: 13px;
+  font-weight: 700; letter-spacing: 3px; color: var(--ob-mode-color);
+}
+.ob-mode-card .ob-mode-desc {
+  font-size: 12px; color: #ffffff55; text-align: center;
+  letter-spacing: 1px; line-height: 1.7;
+}
+.ob-mode-card.ob-selected::after {
+  content: '✓'; position: absolute; top: 10px; right: 14px;
+  font-size: 14px; color: var(--ob-mode-color);
+}
+
+/* Launch button */
+#ob-btn-launch {
+  margin-top: 20px;
+  font-family: 'Orbitron', monospace; font-size: 14px;
+  font-weight: 900; color: #000;
+  background: linear-gradient(135deg, #ff8c00, #ffcc00);
+  border: none; letter-spacing: 6px; padding: 18px 56px;
+  cursor: pointer; border-radius: 2px;
+  transition: transform 0.15s, box-shadow 0.3s;
+  opacity: 0.4; pointer-events: none;
+  box-shadow: 0 0 0px #ff8c0000;
+}
+#ob-btn-launch.ob-ready {
+  opacity: 1; pointer-events: all;
+  box-shadow: 0 0 30px #ff8c0066;
+}
+#ob-btn-launch.ob-ready:hover { transform: scale(1.04); box-shadow: 0 0 50px #ff8c00aa; }
+
+/* Back button */
+.ob-btn-back {
+  position: absolute; top: 14vh; left: 32px; z-index: 30;
+  font-family: 'Orbitron', monospace; font-size: 11px;
+  color: #ffffff44; letter-spacing: 3px; cursor: pointer;
+  background: transparent; border: none; padding: 8px;
+  transition: color 0.3s; display: none;
+}
+.ob-btn-back:hover { color: #ff8c00; }
+.ob-btn-back.ob-back-visible { display: block; }
+
+/* Fade overlay inside onboarding */
+#ob-fade {
+  position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: #000; z-index: 100; opacity: 0;
+  transition: opacity 0.5s ease; pointer-events: none;
+}
+#ob-fade.ob-black { opacity: 1; pointer-events: all; }
+
+/* Scanlines inside onboarding */
+.ob-scanlines {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 10;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, #00000012 2px, #00000012 4px);
+}

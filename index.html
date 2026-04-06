@@ -16,6 +16,42 @@
 
 <canvas id="game"></canvas>
 
+<!-- ONBOARDING OVERLAY — full-screen, sits on top of the game canvas -->
+<div id="onboarding-overlay">
+
+  <!-- Ship selection canvas (transparent, renders ships) -->
+  <canvas id="ship-canvas-ob"></canvas>
+
+  <!-- Ship-select floating labels -->
+  <div id="ob-ship-title">VÝBĚR LODI</div>
+  <div id="ob-ship-sub">VYBER SVOU LOĎ</div>
+  <button id="ob-btn-fly">LETĚT →</button>
+
+  <!-- NAME SCREEN -->
+  <div class="ob-screen" id="ob-name">
+    <div class="ob-screen-title">IDENTIFIKACE</div>
+    <div class="ob-screen-sub">JAK TĚ MAJÍ ZNÁT HVĚZDY?</div>
+    <input id="ob-name-input" type="text" maxlength="16" placeholder="TVOJE JMÉNO" autocomplete="off" spellcheck="false">
+    <button id="ob-btn-name-next">POTVRDIT</button>
+  </div>
+
+  <!-- SHIP screen — kept as placeholder; actual selection is canvas-based -->
+  <div class="ob-screen" id="ob-ship" style="pointer-events:none;opacity:0!important;"></div>
+
+  <!-- MODE SCREEN -->
+  <div class="ob-screen" id="ob-mode">
+    <div class="ob-screen-title">HERNÍ MÓD</div>
+    <div class="ob-screen-sub">VYBER SI SVŮJ PŘÍBĚH</div>
+    <div class="ob-modes-row" id="ob-modes-row"></div>
+    <button id="ob-btn-launch">VÝBĚR LODI →</button>
+  </div>
+
+  <button class="ob-btn-back" id="ob-btn-back">← ZPĚT</button>
+  <div id="ob-fade"></div>
+  <div class="ob-scanlines"></div>
+
+</div>
+
 <div id="ui-overlay">
 
   <div id="score-display">
@@ -165,8 +201,19 @@
     }
 
     _btnNew.addEventListener('click', () => {
+      // Show onboarding overlay instead of redirecting to onboarding.html
       localStorage.removeItem('vr_player');
-      window.location.href = 'onboarding.html';
+      document.getElementById('start-screen').classList.add('hidden');
+      Onboarding.start(() => {
+        // Update badge with new player data
+        const vr2 = JSON.parse(localStorage.getItem('vr_player') || '{}');
+        if (vr2.name) {
+          document.getElementById('player-badge').textContent =
+            `PILOT: ${vr2.name}  ·  ${(vr2.mode||'story').toUpperCase()}  ·  ${(vr2.ship||'fighter').toUpperCase()}`;
+        }
+        // Start the game directly — no page reload
+        startGame();
+      });
     });
 
     _btnCont.addEventListener('click', () => {
@@ -192,6 +239,7 @@
 <script src="js/rounds.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/game.js"></script>
+<script src="js/onboarding.js"></script>
 <script>
   function toggleMusic() {
     Audio.setMusic(!Audio.musicEnabled);
