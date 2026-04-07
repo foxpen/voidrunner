@@ -120,7 +120,7 @@ const Rounds = (() => {
     }
 
     if (phase === 'UPGRADE') {
-      Upgrades.update();
+      // Upgrades.update() is handled in game.js when Upgrades.showing is true
       return;
     }
 
@@ -150,18 +150,13 @@ const Rounds = (() => {
           phase = 'NARRATIVE';
           Narrative.show('passage', () => {
             Narrative.show('beyond', () => {
-              current++;
-              timer = DUR * (gameMode === 'hardcore' ? 0.7 : 1);
-              phase = 'UPGRADE';
-              Upgrades.showShop(W, H,
-                card => { _applyCard(card); },
-                () => { countdownTimer = 180; phase = 'COUNTDOWN'; }
-              );
+              phase = 'DONE';
             });
           });
         } else {
+          // Endless mode — boss defeated, continue with more rounds
           current++;
-          timer = DUR * (gameMode === 'hardcore' ? 0.7 : 1);
+          timer = DUR;
           phase = 'UPGRADE';
           Upgrades.showShop(W, H,
             card => { _applyCard(card); },
@@ -208,7 +203,7 @@ const Rounds = (() => {
     return phase === 'UPGRADE';
   }
 
-  function isGameDone() { return false; }
+  function isGameDone() { return phase === 'DONE'; }
 
   function isIntermission() {
     return phase === 'INTERMISSION' || phase === 'BOSS_DEAD';

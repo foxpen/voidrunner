@@ -283,6 +283,7 @@ const Narrative = (() => {
       ctx.fillStyle   = _accentColor(s.style);
       ctx.letterSpacing = '4px';
       ctx.fillText(s.sub, 46, barH + 50 + titleSz * 2.2);
+      ctx.letterSpacing = 'normal';
     }
 
     // ── Separator line ────────────────────────────────────────────────────

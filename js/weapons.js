@@ -9,8 +9,9 @@ const Weapons = (() => {
   let orbitCount = 2;
 
   // ── ZÁSOBNÍK / RELOAD ──
-  const MAG_SIZE        = 12;   // výstřelů než se musí nabít
+  const MAG_SIZE        = 12;   // základní velikost zásobníku (neměnné)
   const RELOAD_FRAMES   = 300;  // 5s při 60fps
+  let magCapacity = MAG_SIZE;   // efektivní kapacita (roste s mag_up upgradem)
   let magShots    = MAG_SIZE;   // zbývající výstřely
   let reloading   = false;
   let reloadTimer = 0;
@@ -22,6 +23,7 @@ const Weapons = (() => {
     orbitBalls = [];
     fireCooldowns = {};
     orbitCount = 2;
+    magCapacity = MAG_SIZE;
     magShots  = MAG_SIZE;
     reloading = false;
     reloadTimer = 0;
@@ -68,8 +70,8 @@ const Weapons = (() => {
         stats['basic'].dual = true;
         break;
       case 'magSize':
-        magShots = Math.min(magShots + card.value, MAG_SIZE + card.value);
-        // permanentně zvýší efektivní velikost zásobníku
+        magCapacity += card.value;
+        magShots = Math.min(magShots + card.value, magCapacity);
         break;
       case 'overdrive':
         // +30% damage všem zbraním
@@ -110,7 +112,7 @@ const Weapons = (() => {
       reloadTimer--;
       if (reloadTimer <= 0) {
         reloading = false;
-        magShots  = MAG_SIZE;
+        magShots  = magCapacity;
         if (typeof Audio !== 'undefined') Audio.sfx('pickup'); // reload done sound
       }
     }
@@ -370,8 +372,8 @@ const Weapons = (() => {
       ctx.textAlign = 'center';
       ctx.fillText('ZÁSOBNÍK', W / 2, y - 6);
       // Bullet pips
-      const pipW = Math.floor(barW / MAG_SIZE) - 2;
-      for (let i = 0; i < MAG_SIZE; i++) {
+      const pipW = Math.max(4, Math.floor(barW / magCapacity) - 2);
+      for (let i = 0; i < magCapacity; i++) {
         const px = x + i * (pipW + 2);
         ctx.fillStyle = i < magShots ? '#00ffc8' : '#1a1a2e';
         ctx.shadowColor = i < magShots ? '#00ffc8' : 'transparent';
@@ -389,7 +391,7 @@ const Weapons = (() => {
     get equipped()   { return equipped; },
     get orbitBalls() { return orbitBalls; },
     get reloading()  { return reloading; },
-    get magShots()   { return magShots; },
-    get magSize()    { return MAG_SIZE; },
+    get magShots()    { return magShots; },
+    get magSize()     { return magCapacity; },
   };
 })();

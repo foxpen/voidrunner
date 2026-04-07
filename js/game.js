@@ -15,7 +15,7 @@ window.addEventListener('resize', () => { resize(); Particles.initStars(W, H); }
 const STATE = { MENU: 'MENU', PLAYING: 'PLAYING', DEAD: 'DEAD' };
 let state = STATE.MENU;
 let score = 0;
-let highScore = 0;
+let highScore = parseInt(localStorage.getItem('vr_highscore') || '0');
 let pickupsCollected = 0;
 let crystalsThisRun = 0;
 let shakeTime = 0;
@@ -130,8 +130,9 @@ function die() {
   Particles.spawn(Player.x, Player.y, '#00ffc8', 30);
   shakeTime = 30; shakeIntensity = 12; slowmo = 20;
 
+  score = Math.round(score);
   const isNew = score > highScore;
-  if (isNew) highScore = score;
+  if (isNew) { highScore = score; localStorage.setItem('vr_highscore', highScore); }
 
   const _lb = JSON.parse(localStorage.getItem('vr_scores') || '[]');
   _lb.push({ score, round: Rounds.current, date: new Date().toLocaleDateString('cs-CZ') });
@@ -300,6 +301,7 @@ function update() {
   // Score
   const mult = (activePU.double > 0 ? 2 : 1) * Player.scoreMult;
   score += mult;
+  score = Math.round(score);
 
   UI.updateScore(score);
   UI.updateRound(Rounds.current, CFG.ROUNDS.TOTAL, Rounds.timeLeft(), Rounds.phase);
@@ -312,9 +314,18 @@ function update() {
 
   // Game won?
   if (Rounds.isGameDone()) {
-    state = STATE.DEAD; // reuse dead state for "done" flow
+    state = STATE.DEAD;
+    score = Math.round(score);
     const isNew = score > highScore;
-    if (isNew) highScore = score;
+    if (isNew) { highScore = score; localStorage.setItem('vr_highscore', highScore); }
+    const _wlb = JSON.parse(localStorage.getItem('vr_scores') || '[]');
+    _wlb.push({ score, round: Rounds.current, date: new Date().toLocaleDateString('cs-CZ') });
+    _wlb.sort((a, b) => b.score - a.score);
+    _wlb.splice(5);
+    localStorage.setItem('vr_scores', JSON.stringify(_wlb));
+    Hangar.addCrystals(crystalsThisRun);
+    setTimeout(() => Audio.stopMusic(), 800);
+    UI.updateHighScore(highScore);
   }
 }
 
