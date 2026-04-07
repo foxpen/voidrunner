@@ -73,6 +73,41 @@ const Upgrades = (() => {
     return result;
   }
 
+  // ── Category-based selection: 1 safe + 1 synergy + 1 risk ──────────────────
+  // Ensures every upgrade offer has structural variety, not just random draws.
+  function _categorySplit(pool) {
+    const safe    = pool.filter(c => (c.category || 'safe') === 'safe');
+    const synergy = pool.filter(c => c.category === 'synergy');
+    const risk    = pool.filter(c => c.category === 'risk');
+
+    const picked = new Set();
+    const result = [];
+
+    const pickOne = (cat) => {
+      const avail = cat.filter(c => !picked.has(c.id));
+      if (!avail.length) return null;
+      const card = _weightedPick(avail, 1)[0];
+      picked.add(card.id);
+      return card;
+    };
+
+    const safeCard    = pickOne(safe);
+    const synergyCard = pickOne(synergy);
+    const riskCard    = pickOne(risk);
+
+    if (safeCard)    result.push(safeCard);
+    if (synergyCard) result.push(synergyCard);
+    if (riskCard)    result.push(riskCard);
+
+    // Fill remaining slots from any category if we're short
+    if (result.length < CARD_COUNT) {
+      const extras = _weightedPick(pool.filter(c => !picked.has(c.id)), CARD_COUNT - result.length);
+      extras.forEach(c => { result.push(c); picked.add(c.id); });
+    }
+
+    return result.slice(0, CARD_COUNT);
+  }
+
   // ── Public API ──────────────────────────────────────────────────────────────
   function show(W, H, callback, customTitle) {
     showing = true;
@@ -86,11 +121,13 @@ const Upgrades = (() => {
     const round = (typeof Rounds !== 'undefined') ? Rounds.current : 1;
 
     if (!Weapons.equipped.includes('basic')) {
+      // Force basic laser as first card if player has no weapons
       const basicCard = CFG.UPGRADE_CARDS.find(c => c.id === 'unlock_basic');
       const rest = _buildPool(round).filter(c => c.id !== 'unlock_basic');
-      cards = [basicCard, ..._weightedPick(rest, CARD_COUNT - 1)];
+      const remaining = _categorySplit(rest).slice(0, CARD_COUNT - 1);
+      cards = [basicCard, ...remaining];
     } else {
-      cards = _weightedPick(_buildPool(round), CARD_COUNT);
+      cards = _categorySplit(_buildPool(round));
     }
 
     _setupHandlers(W, H);
@@ -159,6 +196,9 @@ const Upgrades = (() => {
     picked = true;
     const card = cards[i];
     applied.add(card.id);
+
+    // Register card tags with the synergy system
+    if (typeof Synergies !== 'undefined') Synergies.addTags(card.tags || []);
 
     if (card.rarity === 'legendary') {
       Audio.sfx('legendary');
@@ -298,6 +338,9 @@ const Upgrades = (() => {
         ctx.fillStyle = '#ffffffcc';
         _wrapText(ctx, card.desc, midX, y + hovOff + cardH * 0.72, cardW - 20, 16);
 
+        // Tag badges
+        _drawTags(ctx, card.tags, midX, y + hovOff + cardH * 0.88, cardW);
+
       } else {
         // ── Horizontal compact card (vertical stacking on phone) ──
         const iconX = x + cardH * 0.5;
@@ -360,6 +403,39 @@ const Upgrades = (() => {
     ctx.lineTo(x + radius.bl, y + h); ctx.quadraticCurveTo(x, y + h, x, y + h - radius.bl);
     ctx.lineTo(x, y + radius.tl); ctx.quadraticCurveTo(x, y, x + radius.tl, y);
     ctx.closePath();
+  }
+
+  // Tag color map
+  const TAG_COLORS = {
+    kinetic:   '#aaffcc', fire: '#ff4400', electric: '#44aaff',
+    explosive: '#ff8800', crit: '#ff2266', armor: '#4488ff',
+    tech: '#00ffc8', void: '#cc44ff',
+  };
+
+  function _drawTags(ctx, tags, cx, y, maxW) {
+    if (!tags || tags.length === 0) return;
+    const tagW   = Math.min(48, maxW * 0.28);
+    const tagH   = 10;
+    const gap    = 4;
+    const total  = tags.length * tagW + (tags.length - 1) * gap;
+    let bx = cx - total / 2;
+    tags.forEach(tag => {
+      const col = TAG_COLORS[tag] || '#aaaaaa';
+      // Badge background
+      ctx.fillStyle = col + '28';
+      ctx.strokeStyle = col + 'aa';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(bx, y - tagH, tagW, tagH, 3);
+      ctx.fill(); ctx.stroke();
+      // Label
+      ctx.font = `bold ${Math.max(6, tagH * 0.65)}px Orbitron, monospace`;
+      ctx.fillStyle = col;
+      ctx.textAlign = 'center';
+      ctx.shadowBlur = 0;
+      ctx.fillText(tag.toUpperCase(), bx + tagW / 2, y - 2);
+      bx += tagW + gap;
+    });
   }
 
   function _wrapText(ctx, text, cx, y, maxW, lineH) {

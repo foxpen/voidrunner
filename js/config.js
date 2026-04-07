@@ -102,48 +102,84 @@ const CFG = {
   },
 
   // Upgrade cards — appear between rounds
-  // rarity: 'common' | 'rare' | 'legendary'
+  // rarity:   'common' | 'rare' | 'legendary'
+  // category: 'safe' — always good, low risk
+  //           'synergy' — stronger when combined with matching tags
+  //           'risk' — high reward, conditional or costly
+  // tags:     array of tag strings used by the Synergy system
   UPGRADE_CARDS: [
     // minRound = nejdřívější kolo kdy se karta může objevit
     // weight   = relativní pravděpodobnost výběru (vyšší = častější)
 
     // ── Zbraně — odemykají se postupně ──
     { id: 'unlock_basic',   rarity: 'common',    type: 'weapon',  minRound: 1, weight: 10, price: 200,
-      name: 'ZÁKLADNÍ LASER',    desc: 'Přímá střelba na nejbližšího',        icon: '🔫', color: '#00ffc8', weaponId: 'basic'   },
+      name: 'ZÁKLADNÍ LASER',    desc: 'Přímá střelba na nejbližšího',        icon: '🔫', color: '#00ffc8', weaponId: 'basic',
+      tags: ['kinetic'], category: 'safe' },
     { id: 'unlock_spread',  rarity: 'common',    type: 'weapon',  minRound: 2, weight: 6,  price: 200,
-      name: 'SPREAD SHOT',       desc: '3 projektily v kuželu',               icon: '🌟', color: '#ffcc00', weaponId: 'spread'  },
+      name: 'SPREAD SHOT',       desc: '3 projektily v kuželu',               icon: '🌟', color: '#ffcc00', weaponId: 'spread',
+      tags: ['kinetic'], category: 'safe' },
     { id: 'unlock_orbit',   rarity: 'rare',      type: 'weapon',  minRound: 4, weight: 4,  price: 380,
-      name: 'ORBIT BOLA',        desc: 'Kuličky obíhají kolem lodi',          icon: '⚪', color: '#ff8800', weaponId: 'orbit'   },
+      name: 'ORBIT BOLA',        desc: 'Kuličky obíhají kolem lodi',          icon: '⚪', color: '#ff8800', weaponId: 'orbit',
+      tags: ['kinetic'], category: 'synergy' },
     { id: 'unlock_missile', rarity: 'rare',      type: 'weapon',  minRound: 5, weight: 3,  price: 380,
-      name: 'NAVÁDĚCÍ STŘELA',   desc: 'Samonaváděcí střela, 3× škoda',      icon: '🚀', color: '#ff3355', weaponId: 'missile' },
+      name: 'NAVÁDĚCÍ STŘELA',   desc: 'Samonaváděcí střela, 3× škoda',      icon: '🚀', color: '#ff3355', weaponId: 'missile',
+      tags: ['explosive'], category: 'risk' },
     { id: 'unlock_ring',    rarity: 'legendary', type: 'weapon',  minRound: 7, weight: 2,  price: 900,
-      name: 'PLAZMOVÝ PRSTEN',   desc: 'Vlna škody kolem celé lodi',          icon: '💥', color: '#ff44ff', weaponId: 'ring'    },
+      name: 'PLAZMOVÝ PRSTEN',   desc: 'Vlna škody kolem celé lodi',          icon: '💥', color: '#ff44ff', weaponId: 'ring',
+      tags: ['explosive'], category: 'risk' },
 
     // ── Common stat upgrady (kola 1–10) ──
     { id: 'dmg_up',    rarity: 'common',    type: 'stat', minRound: 1, weight: 8, price: 150,
-      name: 'OSTŘEJŠÍ ZBRANĚ',    desc: '+1 poškození všem zbraním',          icon: '⬆️',  color: '#ff3355', stat: 'damage',    value: 1    },
+      name: 'OSTŘEJŠÍ ZBRANĚ',    desc: '+1 poškození všem zbraním',          icon: '⬆️',  color: '#ff3355', stat: 'damage',    value: 1,
+      tags: ['kinetic'], category: 'safe' },
     { id: 'fire_up',   rarity: 'common',    type: 'stat', minRound: 1, weight: 7, price: 150,
-      name: 'RYCHLÁ PALBA',       desc: '-20% čas mezi výstřely',             icon: '🔥',  color: '#ff6b00', stat: 'fireRate',  value: -0.2 },
+      name: 'RYCHLÁ PALBA',       desc: '-20% čas mezi výstřely',             icon: '🔥',  color: '#ff6b00', stat: 'fireRate',  value: -0.2,
+      tags: ['tech'], category: 'safe' },
     { id: 'speed_up',  rarity: 'common',    type: 'stat', minRound: 1, weight: 7, price: 150,
-      name: 'RYCHLEJŠÍ LOĎ',      desc: '+15% rychlost pohybu',               icon: '💨',  color: '#00ff88', stat: 'shipSpeed', value: 0.15 },
+      name: 'RYCHLEJŠÍ LOĎ',      desc: '+15% rychlost pohybu',               icon: '💨',  color: '#00ff88', stat: 'shipSpeed', value: 0.15,
+      tags: ['tech'], category: 'safe' },
 
     // ── Rare stat upgrady (kola 4+) ──
     { id: 'hp_up',     rarity: 'rare',      type: 'stat', minRound: 4, weight: 5, price: 380,
-      name: 'ŠTÍTOVÝ MODUL',      desc: '+1 extra život',                     icon: '❤️',  color: '#ff0055', stat: 'lives',     value: 1    },
+      name: 'ŠTÍTOVÝ MODUL',      desc: '+1 extra život',                     icon: '❤️',  color: '#ff0055', stat: 'lives',     value: 1,
+      tags: ['armor'], category: 'safe' },
     { id: 'proj_up',   rarity: 'rare',      type: 'stat', minRound: 4, weight: 4, price: 380,
-      name: 'DUAL FIRE',          desc: 'Laser střílí ze dvou hlavní',        icon: '🔱',  color: '#00aaff', stat: 'dualFire',  value: true },
+      name: 'DUAL FIRE',          desc: 'Laser střílí ze dvou hlavní',        icon: '🔱',  color: '#00aaff', stat: 'dualFire',  value: true,
+      tags: ['kinetic'], category: 'synergy' },
     { id: 'orbit_cnt', rarity: 'rare',      type: 'stat', minRound: 5, weight: 3, price: 380,
-      name: 'VÍCE BOLAS',         desc: '+2 orbit kuličky',                   icon: '🔵',  color: '#ff8800', stat: 'orbitCount',value: 2    },
+      name: 'VÍCE BOLAS',         desc: '+2 orbit kuličky',                   icon: '🔵',  color: '#ff8800', stat: 'orbitCount',value: 2,
+      tags: ['kinetic'], category: 'synergy' },
     { id: 'mag_up',    rarity: 'rare',      type: 'stat', minRound: 3, weight: 4, price: 250,
-      name: 'VĚTŠÍ ZÁSOBNÍK',     desc: '+6 nábojů do zásobníku',             icon: '🔋',  color: '#44ffaa', stat: 'magSize',   value: 6    },
+      name: 'VĚTŠÍ ZÁSOBNÍK',     desc: '+6 nábojů do zásobníku',             icon: '🔋',  color: '#44ffaa', stat: 'magSize',   value: 6,
+      tags: ['tech'], category: 'safe' },
+
+    // ── Synergy karty — aktivují nebo zlepšují efekty ──
+    { id: 'crit_module',  rarity: 'rare',      type: 'stat', minRound: 3, weight: 4, price: 300,
+      name: 'KRIT. MODUL',        desc: '+15% šance na krit (×2 dmg)',        icon: '💢',  color: '#ff2266', stat: 'critChance', value: 0.15,
+      tags: ['crit'], category: 'synergy' },
+    { id: 'incendiary',   rarity: 'rare',      type: 'stat', minRound: 3, weight: 4, price: 300,
+      name: 'ZÁPALNÉ STŘELY',     desc: 'Zásah způsobí hoření (1.5s DoT)',    icon: '🔥',  color: '#ff4400', stat: 'burnProc',   value: 1,
+      tags: ['fire'], category: 'synergy' },
+    { id: 'chain_module', rarity: 'rare',      type: 'stat', minRound: 4, weight: 3, price: 350,
+      name: 'VÝBOJOVÝ MODUL',     desc: '30% šance přenést výboj na dalšího', icon: '⚡', color: '#44aaff', stat: 'chainProc',  value: 0.30,
+      tags: ['electric'], category: 'synergy' },
+    { id: 'piercer',      rarity: 'rare',      type: 'stat', minRound: 4, weight: 3, price: 350,
+      name: 'PRŮRAZNÁ STŘELA',    desc: 'Projektily probíjejí 1 nepřítele',   icon: '→',   color: '#aaffcc', stat: 'pierce',     value: 1,
+      tags: ['kinetic'], category: 'synergy' },
 
     // ── Legendary (kola 7+) ──
     { id: 'magnet_p',  rarity: 'legendary', type: 'stat', minRound: 7, weight: 2, price: 900,
-      name: 'PERMANENTNÍ MAGNET', desc: 'Stálý přitažlivý efekt navždy',      icon: '🧲',  color: '#ff8800', stat: 'permMagnet',value: true },
+      name: 'PERMANENTNÍ MAGNET', desc: 'Stálý přitažlivý efekt navždy',      icon: '🧲',  color: '#ff8800', stat: 'permMagnet',value: true,
+      tags: ['void'], category: 'risk' },
     { id: 'score_up',  rarity: 'legendary', type: 'stat', minRound: 7, weight: 2, price: 900,
-      name: 'SCORE BOOSTER ×1.5', desc: '+50% skóre permanentně',             icon: '⚡',  color: '#ff3388', stat: 'scoreMult', value: 0.5  },
+      name: 'SCORE BOOSTER ×1.5', desc: '+50% skóre permanentně',             icon: '⚡',  color: '#ff3388', stat: 'scoreMult', value: 0.5,
+      tags: ['void'], category: 'risk' },
     { id: 'overdrive', rarity: 'legendary', type: 'stat', minRound: 8, weight: 1, price: 900,
-      name: 'OVERDRIVE',          desc: '+30% damage +30% rychlost najednou', icon: '☄️',  color: '#ffaa00', stat: 'overdrive', value: true },
+      name: 'OVERDRIVE',          desc: '+30% damage +30% rychlost najednou', icon: '☄️',  color: '#ffaa00', stat: 'overdrive', value: true,
+      tags: ['fire', 'kinetic'], category: 'risk' },
+    { id: 'volatile',  rarity: 'legendary', type: 'stat', minRound: 6, weight: 2, price: 900,
+      name: 'VÝBUŠNÁ NÁLOŽ',      desc: 'Každý zásah exploduje v okruhu 55px',icon: '💣',  color: '#ff8800', stat: 'explodeProc',value: 55,
+      tags: ['explosive'], category: 'risk' },
   ],
 
   // Power-ups (pickups during game)

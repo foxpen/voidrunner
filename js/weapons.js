@@ -16,6 +16,12 @@ const Weapons = (() => {
   let reloading   = false;
   let reloadTimer = 0;
 
+  // ── Projectile behavior state (set via applyUpgrade) ──
+  let pierceCount     = 0;     // extra enemies each shot pierces through
+  let burnProcEnabled = false; // incendiary card: shots apply burn DoT
+  let chainProcChance = 0;     // chain_module card: 0–1 chance to chain on hit
+  let explodeProcRadius = 0;   // volatile card: AoE radius on hit (0 = disabled)
+
   function reset() {
     equipped = []; // zbraně jsou upgrade — hráč začíná bez střelby
     stats = {};
@@ -27,6 +33,10 @@ const Weapons = (() => {
     magShots  = MAG_SIZE;
     reloading = false;
     reloadTimer = 0;
+    pierceCount = 0;
+    burnProcEnabled = false;
+    chainProcChance = 0;
+    explodeProcRadius = 0;
     _rebuildOrbits();
   }
 
@@ -72,6 +82,18 @@ const Weapons = (() => {
       case 'magSize':
         magCapacity += card.value;
         magShots = Math.min(magShots + card.value, magCapacity);
+        break;
+      case 'pierce':
+        pierceCount += card.value;
+        break;
+      case 'burnProc':
+        burnProcEnabled = true;
+        break;
+      case 'chainProc':
+        chainProcChance = Math.min(chainProcChance + card.value, 1.0);
+        break;
+      case 'explodeProc':
+        explodeProcRadius = Math.max(explodeProcRadius, card.value);
         break;
       case 'overdrive':
         // +30% damage všem zbraním
@@ -192,24 +214,27 @@ const Weapons = (() => {
       const proj = projectiles[pi];
       for (let ei = enemies.length - 1; ei >= 0; ei--) {
         const e = enemies[ei];
-        const hitDist = proj.ring ? proj.radius : proj.size + e.size * 0.5;
         if (proj.ring) {
+          // Ring: hit when projectile radius matches enemy distance (±8px)
           const d = Utils.dist(proj.x, proj.y, e.x, e.y);
           if (Math.abs(d - proj.radius) < 8 && !proj.hitSet?.has(ei)) {
             proj.hitSet = proj.hitSet || new Set();
             proj.hitSet.add(ei);
-            if (e.takeDmg) e.takeDmg(proj.damage); else e.hp -= proj.damage;
-            Particles.spawn(e.x, e.y, proj.color, 8);
-            Particles.spawnDebris(e.x, e.y, proj.color, 3);
-            if (e.hp <= 0) Particles.spawnExplosion(e.x, e.y, e.size || 20);
+            _applyHit(proj, e, enemies);
           }
         } else {
+          const hitDist = proj.size + e.size * 0.5;
           if (Utils.dist(proj.x, proj.y, e.x, e.y) < hitDist) {
-            if (e.takeDmg) e.takeDmg(proj.damage); else e.hp -= proj.damage;
-            Particles.spawn(e.x, e.y, proj.color, 8);
-            Particles.spawnDebris(e.x, e.y, proj.color, 3);
-            if (e.hp <= 0) Particles.spawnExplosion(e.x, e.y, e.size || 20);
-            if (!proj.piercing) { proj.dead = true; break; }
+            _applyHit(proj, e, enemies);
+            // Pierce: projectile passes through if pierceLeft > 0
+            if (proj.pierceLeft > 0) {
+              proj.pierceLeft--;
+              // Mark this enemy as hit so we don't double-hit on overlap
+              proj._chained = true; // reuse flag to suppress chain recursion
+            } else {
+              proj.dead = true;
+              break;
+            }
           }
         }
       }
@@ -265,9 +290,91 @@ const Weapons = (() => {
   }
 
   function _addProj(x, y, vx, vy, damage, size, color, weaponId) {
-    const proj = { x, y, vx, vy, damage, size, color, weaponId, dead: false };
+    // Pierce count = card upgrades + synergy bonus (computed at fire time)
+    const synPierce = (typeof Synergies !== 'undefined' && Synergies.has('pierce')) ? 1 : 0;
+    const proj = {
+      x, y, vx, vy, damage, size, color, weaponId, dead: false,
+      pierceLeft:   pierceCount + synPierce,
+      burnProc:     burnProcEnabled || (typeof Synergies !== 'undefined' && Synergies.has('burn')),
+      chainProc:    chainProcChance + ((typeof Synergies !== 'undefined' && Synergies.has('chain')) ? 1.0 : 0),
+      explodeProc:  explodeProcRadius > 0 ? explodeProcRadius
+                  : (typeof Synergies !== 'undefined' && Synergies.has('aoe')) ? 50 : 0,
+    };
     projectiles.push(proj);
     return proj;
+  }
+
+  // ── Hit application — crit + on-hit effects ───────────────────────────────
+  // proj: projectile object, target: enemy hit, allEnemies: full enemy array
+  function _applyHit(proj, target, allEnemies) {
+    // ── Crit roll ──
+    const critChance = (typeof Player !== 'undefined') ? Player.critChance : 0.05;
+    const critMult   = (typeof Synergies !== 'undefined' && Synergies.has('supercrit')) ? 3 : 2;
+    const isCrit     = Math.random() < critChance;
+    const finalDmg   = isCrit ? Math.round(proj.damage * critMult) : proj.damage;
+
+    if (target.takeDmg) target.takeDmg(finalDmg); else target.hp -= finalDmg;
+
+    // Crit visual — brighter burst
+    if (isCrit) {
+      Particles.spawn(target.x, target.y, '#ffcc00', 14);
+      Particles.spawnDebris(target.x, target.y, '#ffcc00', 4);
+    } else {
+      Particles.spawn(target.x, target.y, proj.color, 8);
+      Particles.spawnDebris(target.x, target.y, proj.color, 3);
+    }
+    if (target.hp <= 0) Particles.spawnExplosion(target.x, target.y, target.size || 20);
+
+    // ── Burn DoT — mark enemy for burn ──
+    if (proj.burnProc && target.hp > 0) {
+      target.burnTimer = Math.max(target.burnTimer || 0, 90); // 1.5s at 60fps
+      target.burnDps   = 0.3;
+    }
+
+    // ── AoE explosion ──
+    if (proj.explodeProc > 0) {
+      const aoeR = proj.explodeProc;
+      Particles.spawnExplosion(target.x, target.y, aoeR * 0.7);
+      for (const other of allEnemies) {
+        if (other === target || other.hp <= 0) continue;
+        if (Utils.dist(target.x, target.y, other.x, other.y) < aoeR) {
+          const aoeDmg = Math.max(1, Math.round(finalDmg * 0.5));
+          if (other.takeDmg) other.takeDmg(aoeDmg); else other.hp -= aoeDmg;
+          Particles.spawn(other.x, other.y, '#ff8800', 6);
+          if (other.hp <= 0) Particles.spawnExplosion(other.x, other.y, other.size || 20);
+        }
+      }
+    }
+
+    // ── Chain effect — bounce to 2 nearby enemies ──
+    if (proj.chainProc > 0 && !proj._chained) {
+      // thunderCrit: chain shots use 2× crit chance
+      const effectiveChance = (typeof Synergies !== 'undefined' && Synergies.has('thunderCrit'))
+        ? Math.min(proj.chainProc * 2, 1)
+        : proj.chainProc;
+      // Cap at 1.0 so synergy 'chain' (which sets chainProc=1) always fires
+      if (Math.random() < Math.min(effectiveChance, 1.0)) {
+        const nearby = allEnemies
+          .filter(e => e !== target && e.hp > 0
+                    && Utils.dist(target.x, target.y, e.x, e.y) < 200)
+          .sort((a, b) => Utils.dist(target.x, target.y, a.x, a.y)
+                        - Utils.dist(target.x, target.y, b.x, b.y))
+          .slice(0, 2);
+        nearby.forEach(chainTarget => {
+          const chainDmg = Math.max(1, Math.round(finalDmg * 0.5));
+          if (chainTarget.takeDmg) chainTarget.takeDmg(chainDmg);
+          else chainTarget.hp -= chainDmg;
+          Particles.spawn(chainTarget.x, chainTarget.y, '#44aaff', 8);
+          // Visual arc between hit point and chain target
+          const mx = (target.x + chainTarget.x) / 2;
+          const my = (target.y + chainTarget.y) / 2;
+          Particles.spawn(mx, my, '#44aaff', 4);
+          if (chainTarget.hp <= 0) {
+            Particles.spawnExplosion(chainTarget.x, chainTarget.y, chainTarget.size || 20);
+          }
+        });
+      }
+    }
   }
 
   function _findNearest(x, y, enemies) {

@@ -74,6 +74,7 @@ function startGame() {
   Player.reset(W, H);
   Weapons.reset();
   Hangar.applyBonuses();   // after resetStats + Weapons.reset — so bonuses stick
+  if (typeof Synergies !== 'undefined') Synergies.reset();
   Enemies.clear();
   Particles.clear();
   Rounds.reset();
@@ -177,6 +178,13 @@ function update() {
   }
   if (_curPhase === 'INTERMISSION' && lastRoundsPhase === 'PLAYING') {
     warpFlash = 50;
+    // Regen synergy: restore 1 HP if survived round without taking damage
+    if (typeof Synergies !== 'undefined' && Synergies.has('regen')) {
+      if (Player.invincible <= 0) { // rough proxy: not currently recovering from hit
+        Player.lives = Math.min(Player.lives + 1, 5);
+        UI.showNotify('💙 REGENERACE +1 HP', '#44aaff');
+      }
+    }
   }
   lastRoundsPhase = _curPhase;
 
@@ -297,6 +305,10 @@ function update() {
 
   // Player collision with enemies
   if (Enemies.checkPlayerCollision(activePU)) takeDamage();
+  // Enemy bullets (fired by shooter role)
+  if (Enemies.checkEnemyBulletCollision()) takeDamage();
+  // Bomber death explosions
+  if (Enemies.checkBomberExplosion()) takeDamage();
 
   // Score
   const mult = (activePU.double > 0 ? 2 : 1) * Player.scoreMult;

@@ -4,28 +4,64 @@ const Enemies = (() => {
   let list = [];
   let pickups = [];
   let crystals = [];
+  let enemyBullets = [];   // projectiles fired by 'shooter' role enemies
+  let deathExplosions = []; // frame-1 bomber explosions checked for player collision
   let recentKills = 0;
   let crystalsCollectedThisFrame = 0;
 
-  function clear() { list = []; pickups = []; crystals = []; }
+  function clear() { list = []; pickups = []; crystals = []; enemyBullets = []; deathExplosions = []; }
+
+  // ── Role picker: which combat role a tier-2/3 enemy gets ─────────────────
+  function _pickRole(tier, round) {
+    if (tier === 1) return 'asteroid';
+    const r = Math.random();
+    if (round <= 3) return 'chaser'; // kola 1–3: jen chasers
+    if (round <= 6) {                // kola 4–6
+      if (r < 0.42) return 'chaser';
+      if (r < 0.65) return 'shooter';
+      if (r < 0.80) return 'tank';
+      return 'bomber';
+    }
+    // Kola 7+: víc speciálních
+    if (r < 0.28) return 'chaser';
+    if (r < 0.52) return 'shooter';
+    if (r < 0.72) return 'tank';
+    return 'bomber';
+  }
 
   function spawnObstacle(W, H, difficulty, slowActive) {
     const side = Math.random();
     let x, y, vx, vy;
     const slowMult = slowActive ? 0.35 : 1;
+    const round = (typeof Rounds !== 'undefined') ? Rounds.current : 1;
 
-    // ── 3 typy asteroidů: modrý (malý), červený (střední), velký (tmavý) ──
+    // ── 3 typy: malý asteroid, střední, velký ──
     const roll = Math.random();
     let tier, size, hp, hue, spd;
     if (roll < 0.50) {
-      tier = 1; size = 10 + Math.random() * 10; hp = 1;   hue = 195 + Math.random() * 30; // modrý
+      tier = 1; size = 10 + Math.random() * 10; hp = 1;   hue = 195 + Math.random() * 30;
       spd = (2.0 + Math.random() * 2.5) * difficulty;
     } else if (roll < 0.82) {
-      tier = 2; size = 20 + Math.random() * 12; hp = 2 + Math.floor(Math.random() * 2); hue = 0 + Math.random() * 20; // červený
+      tier = 2; size = 20 + Math.random() * 12; hp = 2 + Math.floor(Math.random() * 2); hue = 0 + Math.random() * 20;
       spd = (1.4 + Math.random() * 1.8) * difficulty;
     } else {
-      tier = 3; size = 32 + Math.random() * 14; hp = 4 + Math.floor(Math.random() * 2); hue = 340 + Math.random() * 15; // tmavě červený
+      tier = 3; size = 32 + Math.random() * 14; hp = 4 + Math.floor(Math.random() * 2); hue = 340 + Math.random() * 15;
       spd = (0.9 + Math.random() * 1.2) * difficulty;
+    }
+
+    // ── Assign role for tier 2/3 ──
+    const role = _pickRole(tier, round);
+
+    // Role stat modifiers
+    if (role === 'tank') {
+      hp   = Math.round(hp * 3);
+      size = Math.round(size * 1.30);
+      spd *= 0.55;
+      hue  = 120 + Math.random() * 20; // zelená
+    } else if (role === 'bomber') {
+      hp  += 1;
+      size = Math.round(size * 1.10);
+      hue  = 25 + Math.random() * 15;  // oranžová
     }
 
     if (side < 0.6)      { x = Math.random() * W; y = -50; vx = (Math.random()-0.5)*spd; vy = spd; }
@@ -49,10 +85,12 @@ const Enemies = (() => {
       baseVx: baseVx0,
       baseVy: baseVy0,
       initSpd: Math.hypot(baseVx0, baseVy0) || spd,
-      size, vertices, tier, hue,
+      size, vertices, tier, hue, role,
       rot: Math.random() * Math.PI * 2,
       rotSpeed: (Math.random() - 0.5) * 0.04,
       hp, maxHp: hp,
+      burnTimer: 0, burnDps: 0,       // burn DoT (set by weapons on hit)
+      shootCooldown: 40 + Math.floor(Math.random() * 40), // staggered initial fire
     });
   }
 
@@ -100,27 +138,76 @@ const Enemies = (() => {
   function update(W, H, activePU) {
     recentKills = 0;
     crystalsCollectedThisFrame = 0;
+    deathExplosions = [];
     const slowMult = activePU.slow > 0 ? 0.35 : 1;
 
     list.forEach(o => {
-      // ── Enemy AI per tier — scaled by slowMult so enemies don't over-steer ──
-      if (o.tier === 2) {
-        // Strafe: nudge vx toward player X
+      // ── Burn DoT ──
+      if (o.burnTimer > 0) {
+        o.burnTimer -= slowMult;
+        o.hp -= o.burnDps * slowMult;
+        // Orange flicker particle occasionally
+        if (Math.random() < 0.15) Particles.spawn(o.x, o.y, '#ff6600', 2);
+      }
+
+      // ── Enemy AI per role/tier — scaled by slowMult ──
+      if (o.tier === 1 || o.role === 'asteroid') {
+        // Tier 1 asteroids: straight flight, no steering
+      } else if (o.role === 'tank') {
+        // Tank: slow hunt — steers toward player lazily
+        const dx = Player.x - o.x, dy = Player.y - o.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 30) {
+          const spd = Math.hypot(o.baseVx, o.baseVy) || 0.8;
+          o.baseVx += ((dx/dist)*spd - o.baseVx) * 0.015 * slowMult;
+          o.baseVy += ((dy/dist)*spd - o.baseVy) * 0.015 * slowMult;
+        }
+      } else if (o.role === 'shooter') {
+        // Shooter: strafe like chaser, plus fires projectiles
         const dx = Player.x - o.x;
-        o.baseVx += Math.sign(dx) * 0.03 * slowMult;
-        // Clamp relative to initial vertical speed to cap lateral drift
-        o.baseVx = Utils.clamp(o.baseVx, -o.initSpd * 1.4, o.initSpd * 1.4);
-      } else if (o.tier === 3) {
-        // Hunt: steer velocity toward player
-        const dx = Player.x - o.x;
-        const dy = Player.y - o.y;
+        o.baseVx += Math.sign(dx) * 0.025 * slowMult;
+        o.baseVx = Utils.clamp(o.baseVx, -o.initSpd * 1.3, o.initSpd * 1.3);
+
+        // Fire bullet toward player every ~80 frames
+        o.shootCooldown = (o.shootCooldown || 0);
+        if (o.shootCooldown > 0) {
+          o.shootCooldown -= slowMult;
+        } else {
+          o.shootCooldown = 80;
+          const bDx = Player.x - o.x, bDy = Player.y - o.y;
+          const bDist = Math.hypot(bDx, bDy);
+          if (bDist > 0) {
+            const bSpd = 2.8;
+            enemyBullets.push({
+              x: o.x, y: o.y,
+              vx: (bDx / bDist) * bSpd,
+              vy: (bDy / bDist) * bSpd,
+              size: 5, damage: 1, life: 200,
+            });
+          }
+        }
+      } else if (o.role === 'bomber') {
+        // Bomber: aggressive hunt — steers fast, explodes on death
+        const dx = Player.x - o.x, dy = Player.y - o.y;
         const dist = Math.hypot(dx, dy);
         if (dist > 20) {
           const spd = Math.hypot(o.baseVx, o.baseVy) || 1.2;
-          const tx = (dx / dist) * spd;
-          const ty = (dy / dist) * spd;
-          o.baseVx += (tx - o.baseVx) * 0.025 * slowMult;
-          o.baseVy += (ty - o.baseVy) * 0.025 * slowMult;
+          o.baseVx += ((dx/dist)*spd - o.baseVx) * 0.030 * slowMult;
+          o.baseVy += ((dy/dist)*spd - o.baseVy) * 0.030 * slowMult;
+        }
+      } else if (o.tier === 2) {
+        // Default chaser (tier 2)
+        const dx = Player.x - o.x;
+        o.baseVx += Math.sign(dx) * 0.03 * slowMult;
+        o.baseVx = Utils.clamp(o.baseVx, -o.initSpd * 1.4, o.initSpd * 1.4);
+      } else if (o.tier === 3) {
+        // Default hunter (tier 3)
+        const dx = Player.x - o.x, dy = Player.y - o.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 20) {
+          const spd = Math.hypot(o.baseVx, o.baseVy) || 1.2;
+          o.baseVx += ((dx/dist)*spd - o.baseVx) * 0.025 * slowMult;
+          o.baseVy += ((dy/dist)*spd - o.baseVy) * 0.025 * slowMult;
         }
       }
 
@@ -131,6 +218,16 @@ const Enemies = (() => {
       o.rot += o.rotSpeed * slowMult;
     });
     list = list.filter(o => o.x > -100 && o.x < W+100 && o.y > -100 && o.y < H+100);
+
+    // ── Enemy bullet movement ──
+    enemyBullets.forEach(b => {
+      b.x += b.vx * slowMult;
+      b.y += b.vy * slowMult;
+      b.life -= slowMult;
+    });
+    enemyBullets = enemyBullets.filter(b =>
+      b.life > 0 && b.x > -60 && b.x < W+60 && b.y > -60 && b.y < H+60
+    );
 
     // Pickups
     const hasMagnet = activePU.magnet > 0 || Player.permMagnet;
@@ -169,11 +266,33 @@ const Enemies = (() => {
     });
     crystals = crystals.filter(c => c.y < H + 60);
 
-    // Remove dead enemies — spawn crystals, track kill count
+    // Remove dead enemies — spawn crystals, handle special death effects
     const dying = list.filter(o => o.hp <= 0);
     dying.forEach(o => {
       _spawnCrystals(o);
       Particles.spawn(o.x, o.y, o.tier === 3 ? '#ff8800' : '#ff3355', 8 + o.tier * 4);
+
+      // Bomber: death explosion — registers for player collision check
+      if (o.role === 'bomber') {
+        deathExplosions.push({ x: o.x, y: o.y, radius: 85 });
+        Particles.spawnExplosion(o.x, o.y, 85);
+      }
+
+      // burnExplode synergy: burning enemies explode on death
+      if (o.burnTimer > 0 && typeof Synergies !== 'undefined' && Synergies.has('burnExplode')) {
+        Particles.spawnExplosion(o.x, o.y, 60);
+        // AoE damage to nearby surviving enemies (processed after list is filtered)
+        list.forEach(other => {
+          if (other !== o && other.hp > 0 && Utils.dist(o.x, o.y, other.x, other.y) < 60) {
+            other.hp -= 2;
+          }
+        });
+      }
+
+      // Tank: drops more crystals (double value)
+      if (o.role === 'tank') {
+        _spawnCrystals({ ...o, tier: Math.min(o.tier + 1, 3) }); // bonus drop as if 1 tier higher
+      }
     });
     const beforeKill = list.length;
     list = list.filter(o => o.hp > 0);
@@ -202,6 +321,29 @@ const Enemies = (() => {
       }
     }
     return collected;
+  }
+
+  function checkEnemyBulletCollision() {
+    if (Player.invincible > 0) return false;
+    for (let i = enemyBullets.length - 1; i >= 0; i--) {
+      const b = enemyBullets[i];
+      if (Utils.dist(Player.x, Player.y, b.x, b.y) < b.size + Player.w * 0.5) {
+        Particles.spawn(b.x, b.y, '#ff8800', 8);
+        enemyBullets.splice(i, 1);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function checkBomberExplosion() {
+    if (Player.invincible > 0 || deathExplosions.length === 0) return false;
+    for (const ex of deathExplosions) {
+      if (Utils.dist(Player.x, Player.y, ex.x, ex.y) < ex.radius + Player.w * 0.5) {
+        return true;
+      }
+    }
+    return false;
   }
 
   function checkCrystalCollision() {
@@ -342,6 +484,36 @@ const Enemies = (() => {
     }
 
     ctx.shadowBlur = 0;
+
+    // ── Role visuals ──
+    if (o.role === 'tank') {
+      // HP bar above ship
+      const barW = pw * 2.5, barH = 4;
+      const pct  = Math.max(0, o.hp / o.maxHp);
+      ctx.fillStyle = '#111';
+      ctx.fillRect(-barW/2, -ph * 1.25, barW, barH);
+      ctx.fillStyle = pct > 0.5 ? '#00cc44' : pct > 0.25 ? '#ffcc00' : '#ff3300';
+      ctx.fillRect(-barW/2, -ph * 1.25, barW * pct, barH);
+    } else if (o.role === 'bomber') {
+      // Pulsing orange warning ring
+      const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.008);
+      ctx.strokeStyle = `rgba(255,120,0,${0.4 * pulse})`;
+      ctx.lineWidth = 2; ctx.shadowColor = '#ff8800'; ctx.shadowBlur = 8 * pulse;
+      ctx.beginPath(); ctx.arc(0, 0, o.size * 1.5, 0, Math.PI * 2); ctx.stroke();
+      ctx.shadowBlur = 0;
+    } else if (o.role === 'shooter') {
+      // Turret barrel indicator
+      ctx.fillStyle = '#ff8866';
+      ctx.fillRect(-1.5 * s, -ph * 1.05, 3 * s, ph * 0.20);
+    }
+
+    // Burn glow overlay
+    if (o.burnTimer > 0) {
+      const ba = Math.min(1, o.burnTimer / 30) * 0.5;
+      ctx.fillStyle = `rgba(255,80,0,${ba})`;
+      ctx.beginPath(); ctx.arc(0, 0, o.size * 1.1, 0, Math.PI * 2); ctx.fill();
+    }
+
     ctx.restore();
   }
 
@@ -428,6 +600,23 @@ const Enemies = (() => {
   }
 
   function draw(ctx) {
+    // Enemy bullets
+    enemyBullets.forEach(b => {
+      ctx.save();
+      ctx.shadowColor = '#ff8800';
+      ctx.shadowBlur  = 10;
+      ctx.fillStyle   = '#ff6600';
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffcc66';
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.size * 0.45, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    });
+
     list.forEach(o => {
       if (o.tier === 1) _drawAsteroid(ctx, o);
       else              _drawEnemyShip(ctx, o);
@@ -542,6 +731,7 @@ const Enemies = (() => {
     get recentKills() { return recentKills; },
     clear, spawnObstacle, spawnPickupItem, triggerEMP,
     update, checkPlayerCollision, checkPickupCollision, checkCrystalCollision,
+    checkEnemyBulletCollision, checkBomberExplosion,
     spawnBossCrystals, draw, nearest,
   };
 })();

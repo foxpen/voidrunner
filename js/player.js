@@ -11,6 +11,7 @@ const Player = (() => {
     scoreMult: 1,
     permMagnet: false,
     dualFire: false,
+    critChance: 0.05,   // 5% base crit chance, grows with crit_module cards
   };
 
   function reset(W, H) {
@@ -41,7 +42,7 @@ const Player = (() => {
   function resetStats() {
     // Base stats
     stats = { speed: p.SPEED, lives: 3, scoreMult: 1, permMagnet: false, dualFire: false, ship: 'fighter',
-              scavengerLevel: 0, warheadBonus: 0 };
+              scavengerLevel: 0, warheadBonus: 0, critChance: 0.05 };
 
     // Apply ship selection from onboarding
     const vr = JSON.parse(localStorage.getItem('vr_player') || '{}');
@@ -62,6 +63,7 @@ const Player = (() => {
       case 'permMagnet': stats.permMagnet = true; break;
       case 'dualFire':   stats.dualFire  = true; break;
       case 'overdrive':  stats.speed *= 1.3; break;
+      case 'critChance': stats.critChance = Math.min((stats.critChance || 0.05) + card.value, 0.80); break;
     }
   }
 
@@ -348,7 +350,8 @@ const Player = (() => {
     get permMagnet() { return stats.permMagnet; },
     get dualFire() { return stats.dualFire; },
     get scavengerLevel() { return stats.scavengerLevel || 0; },
-    get warheadBonus() { return stats.warheadBonus || 0; },
+    get warheadBonus()   { return stats.warheadBonus || 0; },
+    get critChance()     { return stats.critChance || 0.05; },
 
     set invincible(v) { invincible = v; },
     set lives(v) { stats.lives = v; },
