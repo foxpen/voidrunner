@@ -72,6 +72,7 @@ const Narrative = (() => {
   };
 
   // ── STATE ─────────────────────────────────────────────────────────────────
+  const _shownScenes = new Set();   // scenes already played this session
   let _active     = false;
   let _scene      = null;
   let _frame      = 0;      // 60fps-normalised frame counter (display-rate independent)
@@ -153,6 +154,10 @@ const Narrative = (() => {
   function show(sceneId, onComplete) {
     const scene = SCENES[sceneId];
     if (!scene) { if (onComplete) onComplete(); return; }
+
+    // Skip if already shown this session (resets on page reload)
+    if (_shownScenes.has(sceneId)) { if (onComplete) onComplete(); return; }
+    _shownScenes.add(sceneId);
 
     _stopVoice();
     _scene      = { ...scene, id: sceneId };

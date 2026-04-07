@@ -57,7 +57,10 @@ const UI = (() => {
     statsRow.textContent   = `VYLEPŠENÍ SEBRÁNO: ${pickups}${crystalLine}`;
     newRecord.textContent  = isNew ? '★ NOVÝ REKORD ★' : '';
     highVal.textContent    = highScore;
-    setTimeout(() => gameOverScreen.classList.add('visible'), 600);
+    setTimeout(() => {
+      if (typeof Hangar !== 'undefined' && Hangar.showing) return;
+      gameOverScreen.classList.add('visible');
+    }, 600);
   }
 
   function updateScore(score) {
