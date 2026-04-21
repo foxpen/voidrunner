@@ -42,6 +42,25 @@ let _bossDefeatedHandled = false;
 let warpFlash = 0;
 // Credits system removed — upgrades are free (pick one per round)
 
+// ─── SCREEN-SPACE FX MODULE ───────────────────────────────────────────────
+// Decaying float values consumed by draw() each frame for visual juice.
+// Other modules (weapons, boss) write to these directly via global `Fx`.
+const Fx = {
+  critFlash: 0,        // 0–1 — bright pulse on crit hit
+  bossHitFlash: 0,     // 0–1 — red rim flash on boss damage
+  damagePulse: 0,      // 0–1 — chromatic aberration when player loses HP
+  shieldAura: 0,       // 0–1 — cyan aura while shield active (auto-tracked)
+  slowmoTint: 0,       // 0–1 — desaturation overlay during slow-mo
+  decay() {
+    this.critFlash    *= 0.86;
+    this.bossHitFlash *= 0.88;
+    this.damagePulse  *= 0.90;
+    if (this.critFlash    < 0.01) this.critFlash    = 0;
+    if (this.bossHitFlash < 0.01) this.bossHitFlash = 0;
+    if (this.damagePulse  < 0.01) this.damagePulse  = 0;
+  },
+};
+
 Particles.initStars(W, H);
 
 // ─── MENU MUSIC — spustí se při první interakci uživatele ──────────────────
@@ -106,11 +125,13 @@ function takeDamage() {
     Particles.spawn(Player.x, Player.y, '#00aaff', 25);
     UI.showNotify('ŠTÍT ABSORBOVAL NÁRAZ', '#00aaff');
     screenFlash = { a: 0.18, r: 0, g: 170, b: 255 };
+    Audio.sfx('shieldDown');
     return;
   }
 
   Player.lives -= 1;
   comboCount = 0; comboTimer = 0;
+  Fx.damagePulse = 1;
 
   if (Player.lives <= 0) {
     die();
@@ -120,6 +141,7 @@ function takeDamage() {
     Particles.spawn(Player.x, Player.y, '#ff3355', 20);
     UI.showNotify(`♥ ŽIVOTY: ${Player.lives}`, '#ff3355');
     screenFlash = { a: 0.22, r: 255, g: 30, b: 50 };
+    Audio.sfx('hit');
   }
 }
 
@@ -207,6 +229,11 @@ function update() {
   for (const key of Object.keys(activePU)) {
     if (activePU[key] > 0) activePU[key]--;
   }
+
+  // FX decay + auto-tracked aura/tint values
+  Fx.decay();
+  Fx.shieldAura  = activePU.shield > 0 ? Math.min(1, activePU.shield / 90) : 0;
+  Fx.slowmoTint  = activePU.slow   > 0 ? Math.min(1, activePU.slow   / 90) : 0;
 
   // Input → player
   const move = Input.getMove();
@@ -606,6 +633,9 @@ function draw() {
 
   ctx.restore();
 
+  // ── Screen-space FX (post-process layer) ──────────────────────────────
+  if (state === STATE.PLAYING) _drawScreenFX();
+
   // ── Warp flash (round transition) ──
   if (warpFlash > 0) {
     warpFlash--;
@@ -657,6 +687,77 @@ function draw() {
     UI.drawIntermissionOverlay(ctx, W, H, Rounds.current, CFG.ROUNDS.TOTAL, frameCount);
   } else if (Rounds.isGameDone()) {
     UI.drawDoneOverlay(ctx, W, H, frameCount);
+  }
+}
+
+// ─── SCREEN-SPACE FX RENDERING ─────────────────────────────────────────────
+// Cheap canvas-only post-processing. Reads from global Fx object.
+function _drawScreenFX() {
+  // 1. Crit flash — quick warm white pulse vignette
+  if (Fx.critFlash > 0.02) {
+    const a = Fx.critFlash;
+    const cg = ctx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.15, W/2, H/2, Math.max(W,H)*0.7);
+    cg.addColorStop(0,   `rgba(255, 240, 180, ${a * 0.18})`);
+    cg.addColorStop(0.5, `rgba(255, 200, 80,  ${a * 0.10})`);
+    cg.addColorStop(1,   'rgba(0,0,0,0)');
+    ctx.fillStyle = cg;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // 2. Boss-hit rim — red edges flash on damage
+  if (Fx.bossHitFlash > 0.02) {
+    const a = Fx.bossHitFlash;
+    const bg = ctx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.30, W/2, H/2, Math.max(W,H)*0.85);
+    bg.addColorStop(0,   'rgba(0,0,0,0)');
+    bg.addColorStop(0.55, `rgba(255, 60, 40, ${a * 0.10})`);
+    bg.addColorStop(1,    `rgba(255, 30, 20, ${a * 0.45})`);
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // 3. Damage chromatic aberration — quick red/cyan ghost on screen edges
+  if (Fx.damagePulse > 0.04) {
+    const a = Fx.damagePulse;
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.fillStyle = `rgba(255, 30, 60, ${a * 0.12})`;
+    ctx.fillRect(-3 * a, 0, W, H);
+    ctx.fillStyle = `rgba(40, 200, 255, ${a * 0.10})`;
+    ctx.fillRect( 3 * a, 0, W, H);
+    ctx.restore();
+  }
+
+  // 4. Shield aura — cyan vignette while shield active
+  if (Fx.shieldAura > 0.05) {
+    const a = Fx.shieldAura;
+    const pulse = 0.85 + 0.15 * Math.sin(frameCount * 0.18);
+    const sg = ctx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.28, W/2, H/2, Math.max(W,H)*0.85);
+    sg.addColorStop(0,   'rgba(0,0,0,0)');
+    sg.addColorStop(0.55, `rgba(60, 200, 255, ${a * 0.04 * pulse})`);
+    sg.addColorStop(1,    `rgba(0, 170, 255,  ${a * 0.22 * pulse})`);
+    ctx.fillStyle = sg;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // 5. Slow-mo overlay — warm vignette darkens edges (existing tint stays for color)
+  if (Fx.slowmoTint > 0.05) {
+    const a = Fx.slowmoTint;
+    const tg = ctx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.30, W/2, H/2, Math.max(W,H)*0.85);
+    tg.addColorStop(0, 'rgba(0,0,0,0)');
+    tg.addColorStop(1, `rgba(60, 35, 0, ${a * 0.32})`);
+    ctx.fillStyle = tg;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // 6. Low-HP danger vignette — pulsing red when ≤1 life
+  if (Player.lives <= 1 && state === STATE.PLAYING) {
+    const pulse = 0.30 + 0.20 * Math.sin(frameCount * 0.15);
+    const lg = ctx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.25, W/2, H/2, Math.max(W,H)*0.85);
+    lg.addColorStop(0,   'rgba(0,0,0,0)');
+    lg.addColorStop(0.6, `rgba(180, 0, 20, ${pulse * 0.10})`);
+    lg.addColorStop(1,   `rgba(255, 0, 30, ${pulse * 0.40})`);
+    ctx.fillStyle = lg;
+    ctx.fillRect(0, 0, W, H);
   }
 }
 

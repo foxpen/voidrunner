@@ -159,7 +159,7 @@ const Weapons = (() => {
         if (magShots <= 0) {
           reloading   = true;
           reloadTimer = RELOAD_FRAMES;
-          if (typeof Audio !== 'undefined') Audio.sfx('hit'); // prázdný zásobník click
+          if (typeof Audio !== 'undefined') Audio.sfx('shieldDown'); // prázdný zásobník — mag dump
         }
       }
     }
@@ -181,7 +181,12 @@ const Weapons = (() => {
             if (e.takeDmg) e.takeDmg(b.damage); else e.hp -= b.damage;
             Particles.spawn(e.x, e.y, CFG.WEAPONS.orbit.color, 6);
             Particles.spawnDebris(e.x, e.y, CFG.WEAPONS.orbit.color, 2);
-            if (e.hp <= 0) Particles.spawnExplosion(e.x, e.y, e.size || 20);
+            if (e.hp <= 0) {
+              Particles.spawnExplosion(e.x, e.y, e.size || 20);
+              if (typeof Audio !== 'undefined') Audio.sfx('explode');
+            } else if (typeof Audio !== 'undefined') {
+              Audio.sfx('hit');
+            }
           }
         }
       }
@@ -315,6 +320,17 @@ const Weapons = (() => {
 
     if (target.takeDmg) target.takeDmg(finalDmg); else target.hp -= finalDmg;
 
+    // ── Audio + FX feedback ──
+    const isBoss = target.isBoss === true;
+    if (isBoss) {
+      // Boss hit handled in Boss.takeDamage — skip generic hit sfx
+    } else if (isCrit) {
+      if (typeof Audio !== 'undefined') Audio.sfx('crit');
+      if (typeof Fx !== 'undefined') Fx.critFlash = Math.max(Fx.critFlash, 0.55);
+    } else {
+      if (typeof Audio !== 'undefined') Audio.sfx('hit');
+    }
+
     // Crit visual — brighter burst
     if (isCrit) {
       Particles.spawn(target.x, target.y, '#ffcc00', 14);
@@ -323,7 +339,10 @@ const Weapons = (() => {
       Particles.spawn(target.x, target.y, proj.color, 8);
       Particles.spawnDebris(target.x, target.y, proj.color, 3);
     }
-    if (target.hp <= 0) Particles.spawnExplosion(target.x, target.y, target.size || 20);
+    if (target.hp <= 0) {
+      Particles.spawnExplosion(target.x, target.y, target.size || 20);
+      if (!isBoss && typeof Audio !== 'undefined') Audio.sfx('explode');
+    }
 
     // ── Burn DoT — mark enemy for burn ──
     if (proj.burnProc && target.hp > 0) {

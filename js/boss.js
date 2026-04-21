@@ -298,12 +298,16 @@ const Boss = (() => {
     b.shakeX   = 8;
     b.hitFlash = 8;
     Particles.spawn(b.x, b.y, '#ffffff', 6);
+    if (typeof Audio !== 'undefined') Audio.sfx('bossHit');
+    if (typeof Fx !== 'undefined') Fx.bossHitFlash = Math.max(Fx.bossHitFlash, 0.45);
     if (b.hp <= 0 && !defeated && !b.dying) {
       b.dying    = true;
       dyingTimer = 150;
       bullets    = [];
       Particles.spawn(b.x, b.y, '#ff3355', 50);
       Particles.spawn(b.x, b.y, '#ff8800', 40);
+      if (typeof Audio !== 'undefined') Audio.sfx('explode');
+      if (typeof Fx !== 'undefined') Fx.bossHitFlash = 1.0;
       if (typeof screenFlash !== 'undefined') {
         screenFlash.r = 255; screenFlash.g = 200; screenFlash.b = 0; screenFlash.a = 0.65;
       }
@@ -320,7 +324,7 @@ const Boss = (() => {
 
   function asBossTarget() {
     if (!active || !entryDone || b.dying) return null;
-    return { x: b.x, y: b.y, size: b.size, hp: b.hp, takeDmg: takeDamage };
+    return { x: b.x, y: b.y, size: b.size, hp: b.hp, takeDmg: takeDamage, isBoss: true };
   }
 
   // ─── Draw ─────────────────────────────────────────────────────────────────

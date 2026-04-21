@@ -189,19 +189,34 @@ const Audio = (() => {
   }
 
   // ── SFX ───────────────────────────────────────────────────────────────────
+  // Throttle spammy effects so they don't pile up into mush
+  const _lastPlay = {};
+  const _MIN_GAP  = {
+    hit: 0.045, explode: 0.06, crit: 0.05, shoot: 0.025, bossHit: 0.05,
+  };
   function sfx(type) {
     if (!ctx || !sfxEnabled) return;
-    if (type === 'shoot' && !sfxEnabled) return;
+    const gap = _MIN_GAP[type];
+    if (gap) {
+      const now = ctx.currentTime;
+      if (_lastPlay[type] && now - _lastPlay[type] < gap) return;
+      _lastPlay[type] = now;
+    }
     switch(type) {
-      case 'shoot':    _sfxShoot();   break;
-      case 'pickup':   _sfxPickup();  break;
-      case 'emp':      _sfxEmp();     break;
-      case 'death':    _sfxDeath();   break;
-      case 'hit':      _sfxHit();     break;
-      case 'round':    _sfxRound();   break;
-      case 'upgrade':   _sfxUpgrade();   break;
-      case 'rare':      _sfxRare();      break;
-      case 'legendary': _sfxLegendary(); break;
+      case 'shoot':      _sfxShoot();      break;
+      case 'pickup':     _sfxPickup();     break;
+      case 'emp':        _sfxEmp();        break;
+      case 'death':      _sfxDeath();      break;
+      case 'hit':        _sfxHit();        break;
+      case 'crit':       _sfxCrit();       break;
+      case 'explode':    _sfxExplode();    break;
+      case 'bossHit':    _sfxBossHit();    break;
+      case 'shieldDown': _sfxShieldDown(); break;
+      case 'shieldHit':  _sfxShieldHit();  break;
+      case 'round':      _sfxRound();      break;
+      case 'upgrade':    _sfxUpgrade();    break;
+      case 'rare':       _sfxRare();       break;
+      case 'legendary':  _sfxLegendary();  break;
     }
   }
 
@@ -308,6 +323,106 @@ const Audio = (() => {
       g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
       o.start(t); o.stop(t + 0.38);
     });
+  }
+
+  // Crit hit — sharp metallic ping (high freq descending)
+  function _sfxCrit() {
+    const now = ctx.currentTime;
+    // Bright metal ping
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(master);
+    o.type = 'square';
+    o.frequency.setValueAtTime(1800, now);
+    o.frequency.exponentialRampToValueAtTime(420, now + 0.12);
+    g.gain.setValueAtTime(0.10, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+    o.start(now); o.stop(now + 0.16);
+    // Sub-thump for weight
+    const o2 = ctx.createOscillator(), g2 = ctx.createGain();
+    o2.connect(g2); g2.connect(master);
+    o2.type = 'sine';
+    o2.frequency.setValueAtTime(140, now);
+    o2.frequency.exponentialRampToValueAtTime(60, now + 0.10);
+    g2.gain.setValueAtTime(0.18, now);
+    g2.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+    o2.start(now); o2.stop(now + 0.14);
+  }
+
+  // Enemy explode — short noise burst with low pitch dip
+  function _sfxExplode() {
+    const now  = ctx.currentTime;
+    const len  = Math.floor(ctx.sampleRate * 0.28);
+    const buf  = ctx.createBuffer(1, len, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 1.6);
+    }
+    const src = ctx.createBufferSource();
+    const f   = ctx.createBiquadFilter();
+    const g   = ctx.createGain();
+    f.type = 'lowpass';
+    f.frequency.setValueAtTime(1400, now);
+    f.frequency.exponentialRampToValueAtTime(220, now + 0.25);
+    src.buffer = buf;
+    src.connect(f); f.connect(g); g.connect(master);
+    g.gain.setValueAtTime(0.32, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+    src.start(now); src.stop(now + 0.3);
+  }
+
+  // Boss hit — heavy thud
+  function _sfxBossHit() {
+    const now = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = 280;
+    o.connect(f); f.connect(g); g.connect(master);
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(160, now);
+    o.frequency.exponentialRampToValueAtTime(48, now + 0.18);
+    g.gain.setValueAtTime(0.40, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+    o.start(now); o.stop(now + 0.24);
+    // Crunch overlay (short noise)
+    const len  = Math.floor(ctx.sampleRate * 0.08);
+    const buf  = ctx.createBuffer(1, len, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = (Math.random()*2-1) * (1 - i/len);
+    const src = ctx.createBufferSource();
+    const ng  = ctx.createGain();
+    src.buffer = buf;
+    src.connect(ng); ng.connect(master);
+    ng.gain.setValueAtTime(0.18, now);
+    ng.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    src.start(now); src.stop(now + 0.1);
+  }
+
+  // Shield breaking — descending sweep
+  function _sfxShieldDown() {
+    const now = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass'; f.frequency.value = 700; f.Q.value = 6;
+    o.connect(f); f.connect(g); g.connect(master);
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(1200, now);
+    o.frequency.exponentialRampToValueAtTime(180, now + 0.5);
+    g.gain.setValueAtTime(0.22, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+    o.start(now); o.stop(now + 0.6);
+  }
+
+  // Shield absorbed hit — soft "pwoom"
+  function _sfxShieldHit() {
+    const now = ctx.currentTime;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(master);
+    o.type = 'sine';
+    o.frequency.setValueAtTime(420, now);
+    o.frequency.exponentialRampToValueAtTime(180, now + 0.18);
+    g.gain.setValueAtTime(0.22, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+    o.start(now); o.stop(now + 0.24);
   }
 
   function _sfxLegendary() {
