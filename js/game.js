@@ -455,6 +455,7 @@ function draw() {
     Player.draw(ctx, frameCount, activePU);
     Player.drawLivesHUD(ctx, W);
     Weapons.drawMagHUD(ctx, W, H, frameCount);
+    UI.drawSynergiesHUD(ctx, W, H, frameCount);
 
     // ── Combo display — nad lodí ──
     if (comboCount >= 3) {
@@ -614,6 +615,7 @@ function draw() {
   // Particles
   Particles.drawParticles(ctx);
   Particles.drawDebris(ctx);
+  if (Particles.drawDamageNumbers) Particles.drawDamageNumbers(ctx);
 
   // Slow-mo tint
   if (activePU.slow > 0) {

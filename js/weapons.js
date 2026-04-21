@@ -206,8 +206,22 @@ const Weapons = (() => {
       proj.y += proj.vy * slowMult;
     });
 
-    // Ring expansion
-    projectiles.filter(p => p.ring).forEach(p => { p.radius += 5 * slowMult; });
+    // Ring expansion (with optional charge-up)
+    projectiles.filter(p => p.ring).forEach(p => {
+      if (p.followPlayer) { p.x = px; p.y = py; }
+      if (p.chargeFrames > 0) {
+        p.chargeFrames -= slowMult;
+        // Pulse during charge — radius oscillates slightly
+        p.chargePulse = (p.chargePulse || 0) + 0.25 * slowMult;
+        if (p.chargeFrames <= 0) {
+          p.followPlayer = false;
+          p.expansionRate = 7.5;        // burst out fast
+          if (typeof Audio !== 'undefined') Audio.sfx('emp');
+        }
+      } else {
+        p.radius += (p.expansionRate || 5) * slowMult;
+      }
+    });
 
     // Projectile bounds
     projectiles = projectiles.filter(p =>
@@ -220,6 +234,7 @@ const Weapons = (() => {
       for (let ei = enemies.length - 1; ei >= 0; ei--) {
         const e = enemies[ei];
         if (proj.ring) {
+          if (proj.chargeFrames > 0) continue; // no damage during charge-up
           // Ring: hit when projectile radius matches enemy distance (±8px)
           const d = Utils.dist(proj.x, proj.y, e.x, e.y);
           if (Math.abs(d - proj.radius) < 8 && !proj.hitSet?.has(ei)) {
@@ -269,11 +284,18 @@ const Weapons = (() => {
         break;
       }
       case 'spread': {
+        // SHOTGUN — 5 pellets in randomized cone, varied speed for stagger
         const target = _findNearest(px, py, enemies);
         const base   = target ? Utils.angleTo(px, py, target.x, target.y) : -Math.PI / 2;
-        for (let i = -1; i <= 1; i++) {
-          const a = base + i * 0.3;
-          _addProj(px, py, Math.cos(a)*speed, Math.sin(a)*speed, damage, size, wCfg.color, id);
+        const PELLETS    = 5;
+        const CONE_HALF  = 0.32;       // ~37° total cone
+        for (let i = 0; i < PELLETS; i++) {
+          // Spread pellets: 2 outer + 3 inner with jitter
+          const t   = (i / (PELLETS - 1)) * 2 - 1; // -1 → +1
+          const jitter = (Math.random() - 0.5) * 0.10;
+          const a   = base + t * CONE_HALF + jitter;
+          const sp  = speed * (0.85 + Math.random() * 0.30); // varied bullet speed
+          _addProj(px, py, Math.cos(a)*sp, Math.sin(a)*sp, damage, size, wCfg.color, id);
         }
         break;
       }
@@ -286,9 +308,12 @@ const Weapons = (() => {
         break;
       }
       case 'ring': {
+        // Ring: short charge-up at player position, then explosive expand
         const proj = _addProj(px, py, 0, 0, damage, size, wCfg.color, id);
-        proj.ring = true;
-        proj.radius = 10;
+        proj.ring        = true;
+        proj.radius      = 6;
+        proj.chargeFrames = 22;       // ~0.37s wind-up
+        proj.followPlayer = true;     // sticks to player during charge
         break;
       }
     }
@@ -338,6 +363,9 @@ const Weapons = (() => {
     } else {
       Particles.spawn(target.x, target.y, proj.color, 8);
       Particles.spawnDebris(target.x, target.y, proj.color, 3);
+    }
+    if (Particles.spawnDamageNumber) {
+      Particles.spawnDamageNumber(target.x, target.y, finalDmg, isCrit);
     }
     if (target.hp <= 0) {
       Particles.spawnExplosion(target.x, target.y, target.size || 20);
@@ -421,14 +449,37 @@ const Weapons = (() => {
     // Projectiles
     projectiles.forEach(proj => {
       if (proj.ring) {
-        ctx.strokeStyle = proj.color + 'aa';
-        ctx.lineWidth = 3;
-        ctx.shadowColor = proj.color;
-        ctx.shadowBlur = 12;
-        ctx.beginPath();
-        ctx.arc(proj.x, proj.y, proj.radius, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.shadowBlur = 0;
+        if (proj.chargeFrames > 0) {
+          // Charge-up: pulsing inner ring + bright core glow
+          const t  = 1 - proj.chargeFrames / 22;
+          const r  = 8 + t * 14 + Math.sin((proj.chargePulse || 0)) * 3;
+          const a  = 0.5 + 0.5 * Math.sin((proj.chargePulse || 0));
+          ctx.shadowColor = proj.color;
+          ctx.shadowBlur  = 22;
+          // Core glow
+          const cg = ctx.createRadialGradient(proj.x, proj.y, 0, proj.x, proj.y, r * 2);
+          cg.addColorStop(0,   proj.color + 'cc');
+          cg.addColorStop(0.6, proj.color + '44');
+          cg.addColorStop(1,   'rgba(0,0,0,0)');
+          ctx.fillStyle = cg;
+          ctx.beginPath(); ctx.arc(proj.x, proj.y, r * 2, 0, Math.PI * 2); ctx.fill();
+          // Charging ring
+          ctx.strokeStyle = proj.color + Math.floor(a * 255).toString(16).padStart(2,'0');
+          ctx.lineWidth   = 2 + t * 2;
+          ctx.beginPath(); ctx.arc(proj.x, proj.y, r, 0, Math.PI * 2); ctx.stroke();
+          ctx.shadowBlur = 0;
+        } else {
+          ctx.strokeStyle = proj.color + 'cc';
+          ctx.lineWidth   = 4;
+          ctx.shadowColor = proj.color;
+          ctx.shadowBlur  = 16;
+          ctx.beginPath(); ctx.arc(proj.x, proj.y, proj.radius, 0, Math.PI * 2); ctx.stroke();
+          // Inner trail ring
+          ctx.strokeStyle = proj.color + '44';
+          ctx.lineWidth   = 2;
+          ctx.beginPath(); ctx.arc(proj.x, proj.y, proj.radius - 6, 0, Math.PI * 2); ctx.stroke();
+          ctx.shadowBlur = 0;
+        }
       } else {
         // Elongated laser bolt
         const speed = Math.hypot(proj.vx, proj.vy) || 1;

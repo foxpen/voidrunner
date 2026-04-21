@@ -127,6 +127,22 @@ const Particles = (() => {
     empWaves.push({ x, y, radius: 0, maxRadius: Math.max(W, H), life: 1 });
   }
 
+  // Floating damage numbers — rise + fade; crit gets bigger/yellow
+  let damageNumbers = [];
+  function spawnDamageNumber(x, y, value, isCrit) {
+    damageNumbers.push({
+      x: x + (Math.random() - 0.5) * 14,
+      y: y - 4,
+      vx: (Math.random() - 0.5) * 1.0,
+      vy: -1.4 - Math.random() * 0.6,
+      life: 1,
+      decay: isCrit ? 0.014 : 0.022,
+      value: Math.max(1, Math.round(value)),
+      isCrit: !!isCrit,
+    });
+    if (damageNumbers.length > 80) damageNumbers.splice(0, damageNumbers.length - 80);
+  }
+
   function update(state, frameCount, W, H, difficulty, slowActive) {
     _W = W; _H = H;
     const slowMult = slowActive ? 0.3 : 1;
@@ -172,6 +188,37 @@ const Particles = (() => {
       e.life   -= e.type === 'flash' ? 0.07 : e.type === 'fire' ? 0.04 : 0.05;
     });
     explosions = explosions.filter(e => e.life > 0);
+
+    // Floating damage numbers
+    damageNumbers.forEach(d => {
+      d.x += d.vx; d.y += d.vy;
+      d.vy *= 0.94;
+      d.life -= d.decay;
+    });
+    damageNumbers = damageNumbers.filter(d => d.life > 0);
+  }
+
+  function drawDamageNumbers(ctx) {
+    damageNumbers.forEach(d => {
+      const baseSize = d.isCrit ? 18 : 12;
+      const pop      = d.isCrit ? 1 + (1 - d.life) * 0.3 : 1;
+      const size     = baseSize * pop;
+      ctx.save();
+      ctx.globalAlpha = Math.min(1, d.life * 1.2);
+      ctx.font        = `900 ${size.toFixed(0)}px Orbitron, monospace`;
+      ctx.textAlign   = 'center';
+      ctx.textBaseline= 'middle';
+      ctx.shadowColor = d.isCrit ? '#ffaa00' : '#000000';
+      ctx.shadowBlur  = d.isCrit ? 14 : 6;
+      ctx.lineWidth   = 3;
+      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+      ctx.strokeText(d.value, d.x, d.y);
+      ctx.fillStyle   = d.isCrit ? '#ffd84a' : '#ffffff';
+      ctx.fillText(d.value, d.x, d.y);
+      ctx.restore();
+    });
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
   }
 
   function drawStars(ctx, frameCount) {
@@ -364,7 +411,7 @@ const Particles = (() => {
     });
   }
 
-  function clear() { list = []; empWaves = []; debrisList = []; explosions = []; }
+  function clear() { list = []; empWaves = []; debrisList = []; explosions = []; damageNumbers = []; }
 
-  return { initStars, initSpeedLines, spawn, spawnEmpWave, spawnDebris, spawnExplosion, update, drawStars, drawSpeedLines, drawEmpWaves, drawParticles, drawDebris, drawExplosions, clear };
+  return { initStars, initSpeedLines, spawn, spawnEmpWave, spawnDebris, spawnExplosion, spawnDamageNumber, update, drawStars, drawSpeedLines, drawEmpWaves, drawParticles, drawDebris, drawExplosions, drawDamageNumbers, clear };
 })();

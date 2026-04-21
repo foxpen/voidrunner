@@ -271,6 +271,76 @@ const UI = (() => {
     ctx.fillText('BOSS PORAŽEN  ·  STISKNI ENTER', W / 2, H / 2 + 48);
   }
 
+  // ── Active synergies HUD — left-side vertical badge stack ────────────────
+  // Shows icon + name for each unlocked synergy this run.
+  function drawSynergiesHUD(ctx, W, H, frameCount) {
+    if (typeof Synergies === 'undefined') return;
+    const list = Synergies.getActive();
+    if (!list.length) return;
+
+    // Position: vertical stack on left edge, centered vertically
+    const badgeH    = 26;
+    const gap       = 6;
+    const padX      = 10;
+    const totalH    = list.length * badgeH + (list.length - 1) * gap;
+    const startY    = H / 2 - totalH / 2;
+    const x         = 8;
+    const showLabel = W > 700; // collapse to icon-only on narrow screens
+
+    list.forEach((syn, i) => {
+      const y = startY + i * (badgeH + gap);
+      // Pulse newest synergy
+      const isNew = i === list.length - 1;
+      const pulse = isNew ? 0.85 + 0.15 * Math.sin(frameCount * 0.12) : 1;
+
+      // Measure text width
+      ctx.font = '700 10px Orbitron, monospace';
+      const labelW = showLabel ? Math.min(120, ctx.measureText(syn.name).width + 6) : 0;
+      const badgeW = padX + 18 + (showLabel ? labelW + padX : padX * 0.4);
+
+      // Background pill
+      ctx.save();
+      ctx.globalAlpha = 0.92 * pulse;
+      ctx.fillStyle   = 'rgba(8, 12, 22, 0.85)';
+      ctx.strokeStyle = syn.color + '88';
+      ctx.lineWidth   = 1;
+      ctx.shadowColor = syn.color;
+      ctx.shadowBlur  = 8 * pulse;
+      _roundRect(ctx, x, y, badgeW, badgeH, 5);
+      ctx.fill(); ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Icon
+      ctx.font         = '14px sans-serif';
+      ctx.textAlign    = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle    = syn.color;
+      ctx.fillText(syn.icon, x + padX - 2, y + badgeH / 2 + 1);
+
+      // Label
+      if (showLabel) {
+        ctx.font      = '700 10px Orbitron, monospace';
+        ctx.fillStyle = 'rgba(230, 240, 255, 0.92)';
+        ctx.fillText(syn.name, x + padX + 16, y + badgeH / 2 + 1);
+      }
+      ctx.restore();
+    });
+  }
+
+  function _roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
   function updateLeaderboard() {
     const lb = document.getElementById('leaderboard');
     if (!lb) return;
@@ -292,6 +362,6 @@ const UI = (() => {
     showGame, showMenu, showGameOver, updateScore, updateHighScore,
     updateRound, updateBossBar, hideBossBar, updatePowerups,
     showNotify, setGamepad, drawIntermissionOverlay, drawDoneOverlay, drawCountdownOverlay,
-    updateLeaderboard,
+    drawSynergiesHUD, updateLeaderboard,
   };
 })();

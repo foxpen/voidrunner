@@ -53,12 +53,12 @@ const CFG = {
     },
     spread: {
       id: 'spread',
-      name: 'SPREAD SHOT',
+      name: 'BROKOVNICE',
       icon: '🌟',
       color: '#ffcc00',
       damage: 1,
-      fireRate: 20,
-      speed: 10,
+      fireRate: 28,
+      speed: 11,
       size: 3,
       pattern: 'spread',
       unlocked: false,
@@ -116,7 +116,7 @@ const CFG = {
       name: 'ZÁKLADNÍ LASER',    desc: 'Přímá střelba na nejbližšího',        icon: '🔫', color: '#00ffc8', weaponId: 'basic',
       tags: ['kinetic'], category: 'safe' },
     { id: 'unlock_spread',  rarity: 'common',    type: 'weapon',  minRound: 2, weight: 6,  price: 200,
-      name: 'SPREAD SHOT',       desc: '3 projektily v kuželu',               icon: '🌟', color: '#ffcc00', weaponId: 'spread',
+      name: 'BROKOVNICE',        desc: '5 broků ve vějíři — devastace zblízka', icon: '🌟', color: '#ffcc00', weaponId: 'spread',
       tags: ['kinetic'], category: 'safe' },
     { id: 'unlock_orbit',   rarity: 'rare',      type: 'weapon',  minRound: 4, weight: 4,  price: 380,
       name: 'ORBIT BOLA',        desc: 'Kuličky obíhají kolem lodi',          icon: '⚪', color: '#ff8800', weaponId: 'orbit',
@@ -125,7 +125,7 @@ const CFG = {
       name: 'NAVÁDĚCÍ STŘELA',   desc: 'Samonaváděcí střela, 3× škoda',      icon: '🚀', color: '#ff3355', weaponId: 'missile',
       tags: ['explosive'], category: 'risk' },
     { id: 'unlock_ring',    rarity: 'legendary', type: 'weapon',  minRound: 7, weight: 2,  price: 900,
-      name: 'PLAZMOVÝ PRSTEN',   desc: 'Vlna škody kolem celé lodi',          icon: '💥', color: '#ff44ff', weaponId: 'ring',
+      name: 'PLAZMOVÝ PRSTEN',   desc: 'Krátký nábojový pulz → výbušná vlna',  icon: '💥', color: '#ff44ff', weaponId: 'ring',
       tags: ['explosive'], category: 'risk' },
 
     // ── Common stat upgrady (kola 1–10) ──
