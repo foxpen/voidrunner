@@ -260,7 +260,8 @@
 
 <!-- Menu logic -->
 <script>
-  const _vr = JSON.parse(localStorage.getItem('vr_player') || '{}');
+  let _vr = {};
+  try { _vr = JSON.parse(localStorage.getItem('vr_player') || '{}'); } catch (e) {}
   if (_vr.name) {
     document.getElementById('player-badge').textContent =
       `PILOT: ${_vr.name}  ·  ${(_vr.mode||'story').toUpperCase()}  ·  ${(_vr.ship||'fighter').toUpperCase()}`;
@@ -290,7 +291,7 @@
       localStorage.removeItem('vr_player');
       document.getElementById('start-screen').classList.add('hidden');
       Onboarding.start(() => {
-        const vr2 = JSON.parse(localStorage.getItem('vr_player') || '{}');
+        const vr2 = Utils.loadJSON('vr_player', {});
         if (vr2.name) {
           document.getElementById('player-badge').textContent =
             `PILOT: ${vr2.name}  ·  ${(vr2.mode||'story').toUpperCase()}  ·  ${(vr2.ship||'fighter').toUpperCase()}`;

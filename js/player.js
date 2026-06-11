@@ -8,6 +8,7 @@ const Player = (() => {
   let stats = {
     speed: p.SPEED,
     lives: 3,
+    maxLives: 3,
     scoreMult: 1,
     permMagnet: false,
     dualFire: false,
@@ -31,9 +32,9 @@ const Player = (() => {
 
   function applyHangarBonus(id, level) {
     switch (id) {
-      case 'hull':      stats.lives  += level; break;
+      case 'hull':      stats.lives  += level; stats.maxLives += level; break;
       case 'engine':    stats.speed  *= Math.pow(1.09, level); break;
-      case 'armor':     stats.lives  += level; break;
+      case 'armor':     stats.lives  += level; stats.maxLives += level; break;
       case 'scavenger': stats.scavengerLevel = level; break;
       case 'warhead':   stats.warheadBonus   = level; break;
     }
@@ -45,7 +46,7 @@ const Player = (() => {
               scavengerLevel: 0, warheadBonus: 0, critChance: 0.05 };
 
     // Apply ship selection from onboarding
-    const vr = JSON.parse(localStorage.getItem('vr_player') || '{}');
+    const vr = Utils.loadJSON('vr_player', {});
     stats.ship = vr.ship || 'fighter';
     if (vr.ship === 'scout')   { stats.speed *= 1.35; stats.lives = 3; }
     if (vr.ship === 'fighter') { stats.speed *= 1.0;  stats.lives = 3; }
@@ -53,12 +54,14 @@ const Player = (() => {
 
     // Apply mode
     if (vr.mode === 'hardcore') stats.lives = 1;
+
+    stats.maxLives = stats.lives;
   }
 
   function applyUpgrade(card) {
     switch (card.stat) {
       case 'shipSpeed':  stats.speed    *= (1 + card.value); break;
-      case 'lives':      stats.lives    += card.value; break;
+      case 'lives':      stats.lives    += card.value; stats.maxLives += card.value; break;
       case 'scoreMult':  stats.scoreMult += card.value; break;
       case 'permMagnet': stats.permMagnet = true; break;
       case 'dualFire':   stats.dualFire  = true; break;
@@ -322,18 +325,20 @@ const Player = (() => {
   function drawLivesHUD(ctx, W) {
     const sz     = 24;           // heart font size
     const gap    = sz * 1.1;     // spacing between hearts
-    const totalW = (stats.lives - 1) * gap;
+    const max    = Math.max(stats.maxLives || 3, stats.lives);
+    const totalW = (max - 1) * gap;
     const startX = W / 2 - totalW / 2;
     const y      = 72;           // below compact top row
-    for (let i = 0; i < stats.lives; i++) {
-      const fading = i === 0 && invincible > 0;
-      ctx.globalAlpha = fading ? 0.25 : 1;
-      ctx.fillStyle   = '#ff3355';
+    for (let i = 0; i < max; i++) {
+      const filled = i < stats.lives;
+      const fading = filled && i === 0 && invincible > 0;
+      ctx.globalAlpha = fading ? 0.25 : filled ? 1 : 0.30;
+      ctx.fillStyle   = filled ? '#ff3355' : '#552233';
       ctx.shadowColor = '#ff2244';
-      ctx.shadowBlur  = fading ? 0 : 14;
+      ctx.shadowBlur  = filled && !fading ? 14 : 0;
       ctx.font        = `${sz}px sans-serif`;
       ctx.textAlign   = 'center';
-      ctx.fillText('♥', startX + i * gap, y);
+      ctx.fillText(filled ? '♥' : '♡', startX + i * gap, y);
     }
     ctx.globalAlpha = 1;
     ctx.shadowBlur  = 0;
@@ -346,6 +351,7 @@ const Player = (() => {
     get h() { return p.H; },
     get invincible() { return invincible; },
     get lives() { return stats.lives; },
+    get maxLives() { return stats.maxLives || 3; },
     get scoreMult() { return stats.scoreMult; },
     get permMagnet() { return stats.permMagnet; },
     get dualFire() { return stats.dualFire; },

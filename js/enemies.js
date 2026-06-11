@@ -7,7 +7,16 @@ const Enemies = (() => {
   let enemyBullets = [];   // projectiles fired by 'shooter' role enemies
   let deathExplosions = []; // frame-1 bomber explosions checked for player collision
   let recentKills = 0;
+  let recentKillValue = 0;   // score hodnota killů tohoto framu (podle tieru a role)
   let crystalsCollectedThisFrame = 0;
+
+  // Score za kill podle tieru; tank/bomber jsou nebezpečnější → ×1.5
+  const KILL_VALUE = [0, 25, 60, 120];
+  function _killValue(o) {
+    const base = KILL_VALUE[o.tier] || 25;
+    const roleMult = (o.role === 'tank' || o.role === 'bomber') ? 1.5 : 1;
+    return Math.round(base * roleMult);
+  }
 
   function clear() { list = []; pickups = []; crystals = []; enemyBullets = []; deathExplosions = []; }
 
@@ -22,11 +31,18 @@ const Enemies = (() => {
       if (r < 0.80) return 'tank';
       return 'bomber';
     }
-    // Kola 7+: víc speciálních
-    if (r < 0.28) return 'chaser';
-    if (r < 0.52) return 'shooter';
-    if (r < 0.72) return 'tank';
-    return 'bomber';
+    if (round <= 7) {                // kolo 7
+      if (r < 0.28) return 'chaser';
+      if (r < 0.52) return 'shooter';
+      if (r < 0.72) return 'tank';
+      return 'bomber';
+    }
+    // Kola 8+: přibývá splitter
+    if (r < 0.22) return 'chaser';
+    if (r < 0.42) return 'shooter';
+    if (r < 0.58) return 'tank';
+    if (r < 0.78) return 'bomber';
+    return 'splitter';
   }
 
   function spawnObstacle(W, H, difficulty, slowActive) {
@@ -62,6 +78,11 @@ const Enemies = (() => {
       hp  += 1;
       size = Math.round(size * 1.10);
       hue  = 25 + Math.random() * 15;  // oranžová
+    } else if (role === 'splitter') {
+      hp   = Math.round(hp * 1.5);
+      size = Math.round(size * 1.15);
+      spd *= 0.85;
+      hue  = 280 + Math.random() * 20; // fialová
     }
 
     if (side < 0.6)      { x = Math.random() * W; y = -50; vx = (Math.random()-0.5)*spd; vy = spd; }
@@ -91,6 +112,40 @@ const Enemies = (() => {
       hp, maxHp: hp,
       burnTimer: 0, burnDps: 0,       // burn DoT (set by weapons on hit)
       shootCooldown: 40 + Math.floor(Math.random() * 40), // staggered initial fire
+      aimingTimer: 0,                 // shooter telegraph window
+      aimX: 0, aimY: 0,
+      regenLockout: 0, regenAccum: 0, // tank: lockout after hit, then heal
+      _lastHp: hp,                    // hit detection for tank regen
+    });
+  }
+
+  // Spawn a small fragment (used by bomber/splitter death)
+  function _spawnFragment(x, y, ang, sizeOverride, hueOverride) {
+    const sz  = sizeOverride || (8 + Math.random() * 6);
+    const spd = 1.6 + Math.random() * 1.4;
+    const nv  = 5 + Math.floor(Math.random() * 3);
+    const verts = [];
+    for (let i = 0; i < nv; i++) {
+      const a = (i / nv) * Math.PI * 2;
+      const r = sz * (0.55 + Math.random() * 0.45);
+      verts.push({ x: Math.cos(a)*r, y: Math.sin(a)*r });
+    }
+    const vx = Math.cos(ang) * spd;
+    const vy = Math.sin(ang) * spd + 0.6; // gentle downward bias
+    list.push({
+      x, y, vx, vy,
+      baseVx: vx, baseVy: vy,
+      initSpd: spd,
+      size: sz, vertices: verts,
+      tier: 1, hue: hueOverride ?? (210 + Math.random() * 40),
+      role: 'asteroid',
+      rot: Math.random() * Math.PI * 2,
+      rotSpeed: (Math.random() - 0.5) * 0.08,
+      hp: 1, maxHp: 1,
+      burnTimer: 0, burnDps: 0,
+      shootCooldown: 0, aimingTimer: 0,
+      regenLockout: 0, regenAccum: 0, _lastHp: 1,
+      _isFragment: true,
     });
   }
 
@@ -106,11 +161,13 @@ const Enemies = (() => {
     });
   }
 
-  function triggerEMP(score) {
+  function triggerEMP() {
     let bonus = 0;
     list.forEach(o => {
       Particles.spawn(o.x, o.y, '#ff44ff', 8);
-      bonus += 5;
+      bonus += [0, 12, 30, 60][o.tier] || 12;
+      // EMP kill nesmí hráče připravit o měnu — 50% šance na normální drop
+      if (Math.random() < 0.5) _spawnCrystals(o);
     });
     list = [];
     Particles.spawnEmpWave(Player.x, Player.y, window.innerWidth, window.innerHeight);
@@ -137,6 +194,7 @@ const Enemies = (() => {
 
   function update(W, H, activePU) {
     recentKills = 0;
+    recentKillValue = 0;
     crystalsCollectedThisFrame = 0;
     deathExplosions = [];
     const slowMult = activePU.slow > 0 ? 0.35 : 1;
@@ -162,29 +220,65 @@ const Enemies = (() => {
           o.baseVx += ((dx/dist)*spd - o.baseVx) * 0.015 * slowMult;
           o.baseVy += ((dy/dist)*spd - o.baseVy) * 0.015 * slowMult;
         }
+        // ── Self-repair: regen 1 HP every 2s when not recently hit ──
+        if (o.hp < (o._lastHp ?? o.hp)) o.regenLockout = 120; // hit → block regen
+        o._lastHp = o.hp;
+        if (o.regenLockout > 0) {
+          o.regenLockout -= slowMult;
+        } else if (o.hp < o.maxHp && o.hp > 0) {
+          o.regenAccum = (o.regenAccum || 0) + slowMult;
+          if (o.regenAccum >= 120) {
+            o.hp = Math.min(o.hp + 1, o.maxHp);
+            o._lastHp = o.hp;
+            o.regenAccum = 0;
+            // visible repair pulse
+            Particles.spawn(o.x, o.y, '#44ff88', 10);
+          }
+        }
       } else if (o.role === 'shooter') {
-        // Shooter: strafe like chaser, plus fires projectiles
+        // Shooter: strafe like chaser
         const dx = Player.x - o.x;
         o.baseVx += Math.sign(dx) * 0.025 * slowMult;
         o.baseVx = Utils.clamp(o.baseVx, -o.initSpd * 1.3, o.initSpd * 1.3);
 
-        // Fire bullet toward player every ~80 frames
+        // ── Aim → Telegraph → Fire cycle ──
+        // Cooldown counts down → spawns telegraph (30f aim) → fires.
         o.shootCooldown = (o.shootCooldown || 0);
-        if (o.shootCooldown > 0) {
+        if (o.aimingTimer > 0) {
+          // Mid-aim — track player so telegraph + bullet match
+          o.aimX = Player.x; o.aimY = Player.y;
+          o.aimingTimer -= slowMult;
+          if (o.aimingTimer <= 0) {
+            const bDx = o.aimX - o.x, bDy = o.aimY - o.y;
+            const bDist = Math.hypot(bDx, bDy);
+            if (bDist > 0) {
+              // Střely zrychlují s kolem — shooter v kole 9 nesmí být stejný jako v kole 4
+              const bRound = (typeof Rounds !== 'undefined') ? Rounds.current : 1;
+              const bSpd = 3.4 + (bRound - 1) * 0.15;
+              enemyBullets.push({
+                x: o.x, y: o.y,
+                vx: (bDx / bDist) * bSpd,
+                vy: (bDy / bDist) * bSpd,
+                size: 5, damage: 1, life: 200,
+              });
+            }
+            o.shootCooldown = 90 + Math.random() * 30;
+          }
+        } else if (o.shootCooldown > 0) {
           o.shootCooldown -= slowMult;
         } else {
-          o.shootCooldown = 80;
-          const bDx = Player.x - o.x, bDy = Player.y - o.y;
-          const bDist = Math.hypot(bDx, bDy);
-          if (bDist > 0) {
-            const bSpd = 2.8;
-            enemyBullets.push({
-              x: o.x, y: o.y,
-              vx: (bDx / bDist) * bSpd,
-              vy: (bDy / bDist) * bSpd,
-              size: 5, damage: 1, life: 200,
-            });
-          }
+          // Begin aim
+          o.aimingTimer = 30;
+          o.aimX = Player.x; o.aimY = Player.y;
+        }
+      } else if (o.role === 'splitter') {
+        // Splitter: aggressive hunt like tier 3
+        const dx = Player.x - o.x, dy = Player.y - o.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 20) {
+          const spd = Math.hypot(o.baseVx, o.baseVy) || 1.2;
+          o.baseVx += ((dx/dist)*spd - o.baseVx) * 0.022 * slowMult;
+          o.baseVy += ((dy/dist)*spd - o.baseVy) * 0.022 * slowMult;
         }
       } else if (o.role === 'bomber') {
         // Bomber: aggressive hunt — steers fast, explodes on death
@@ -269,6 +363,7 @@ const Enemies = (() => {
     // Remove dead enemies — spawn crystals, handle special death effects
     const dying = list.filter(o => o.hp <= 0);
     dying.forEach(o => {
+      recentKillValue += _killValue(o);
       _spawnCrystals(o);
       Particles.spawn(o.x, o.y, o.tier === 3 ? '#ff8800' : '#ff3355', 8 + o.tier * 4);
 
@@ -276,6 +371,20 @@ const Enemies = (() => {
       if (o.role === 'bomber') {
         deathExplosions.push({ x: o.x, y: o.y, radius: 85 });
         Particles.spawnExplosion(o.x, o.y, 85);
+        // Spawn 2 burning fragments on random arcs
+        for (let k = 0; k < 2; k++) {
+          const ang = Math.random() * Math.PI * 2;
+          _spawnFragment(o.x, o.y, ang, 10 + Math.random() * 6, 25 + Math.random() * 15);
+        }
+      }
+
+      // Splitter: fragment into 2 mini splitters when killed (not on fragments themselves)
+      if (o.role === 'splitter' && !o._isFragment) {
+        for (let k = 0; k < 2; k++) {
+          const ang = (Math.random() * 0.8 - 0.4) + (k === 0 ? -Math.PI * 0.4 : -Math.PI * 0.6);
+          _spawnFragment(o.x, o.y, ang, 14 + Math.random() * 4, 280 + Math.random() * 20);
+        }
+        Particles.spawn(o.x, o.y, '#cc66ff', 14);
       }
 
       // burnExplode synergy: burning enemies explode on death
@@ -385,8 +494,15 @@ const Enemies = (() => {
     const angle = Math.atan2(o.vy, o.vx) + Math.PI / 2;
     ctx.rotate(angle);
 
-    const sc  = '#ff2233';   // danger red
-    const dim = '#cc1122';
+    // Barva trupu podle role — okamžitá čitelnost bojiště
+    // (chaser/hunter červená, tank zelená, bomber oranžová, splitter fialová, shooter žlutá)
+    const ROLE_COLORS = {
+      tank:     '#44dd77',
+      bomber:   '#ff8822',
+      splitter: '#cc66ff',
+      shooter:  '#ffcc33',
+    };
+    const sc  = ROLE_COLORS[o.role] || '#ff2233';
     const s   = o.tier === 3 ? 1.35 : 1.0;
     const pw  = 14 * s, ph = 18 * s;
 
@@ -505,6 +621,17 @@ const Enemies = (() => {
       // Turret barrel indicator
       ctx.fillStyle = '#ff8866';
       ctx.fillRect(-1.5 * s, -ph * 1.05, 3 * s, ph * 0.20);
+    } else if (o.role === 'splitter') {
+      // Pulsing purple aura — visual cue this one will split
+      const pulse = 0.5 + 0.5 * Math.sin(Date.now() * 0.012);
+      ctx.strokeStyle = `rgba(200,120,255,${0.45 * pulse})`;
+      ctx.lineWidth = 1.5; ctx.shadowColor = '#cc66ff'; ctx.shadowBlur = 10 * pulse;
+      ctx.beginPath(); ctx.arc(0, 0, o.size * 1.25, 0, Math.PI * 2); ctx.stroke();
+      // Inner divide line — hints at fracture
+      ctx.strokeStyle = `rgba(220,150,255,${0.5 * pulse})`;
+      ctx.lineWidth = 1; ctx.shadowBlur = 0;
+      ctx.beginPath();
+      ctx.moveTo(-pw * 0.45, 0); ctx.lineTo(pw * 0.45, 0); ctx.stroke();
     }
 
     // Burn glow overlay
@@ -727,8 +854,9 @@ const Enemies = (() => {
   }
 
   return {
-    get list()        { return list; },
-    get recentKills() { return recentKills; },
+    get list()            { return list; },
+    get recentKills()     { return recentKills; },
+    get recentKillValue() { return recentKillValue; },
     clear, spawnObstacle, spawnPickupItem, triggerEMP,
     update, checkPlayerCollision, checkPickupCollision, checkCrystalCollision,
     checkEnemyBulletCollision, checkBomberExplosion,

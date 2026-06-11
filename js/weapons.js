@@ -10,7 +10,7 @@ const Weapons = (() => {
 
   // ── ZÁSOBNÍK / RELOAD ──
   const MAG_SIZE        = 12;   // základní velikost zásobníku (neměnné)
-  const RELOAD_FRAMES   = 300;  // 5s při 60fps
+  const RELOAD_FRAMES   = 120;  // 2s při 60fps (5s dávalo basic laseru jen 37% uptime)
   let magCapacity = MAG_SIZE;   // efektivní kapacita (roste s mag_up upgradem)
   let magShots    = MAG_SIZE;   // zbývající výstřely
   let reloading   = false;
@@ -96,10 +96,11 @@ const Weapons = (() => {
         explodeProcRadius = Math.max(explodeProcRadius, card.value);
         break;
       case 'overdrive':
-        // +30% damage všem zbraním
+        // +30% damage všem zbraním (minimálně +1, aby karta fungovala i na dmg 1–3)
         for (const id of equipped) {
           stats[id] = stats[id] || {};
-          stats[id].damage = ((stats[id].damage || CFG.WEAPONS[id]?.damage || 1) * 1.3) | 0;
+          const cur = stats[id].damage || CFG.WEAPONS[id]?.damage || 1;
+          stats[id].damage = Math.max(cur + 1, Math.round(cur * 1.3));
         }
         break;
     }
@@ -173,11 +174,14 @@ const Weapons = (() => {
         b.y = py + Math.sin(b.angle) * b.radius;
       });
 
-      // Orbit collision with enemies
+      // Orbit collision with enemies — per-enemy cooldown, jinak orbit tiká
+      // pomalému tanku každý dotykový frame (60×dmg/s)
       for (let i = enemies.length - 1; i >= 0; i--) {
         const e = enemies[i];
+        if (e._orbitHitFrame !== undefined && frameCount - e._orbitHitFrame < 12) continue;
         for (const b of orbitBalls) {
           if (Utils.dist(b.x, b.y, e.x, e.y) < b.size + e.size * 0.5) {
+            e._orbitHitFrame = frameCount;
             if (e.takeDmg) e.takeDmg(b.damage); else e.hp -= b.damage;
             Particles.spawn(e.x, e.y, CFG.WEAPONS.orbit.color, 6);
             Particles.spawnDebris(e.x, e.y, CFG.WEAPONS.orbit.color, 2);
@@ -187,6 +191,7 @@ const Weapons = (() => {
             } else if (typeof Audio !== 'undefined') {
               Audio.sfx('hit');
             }
+            break;
           }
         }
       }
@@ -375,7 +380,7 @@ const Weapons = (() => {
     // ── Burn DoT — mark enemy for burn ──
     if (proj.burnProc && target.hp > 0) {
       target.burnTimer = Math.max(target.burnTimer || 0, 90); // 1.5s at 60fps
-      target.burnDps   = 0.3;
+      target.burnDps   = 0.05;  // dmg za frame → ~4.5 dmg za 1.5s (0.3 zabíjelo vše)
     }
 
     // ── AoE explosion ──

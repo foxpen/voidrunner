@@ -5,11 +5,23 @@ const ctx    = canvas.getContext('2d');
 let W, H;
 
 function resize() {
-  W = canvas.width  = window.innerWidth;
-  H = canvas.height = window.innerHeight;
+  // Hi-DPI: kreslit ve fyzických pixelech, logika zůstává v CSS pixelech (W×H).
+  // Cap na 2 — vyšší dpr už není vidět a žere výkon na mobilu.
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width  = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
 resize();
-window.addEventListener('resize', () => { resize(); Particles.initStars(W, H); });
+window.addEventListener('resize', () => {
+  resize();
+  Particles.initStars(W, H);
+  if (paused) { draw(); _drawPauseOverlay(); }  // resize maže canvas — překresli zamrzlý frame
+});
 
 // ─── GAME STATE ────────────────────────────────────────────────────────────
 const STATE = { MENU: 'MENU', PLAYING: 'PLAYING', DEAD: 'DEAD' };
@@ -31,6 +43,7 @@ let screenFlash = { a: 0, r: 255, g: 51, b: 85 };
 // Combo system
 let comboCount = 0;
 let comboTimer = 0;   // frames before combo expires
+function comboMult(c) { return c >= 20 ? 3 : c >= 10 ? 2 : c >= 5 ? 1.5 : 1; }
 
 // Round target tracking
 let roundScoreStart = 0;
@@ -145,6 +158,22 @@ function takeDamage() {
   }
 }
 
+// Persist highscore + leaderboard + crystals; returns true when score is a new record
+function saveRunResults() {
+  score = Math.round(score);
+  const isNew = score > highScore;
+  if (isNew) { highScore = score; localStorage.setItem('vr_highscore', highScore); }
+
+  const lb = Utils.loadJSON('vr_scores', []);
+  lb.push({ score, round: Rounds.current, date: new Date().toLocaleDateString('cs-CZ') });
+  lb.sort((a, b) => b.score - a.score);
+  lb.splice(5);
+  localStorage.setItem('vr_scores', JSON.stringify(lb));
+
+  Hangar.addCrystals(crystalsThisRun);
+  return isNew;
+}
+
 function die() {
   state = STATE.DEAD;
   Audio.sfx('death');
@@ -153,19 +182,7 @@ function die() {
   Particles.spawn(Player.x, Player.y, '#00ffc8', 30);
   shakeTime = 30; shakeIntensity = 12; slowmo = 20;
 
-  score = Math.round(score);
-  const isNew = score > highScore;
-  if (isNew) { highScore = score; localStorage.setItem('vr_highscore', highScore); }
-
-  const _lb = JSON.parse(localStorage.getItem('vr_scores') || '[]');
-  _lb.push({ score, round: Rounds.current, date: new Date().toLocaleDateString('cs-CZ') });
-  _lb.sort((a, b) => b.score - a.score);
-  _lb.splice(5);
-  localStorage.setItem('vr_scores', JSON.stringify(_lb));
-
-  // Save crystals earned this run
-  Hangar.addCrystals(crystalsThisRun);
-
+  const isNew = saveRunResults();
   UI.showGameOver(score, highScore, pickupsCollected, isNew, crystalsThisRun);
 }
 
@@ -246,7 +263,7 @@ function update() {
       Enemies.spawnObstacle(W, H, Rounds.getDifficulty(), activePU.slow > 0);
     }
     const scavMult = 1 - Player.scavengerLevel * 0.175;  // -17.5% per level (up to -35%)
-    const puRate = Math.max(80, (250 - score * 0.05) * scavMult);
+    const puRate = Math.max(70, (200 - score * 0.05) * scavMult);
     if (frameCount % Math.floor(puRate) === 0) {
       Enemies.spawnPickupItem(W);
     }
@@ -269,9 +286,9 @@ function update() {
   if (Enemies.recentKills > 0) {
     comboCount += Enemies.recentKills;
     comboTimer  = 140;
-    const cMult = comboCount >= 20 ? 3 : comboCount >= 10 ? 2 : comboCount >= 5 ? 1.5 : 1;
+    const cMult = comboMult(comboCount);
     const kMult = (activePU.double > 0 ? 2 : 1) * Player.scoreMult * cMult;
-    score += Enemies.recentKills * 15 * kMult;
+    score += Enemies.recentKillValue * kMult;
   }
   if (comboTimer > 0) {
     comboTimer--;
@@ -284,12 +301,6 @@ function update() {
   if (bossTarget) allTargets.push(bossTarget);
 
   Weapons.update(Player.x, Player.y, allTargets, W, H, frameCount, activePU.slow > 0);
-
-  // Check boss damage from weapons
-  if (bossTarget) {
-    // Boss damage was applied via takeDmg callback in asBossTarget
-    // But we also need to check direct hits
-  }
 
   // Boss update
   Boss.update(W, H, activePU.slow > 0);
@@ -354,15 +365,7 @@ function update() {
   // Game won?
   if (Rounds.isGameDone()) {
     state = STATE.DEAD;
-    score = Math.round(score);
-    const isNew = score > highScore;
-    if (isNew) { highScore = score; localStorage.setItem('vr_highscore', highScore); }
-    const _wlb = JSON.parse(localStorage.getItem('vr_scores') || '[]');
-    _wlb.push({ score, round: Rounds.current, date: new Date().toLocaleDateString('cs-CZ') });
-    _wlb.sort((a, b) => b.score - a.score);
-    _wlb.splice(5);
-    localStorage.setItem('vr_scores', JSON.stringify(_wlb));
-    Hangar.addCrystals(crystalsThisRun);
+    saveRunResults();
     setTimeout(() => Audio.stopMusic(), 800);
     UI.updateHighScore(highScore);
   }
@@ -459,7 +462,7 @@ function draw() {
 
     // ── Combo display — nad lodí ──
     if (comboCount >= 3) {
-      const cMult  = comboCount >= 20 ? 3 : comboCount >= 10 ? 2 : comboCount >= 5 ? 1.5 : 1;
+      const cMult  = comboMult(comboCount);
       const cColor = comboCount >= 20 ? '#ffcc00' : comboCount >= 10 ? '#ff8800' : '#00ffc8';
       const cSize  = comboCount >= 10 ? 15 : 12;
       ctx.save();
@@ -577,10 +580,11 @@ function draw() {
     const ammoVal   = Weapons.magShots;
     _hudStat('AMMO',   ammoVal,        col * 0.5, ammoVal <= 3);
 
-    const speedVal = Math.min(9999, score > 0 ? score * 4 + 400 : 400);
-    _hudStat('SPEED',  speedVal,       col * 1.5, false);
+    // COMBO místo dřívějšího fake SPEED (score*4+400 nic neměřilo)
+    const comboVal = comboCount >= 3 ? `${comboCount} ×${comboMult(comboCount)}` : '—';
+    _hudStat('COMBO',  comboVal,       col * 1.5, false);
 
-    const shieldPct = Math.round((Player.lives / 3) * 100);
+    const shieldPct = Math.round((Player.lives / Player.maxLives) * 100);
     _hudStat('SHIELDS', shieldPct + '%', col * 2.5, shieldPct <= 34);
 
     // Progress bar
@@ -763,8 +767,64 @@ function _drawScreenFX() {
   }
 }
 
+// ─── PAUSE ─────────────────────────────────────────────────────────────────
+let paused = false;
+
+function _canPause() {
+  return state === STATE.PLAYING && !Upgrades.showing && !Hangar.showing
+    && !(typeof Narrative !== 'undefined' && Narrative.active)
+    && !Rounds.isGameDone();
+}
+
+function setPaused(p) {
+  if (paused === p) return;
+  paused = p;
+  if (p) {
+    Audio.suspend();
+    draw();
+    _drawPauseOverlay();
+  } else {
+    Audio.resume();
+    _lastTime = performance.now();
+    _acc = 0;
+  }
+}
+
+function _drawPauseOverlay() {
+  ctx.fillStyle = 'rgba(2, 4, 10, 0.55)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  ctx.textAlign   = 'center';
+  ctx.font        = `900 ${Utils.clamp(W * 0.06, 28, 54)}px Orbitron, monospace`;
+  ctx.fillStyle   = '#00ffc8';
+  ctx.shadowColor = '#00ffc8';
+  ctx.shadowBlur  = 24;
+  ctx.fillText('PAUZA', W / 2, H / 2 - 10);
+  ctx.shadowBlur  = 0;
+  ctx.font        = '700 13px Orbitron, monospace';
+  ctx.fillStyle   = 'rgba(255,255,255,0.6)';
+  ctx.fillText('ESC / P / ŤUKNUTÍ — POKRAČOVAT', W / 2, H / 2 + 28);
+  ctx.restore();
+}
+
+document.addEventListener('keydown', e => {
+  if ((e.code === 'Escape' || e.code === 'KeyP') && (paused || _canPause())) {
+    setPaused(!paused);
+  }
+});
+document.addEventListener('pointerdown', () => { if (paused) setPaused(false); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && _canPause()) setPaused(true);
+});
+
 // ─── MAIN LOOP ─────────────────────────────────────────────────────────────
-function loop() {
+// Fixed timestep — logika běží vždy v 60Hz krocích nezávisle na refresh rate
+// displeje (120Hz mobil, 144Hz monitor). Vykresluje se jednou za rAF.
+const STEP_MS = 1000 / 60;
+let _lastTime = performance.now();
+let _acc = 0;
+
+function _stepGame() {
   // Start/restart input
   if (Input.isStartPressed()) {
     if (Hangar.showing) {
@@ -783,6 +843,27 @@ function loop() {
     if (slowmo % 2 === 0) update();
   } else {
     update();
+  }
+}
+
+function loop(now) {
+  if (now === undefined) now = performance.now();
+  _acc += now - _lastTime;
+  _lastTime = now;
+
+  if (paused) {
+    // Frame je zamrzlý (vykreslený v setPaused) — jen čekáme na odpauzování
+    _acc = 0;
+    requestAnimationFrame(loop);
+    return;
+  }
+
+  // Po dlouhém zdržení (alt-tab, lag spike) nedohánět víc než 5 kroků
+  if (_acc > STEP_MS * 5) _acc = STEP_MS * 5;
+
+  while (_acc >= STEP_MS) {
+    _acc -= STEP_MS;
+    _stepGame();
   }
 
   draw();

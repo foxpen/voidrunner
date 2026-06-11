@@ -8,6 +8,8 @@ const Input = (() => {
 
   window.addEventListener('keydown', e => { keys[e.code] = true; });
   window.addEventListener('keyup',   e => { keys[e.code] = false; });
+  // Při ztrátě fokusu (alt-tab) nepřijde keyup — vynuluj, ať loď neletí sama
+  window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 
   window.addEventListener('gamepadconnected', e => {
     _gpConnected = true;

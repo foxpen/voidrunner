@@ -33,4 +33,14 @@ const Utils = {
     if (Math.abs(diff) <= step) return target;
     return current + Math.sign(diff) * step;
   },
+
+  // Safe localStorage JSON read — poškozený záznam nesmí shodit hru
+  loadJSON(key, fallback) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (e) {
+      return fallback;
+    }
+  },
 };

@@ -40,6 +40,10 @@ const Audio = (() => {
     try { ctx?.state === 'suspended' && ctx.resume(); } catch(e) {}
   }
 
+  function suspend() {
+    try { ctx?.state === 'running' && ctx.suspend(); } catch(e) {}
+  }
+
   function setMusic(enabled) {
     musicEnabled = enabled;
     if (!enabled) stopMusic();
@@ -441,7 +445,7 @@ const Audio = (() => {
   }
 
   return {
-    init, resume, startMusic, stopMusic, setIntensity, sfx,
+    init, resume, suspend, startMusic, stopMusic, setIntensity, sfx,
     setMusic, setSfx,
     get playing()       { return musicPlaying; },
     get musicEnabled()  { return musicEnabled; },

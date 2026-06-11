@@ -48,7 +48,7 @@ const Upgrades = (() => {
   // ── Pool building ───────────────────────────────────────────────────────────
   function _buildPool(round) {
     return CFG.UPGRADE_CARDS.filter(c => {
-      if (c.type === 'weapon' && applied.has(c.id)) return false;
+      if (c.type === 'weapon' && (applied.has(c.id) || Weapons.equipped.includes(c.weaponId))) return false;
       if ((c.minRound || 1) > round) return false;
       if (c.stat === 'dualFire'   && !Weapons.equipped.includes('basic'))  return false;
       if (c.stat === 'orbitCount' && !Weapons.equipped.includes('orbit'))  return false;
@@ -452,5 +452,9 @@ const Upgrades = (() => {
 
   function reset() { applied.clear(); showing = false; cards = []; picked = false; }
 
-  return { show, showShop, hide, update, draw, reset, get showing() { return showing; } };
+  return {
+    show, showShop, hide, update, draw, reset,
+    get showing()     { return showing; },
+    get pickedCount() { return applied.size; },
+  };
 })();

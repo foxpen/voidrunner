@@ -35,12 +35,17 @@ const Boss = (() => {
     moveTimer     = 120;
     dyingTimer    = 0;
 
+    // HP škáluje s počtem sebraných upgrade karet — slabý build potká slabšího
+    // bosse, nabušený build nedostane 15s pushover
+    const pickedCards = (typeof Upgrades !== 'undefined') ? (Upgrades.pickedCount || 0) : 0;
+    const scaledHp = CFG_B.HP + pickedCards * 30;
+
     b = {
       x: W / 2,
       y: (H || window.innerHeight) * 0.62,
       vx: 0, vy: 0,
-      hp: CFG_B.HP,
-      maxHp: CFG_B.HP,
+      hp: scaledHp,
+      maxHp: scaledHp,
       size: 0,
       targetSize: CFG_B.SIZE,
       entryFrame: 0,
@@ -96,7 +101,7 @@ const Boss = (() => {
     }
 
     // ── Phase check ──
-    if (b.hp <= CFG_B.PHASE2_HP && phase === 1) {
+    if (b.hp <= b.maxHp / 2 && phase === 1) {
       phase = 2;
       b.rotSpeed = 0.028;
       Particles.spawn(b.x, b.y, '#ff8800', 60);
@@ -130,7 +135,7 @@ const Boss = (() => {
     // ── Attack timer ──
     attackTimer -= slowMult;
     if (attackTimer <= 0 && spiralFrame <= 0) {
-      const rate = Math.max(40, (p2 ? 55 : 80));
+      const rate = Math.max(40, (p2 ? 48 : 70));
       attackTimer = rate;
       _doAttack(W, H, p2);
     }
@@ -282,9 +287,12 @@ const Boss = (() => {
         if (Math.abs(col - gapCol) <= 0.5) continue; // mezera pro hráče
         const bx = (col / (cols - 1)) * W;
         const by = H * (0.15 + row * 0.08);
+        // Rychlost pádu škáluje s výškou obrazovky, jinak na velkém monitoru
+        // curtain doletí dolů až po dalších dvou útocích
+        const vyScale = H / 800;
         bullets.push({
           x: bx, y: by,
-          vx: 0, vy: 1.8 + row * 0.4,
+          vx: 0, vy: (1.8 + row * 0.4) * vyScale,
           size: 6, halo: '#ff4466', speed: 1.8,
         });
       }

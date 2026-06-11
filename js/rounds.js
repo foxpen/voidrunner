@@ -15,7 +15,7 @@ const Rounds = (() => {
   let gameMode = 'story'; // story | endless | hardcore
 
   function reset() {
-    const vr = JSON.parse(localStorage.getItem('vr_player') || '{}');
+    const vr = Utils.loadJSON('vr_player', {});
     gameMode = vr.mode || 'story';
 
     current = 1;
@@ -109,7 +109,7 @@ const Rounds = (() => {
                   phase = 'COUNTDOWN';
                 });
               } else {
-                countdownTimer = 180;
+                countdownTimer = 120;   // 2s odpočet — drž tempo
                 phase = 'COUNTDOWN';
               }
             }
@@ -160,7 +160,7 @@ const Rounds = (() => {
           phase = 'UPGRADE';
           Upgrades.showShop(W, H,
             card => { _applyCard(card); },
-            () => { countdownTimer = 180; phase = 'COUNTDOWN'; }
+            () => { countdownTimer = 120; phase = 'COUNTDOWN'; }
           );
         }
       }
@@ -220,7 +220,7 @@ const Rounds = (() => {
   }
 
   function getScoreTarget() {
-    if (current > CFG.DIFFICULTY.length) return 12000 + (current - CFG.DIFFICULTY.length) * 1500;
+    if (current > CFG.DIFFICULTY.length) return 7500 + (current - CFG.DIFFICULTY.length) * 900;
     const d = CFG.DIFFICULTY[current - 1];
     return d ? (d.scoreTarget || 0) : 0;
   }

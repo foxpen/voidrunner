@@ -8,7 +8,7 @@ const CFG = {
   PLAYER: {
     W: 26, H: 36,
     SPEED: 5,
-    ACCEL: 0.4,
+    ACCEL: 0.5,    // svižnější odezva řízení (0.4 bylo těstovité)
     FRICTION: 0.85,
     TRAIL_LEN: 20,
     TRAIL_LEN_BOOST: 35,
@@ -18,23 +18,26 @@ const CFG = {
   // Rounds
   ROUNDS: {
     TOTAL: 10,
-    ROUND_DURATION: 1200,    // frames (~20s při 60fps)
+    ROUND_DURATION: 1080,    // frames (~18s při 60fps) — kratší kola = častější odměny
     BOSS_ROUND: 10,
-    INTERMISSION: 180,       // frames mezi koly (3s)
+    INTERMISSION: 120,       // frames mezi koly (2s) — čekání je nepřítel tempa
   },
 
   // Difficulty scaling per round
+  // scoreTarget = bonus cíl v rámci kola (~20s): pasivní skóre dá ~1200,
+  // zbytek musí přijít z killů (T1 25 / T2 60 / T3 120, tank+bomber ×1.5).
+  // Dosažitelné při agresivní hře, ne zadarmo.
   DIFFICULTY: [
-    { round: 1,  spawnRate: 60, speed: 1.0, obstacleCount: 1, scoreTarget: 3800 },
-    { round: 2,  spawnRate: 52, speed: 1.2, obstacleCount: 1, scoreTarget: 4400 },
-    { round: 3,  spawnRate: 44, speed: 1.4, obstacleCount: 2, scoreTarget: 5100 },
-    { round: 4,  spawnRate: 38, speed: 1.6, obstacleCount: 2, scoreTarget: 5900 },
-    { round: 5,  spawnRate: 32, speed: 1.8, obstacleCount: 2, scoreTarget: 6800 },
-    { round: 6,  spawnRate: 28, speed: 2.0, obstacleCount: 3, scoreTarget: 7800 },
-    { round: 7,  spawnRate: 24, speed: 2.2, obstacleCount: 3, scoreTarget: 9000 },
-    { round: 8,  spawnRate: 20, speed: 2.5, obstacleCount: 3, scoreTarget: 10500 },
-    { round: 9,  spawnRate: 16, speed: 2.8, obstacleCount: 4, scoreTarget: 12000 },
-    { round: 10, spawnRate: 12, speed: 3.2, obstacleCount: 4, scoreTarget: 0     },
+    { round: 1,  spawnRate: 38, speed: 1.0, obstacleCount: 1, scoreTarget: 1500 },
+    { round: 2,  spawnRate: 34, speed: 1.2, obstacleCount: 1, scoreTarget: 1900 },
+    { round: 3,  spawnRate: 31, speed: 1.4, obstacleCount: 2, scoreTarget: 2400 },
+    { round: 4,  spawnRate: 28, speed: 1.6, obstacleCount: 2, scoreTarget: 3000 },
+    { round: 5,  spawnRate: 25, speed: 1.8, obstacleCount: 2, scoreTarget: 3700 },
+    { round: 6,  spawnRate: 22, speed: 2.0, obstacleCount: 3, scoreTarget: 4500 },
+    { round: 7,  spawnRate: 19, speed: 2.2, obstacleCount: 3, scoreTarget: 5400 },
+    { round: 8,  spawnRate: 16, speed: 2.5, obstacleCount: 3, scoreTarget: 6400 },
+    { round: 9,  spawnRate: 13, speed: 2.8, obstacleCount: 4, scoreTarget: 7500 },
+    { round: 10, spawnRate: 10, speed: 3.2, obstacleCount: 4, scoreTarget: 0    },
   ],
 
   // Weapons
@@ -45,7 +48,7 @@ const CFG = {
       icon: '🔫',
       color: '#00ffc8',
       damage: 1,
-      fireRate: 15,       // frames mezi výstřely
+      fireRate: 12,       // frames mezi výstřely (5/s — tempo!)
       speed: 12,
       size: 4,
       pattern: 'single',  // single | spread | orbit | beam | ring
@@ -57,7 +60,7 @@ const CFG = {
       icon: '🌟',
       color: '#ffcc00',
       damage: 1,
-      fireRate: 28,
+      fireRate: 24,
       speed: 11,
       size: 3,
       pattern: 'spread',
@@ -81,7 +84,7 @@ const CFG = {
       icon: '🚀',
       color: '#ff3355',
       damage: 3,
-      fireRate: 60,
+      fireRate: 50,
       speed: 6,
       size: 6,
       pattern: 'homing',
@@ -93,7 +96,7 @@ const CFG = {
       icon: '💥',
       color: '#ff44ff',
       damage: 2,
-      fireRate: 90,
+      fireRate: 75,
       speed: 4,
       size: 5,
       pattern: 'ring',
@@ -205,14 +208,14 @@ const CFG = {
     { id: 'cannon',    name: 'ZÁKLADNÍ KANÓN',  desc: 'Začínáš s odemčeným laserem', icon: '🔫',  costs: [50],         maxLevel: 1, color: '#00ffc8' },
     { id: 'engine',    name: 'LODNÍ MOTOR',     desc: '+9% rychlost startu / level',  icon: '💨',  costs: [25, 38, 55], maxLevel: 3, color: '#00ff88' },
     { id: 'armor',     name: 'PANCÍŘ',          desc: '+1 život navíc / level',       icon: '🛡',  costs: [40, 65],     maxLevel: 2, color: '#44aaff' },
-    { id: 'scavenger', name: 'SBĚRAČ',          desc: 'Power-upy spawnují 35% častěji',icon:'🧲', costs: [35, 58],     maxLevel: 2, color: '#ff8800' },
+    { id: 'scavenger', name: 'SBĚRAČ',          desc: '+17,5 % spawn power-upů / level',icon:'🧲', costs: [35, 58],     maxLevel: 2, color: '#ff8800' },
     { id: 'warhead',   name: 'BOJOVÁ HLAVICE',  desc: '+1 poškození zbraní / level',  icon: '💥',  costs: [45, 72],     maxLevel: 2, color: '#ff44ff' },
   ],
 
-  // Boss
+  // Boss — HP škáluje: HP + 30 za každou sebranou upgrade kartu (boss.js),
+  // fáze 2 začíná na 50 % maxHp
   BOSS: {
     HP: 200,
-    PHASE2_HP: 100,
     SPEED: 1.5,
     SIZE: 60,
     COLOR_P1: '#ff3355',
