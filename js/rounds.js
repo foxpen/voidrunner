@@ -25,7 +25,9 @@ const Rounds = (() => {
     frameCount = 0;
 
     // Show intro narrative for story/hardcore mode
+    // resetSeen → příběh se vypráví v každém novém runu stejně (deterministicky)
     if (gameMode !== 'endless') {
+      if (typeof Narrative !== 'undefined') Narrative.resetSeen();
       phase = 'NARRATIVE';
       _showIntro();
     }

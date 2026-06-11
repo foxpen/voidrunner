@@ -348,9 +348,12 @@ function update() {
   // Bomber death explosions
   if (Enemies.checkBomberExplosion()) takeDamage();
 
-  // Score
-  const mult = (activePU.double > 0 ? 2 : 1) * Player.scoreMult;
-  score += mult;
+  // Score — pasivní přírůstek jen během aktivní hry (kola + boss).
+  // Bez gate tikalo skóre i přes narrative/intermission/countdown → AFK farma.
+  if (Rounds.phase === 'PLAYING' || Rounds.isBossRound()) {
+    const mult = (activePU.double > 0 ? 2 : 1) * Player.scoreMult;
+    score += mult;
+  }
   score = Math.round(score);
 
   UI.updateScore(score);

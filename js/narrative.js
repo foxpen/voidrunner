@@ -5,69 +5,62 @@
 const Narrative = (() => {
 
   // ── SCENE DATA ────────────────────────────────────────────────────────────
+  // Texty česky — celá hra (intro, menu, HUD) mluví česky, příběh nesmí být výjimka.
+  // Pokud upravíš text, zkontroluj že sedí s namluvenou stopou audio/narration/<num>.mp3.
   const SCENES = {
     signal: {
-      num: '01', title: 'THE SIGNAL',
+      num: '01', title: 'SIGNÁL',
       sub: null,
-      body: 'If you\'re hearing this...\nyou\'ve come closer than anyone before.',
+      body: 'Jestli tohle slyšíš...\ndostal ses blíž než kdokoliv před tebou.',
       style: 'terminal',
-      duration: 280,
     },
     void: {
-      num: '02', title: 'THE VOID REVEALED',
+      num: '02', title: 'PRÁZDNOTA SE ODHALUJE',
       sub: null,
-      body: 'This isn\'t just a black hole.\nIt reacts.',
+      body: 'Tohle není jen černá díra.\nOna reaguje.',
       style: 'space',
-      duration: 260,
     },
     mission: {
-      num: '03', title: 'THE MISSION',
+      num: '03', title: 'MISE',
       sub: null,
-      body: 'Everyone who got close... vanished.\nYou have one chance.',
+      body: 'Všichni, kdo se přiblížili... zmizeli.\nMáš jedinou šanci.',
       style: 'space',
-      duration: 260,
     },
     approach: {
-      num: '04', title: 'THE APPROACH',
-      sub: 'ROUNDS  1 – 3',
-      body: 'Gravitational fields stable... for now.\nKeep your course.',
+      num: '04', title: 'PŘIBLÍŽENÍ',
+      sub: 'KOLA  1 – 3',
+      body: 'Gravitační pole stabilní... prozatím.\nDrž kurz.',
       style: 'space',
-      duration: 220,
     },
     shift: {
-      num: '05', title: 'REALITY SHIFT',
-      sub: 'ROUNDS  4 – 6',
-      body: 'Nothing makes sense...\nObjects move against their trajectory.',
+      num: '05', title: 'POSUN REALITY',
+      sub: 'KOLA  4 – 6',
+      body: 'Nic nedává smysl...\nObjekty se pohybují proti své trajektorii.',
       style: 'distort',
-      duration: 220,
     },
     unstable: {
-      num: '06', title: 'UNSTABLE',
-      sub: 'ROUNDS  7 – 9',
-      body: 'Reality is breaking apart.\nThere\'s no way back.',
+      num: '06', title: 'NESTABILNÍ',
+      sub: 'KOLA  7 – 9',
+      body: 'Realita se rozpadá.\nCesta zpátky neexistuje.',
       style: 'distort',
-      duration: 220,
     },
     guardian: {
-      num: '07', title: 'THE GUARDIAN',
+      num: '07', title: 'STRÁŽCE',
       sub: 'BOSS',
-      body: 'This isn\'t an object.\nIt\'s a reaction.',
+      body: 'Tohle není objekt.\nJe to reakce.',
       style: 'boss',
-      duration: 300,
     },
     passage: {
-      num: '08', title: 'THE FINAL PASS',
+      num: '08', title: 'POSLEDNÍ PRŮLET',
       sub: null,
-      body: 'This is it... the passage.\nNow. Don\'t stop.',
+      body: 'Tady to je... průchod.\nTeď. Nezastavuj.',
       style: 'white',
-      duration: 280,
     },
     beyond: {
-      num: '09', title: 'BEYOND',
+      num: '09', title: 'ZA HRANICÍ',
       sub: null,
-      body: '...This isn\'t our universe.\nThe signal... it\'s different.',
+      body: '...Tohle není náš vesmír.\nTen signál... je jiný.',
       style: 'beyond',
-      duration: 320,
     },
   };
 
@@ -82,8 +75,7 @@ const Narrative = (() => {
   let _particles  = [];
   let _skipReady  = false;
   // ── VOICE NARRATION — vlastní nahrávky ───────────────────────────────────
-  // Soubory: audio/narration/<sceneId>.mp3  (nebo .ogg / .wav)
-  // Např.  audio/narration/signal.mp3
+  // Soubory: audio/narration/<num>.mp3 podle čísla scény bez nuly (1.mp3 … 9.mp3)
   let _voiceAudio = null;
 
   function _playVoice(sceneId) {
@@ -155,7 +147,10 @@ const Narrative = (() => {
     const scene = SCENES[sceneId];
     if (!scene) { if (onComplete) onComplete(); return; }
 
-    // Skip if already shown this session (resets on page reload)
+    // Skip jen pokud už scéna běžela v TOMHLE runu (resetSeen() na startu runu).
+    // Dřív byla paměť per-session → druhý run v jedné session neměl příběh vůbec,
+    // po reloadu zase celý. Teď je vyprávění deterministické: každý nový story run
+    // = celý příběh, skip je rychlý.
     if (_shownScenes.has(sceneId)) { if (onComplete) onComplete(); return; }
     _shownScenes.add(sceneId);
 
@@ -167,6 +162,9 @@ const Narrative = (() => {
     _onComplete = onComplete || null;
     _skipReady  = false;
 
+    // Cinema mode — schovej herní HUD, ať panel vypadá jako intro (čistá scéna)
+    _setHudVisible(false);
+
     const W = window.innerWidth, H = window.innerHeight;
     _genStars(W, H);
     _genParticles(W, H, scene.style);
@@ -175,14 +173,23 @@ const Narrative = (() => {
     // Files named 1.mp3 … 9.mp3  (matching scene num without leading zero)
     setTimeout(() => { if (_active) _playVoice(parseInt(scene.num)); }, 900);
 
-    // Allow skip after 2 seconds (real time, independent of refresh rate)
-    setTimeout(() => { _skipReady = true; }, 2000);
+    // Allow skip after 0.9s (real time) — dost na orientaci, neblokuje opakované hraní
+    setTimeout(() => { _skipReady = true; }, 900);
+  }
+
+  function _setHudVisible(visible) {
+    const ui = document.getElementById('ui-overlay');
+    if (!ui) return;
+    ui.style.transition = 'opacity 0.35s ease';
+    ui.style.opacity    = visible ? '1' : '0';
+    ui.style.pointerEvents = visible ? '' : 'none';
   }
 
   function _complete() {
     _stopVoice();
     _active = false;
     _scene  = null;
+    _setHudVisible(true);
     if (_onComplete) { const cb = _onComplete; _onComplete = null; cb(); }
   }
 
@@ -310,8 +317,8 @@ const Narrative = (() => {
     ctx.globalAlpha = alpha;
     _drawStyleVisual(ctx, W, H, s.style, f, barH, alpha);
 
-    // ── Skip hint ─────────────────────────────────────────────────────────
-    if (_skipReady && f > 80) {
+    // ── Skip hint — zobrazí se přesně když skip začne fungovat ────────────
+    if (_skipReady) {
       const hint = 0.25 + 0.2 * Math.sin(f * 0.08);
       ctx.globalAlpha = alpha * hint;
       ctx.font        = `400 ${Math.round(W * 0.011)}px Orbitron, monospace`;
@@ -447,7 +454,7 @@ const Narrative = (() => {
       ctx.font = `700 ${Math.round(W * 0.016)}px Orbitron, monospace`;
       ctx.textAlign = 'center';
       ctx.shadowBlur = 12;
-      ctx.fillText('INCOMING SIGNAL', cx, py + ph * 0.3);
+      ctx.fillText('PŘÍCHOZÍ SIGNÁL', cx, py + ph * 0.3);
       // Waveform
       ctx.strokeStyle = '#00ffc8';
       ctx.lineWidth = 1.5;
@@ -463,7 +470,7 @@ const Narrative = (() => {
       // "UNKNOWN ORIGIN"
       ctx.fillStyle = '#00ffc855';
       ctx.font = `400 ${Math.round(W * 0.012)}px Orbitron, monospace`;
-      ctx.fillText('UNKNOWN ORIGIN', cx, py + ph * 0.8);
+      ctx.fillText('NEZNÁMÝ PŮVOD', cx, py + ph * 0.8);
       ctx.shadowBlur = 0;
     }
 
@@ -575,8 +582,10 @@ const Narrative = (() => {
   document.addEventListener('pointerdown', _onInput);
 
   // ── PUBLIC API ────────────────────────────────────────────────────────────
+  function resetSeen() { _shownScenes.clear(); }
+
   return {
-    show, tick, draw,
+    show, tick, draw, resetSeen,
     get active() { return _active; },
   };
 
