@@ -105,6 +105,7 @@ function startGame() {
   Player.resetStats();
   Player.reset(W, H);
   Weapons.reset();
+  if (typeof Ultimate !== 'undefined') Ultimate.reset();
   Hangar.applyBonuses();   // after resetStats + Weapons.reset — so bonuses stick
   if (typeof Synergies !== 'undefined') Synergies.reset();
   Enemies.clear();
@@ -256,17 +257,31 @@ function update() {
   const move = Input.getMove();
   Player.update(W, H, move, activePU);
 
-  // Spawn enemies
+  // Spawn enemies — stálé kapání + vlny nájezdů
   if (Rounds.shouldSpawnEnemies()) {
     const spawnRate = Math.max(8, Rounds.getSpawnRate() - score * 0.01);
     if (frameCount % Math.floor(spawnRate) === 0) {
       Enemies.spawnObstacle(W, H, Rounds.getDifficulty(), activePU.slow > 0);
+    }
+    // Vlna každých ~7s: obstacleCount nepřátel naráz — intenzita ve špičkách,
+    // mezi nimi nádech (flow), ne monotónní kapání
+    if (frameCount > 0 && frameCount % 420 === 0) {
+      const burst = Rounds.getObstacleCount();
+      for (let i = 0; i < burst; i++) {
+        Enemies.spawnObstacle(W, H, Rounds.getDifficulty(), activePU.slow > 0);
+      }
+      if (burst >= 2) UI.showNotify('⚠ NÁJEZD', '#ff8800');
     }
     const scavMult = 1 - Player.scavengerLevel * 0.175;  // -17.5% per level (up to -35%)
     const puRate = Math.max(70, (200 - score * 0.05) * scavMult);
     if (frameCount % Math.floor(puRate) === 0) {
       Enemies.spawnPickupItem(W);
     }
+
+    // Loot objekty — neutrální cíle na rozstřílení (offsety mimo frame vln)
+    if (frameCount % 540 === 270) Enemies.spawnCrystalRock(W);                            // ~9s
+    if (Rounds.current >= 2 && frameCount % 900 === 600) Enemies.spawnCargoDrone(W, H);   // ~15s
+    if (Rounds.current >= 3 && frameCount % 660 === 150) Enemies.spawnFuelTank(W);        // ~11s
   }
 
   // Spawn pickups during boss fight (slow rate — every ~5s)
@@ -289,6 +304,20 @@ function update() {
     const cMult = comboMult(comboCount);
     const kMult = (activePU.double > 0 ? 2 : 1) * Player.scoreMult * cMult;
     score += Enemies.recentKillValue * kMult;
+    // NOVA charge — comba nabíjejí 1.5×
+    if (typeof Ultimate !== 'undefined') {
+      Ultimate.addCharge(Enemies.recentKills * (comboCount >= 5 ? 1.5 : 1));
+    }
+  }
+
+  // NOVA — update vlny + odpal mezerníkem
+  if (typeof Ultimate !== 'undefined') {
+    Ultimate.update(W, H);
+    if (Ultimate.isReady() && Input.isDown('Space')) {
+      Ultimate.fire(Player.x, Player.y);
+      shakeTime = 18; shakeIntensity = 9;
+      screenFlash = { a: 0.25, r: 0, g: 255, b: 200 };
+    }
   }
   if (comboTimer > 0) {
     comboTimer--;
@@ -453,6 +482,9 @@ function draw() {
   // Boss
   Boss.draw(ctx, frameCount);
 
+  // NOVA vlna
+  if (typeof Ultimate !== 'undefined') Ultimate.draw(ctx);
+
   // Projectiles
   Weapons.draw(ctx);
 
@@ -461,6 +493,7 @@ function draw() {
     Player.draw(ctx, frameCount, activePU);
     Player.drawLivesHUD(ctx, W);
     Weapons.drawMagHUD(ctx, W, H, frameCount);
+    if (typeof Ultimate !== 'undefined') Ultimate.drawHUD(ctx, W, H, frameCount);
     UI.drawSynergiesHUD(ctx, W, H, frameCount);
 
     // ── Combo display — nad lodí ──
@@ -816,6 +849,17 @@ document.addEventListener('keydown', e => {
   }
 });
 document.addEventListener('pointerdown', () => { if (paused) setPaused(false); });
+
+// Tap/klik během hry = odpal NOVY (mobil nemá mezerník)
+document.addEventListener('pointerdown', () => {
+  if (state === STATE.PLAYING && !paused && !Upgrades.showing && !Hangar.showing
+      && !(typeof Narrative !== 'undefined' && Narrative.active)
+      && typeof Ultimate !== 'undefined' && Ultimate.isReady()) {
+    Ultimate.fire(Player.x, Player.y);
+    shakeTime = 18; shakeIntensity = 9;
+    screenFlash = { a: 0.25, r: 0, g: 255, b: 200 };
+  }
+});
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && _canPause()) setPaused(true);
 });

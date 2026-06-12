@@ -12,7 +12,11 @@ const Enemies = (() => {
 
   // Score za kill podle tieru; tank/bomber jsou nebezpečnější → ×1.5
   const KILL_VALUE = [0, 25, 60, 120];
+  // Loot objekty (neútočí, jen odměna za sestřelení)
+  const LOOT_ROLES = { crystalRock: 50, cargo: 40, fuel: 30 };
+  function _isLoot(o) { return LOOT_ROLES[o.role] !== undefined; }
   function _killValue(o) {
+    if (_isLoot(o)) return LOOT_ROLES[o.role];
     const base = KILL_VALUE[o.tier] || 25;
     const roleMult = (o.role === 'tank' || o.role === 'bomber') ? 1.5 : 1;
     return Math.round(base * roleMult);
@@ -149,15 +153,66 @@ const Enemies = (() => {
     });
   }
 
-  function spawnPickupItem(W) {
+  function spawnPickupItem(W, atX, atY) {
     const typeKeys = Object.keys(CFG.POWERUPS);
     const type = Utils.randFrom(typeKeys);
     const def  = CFG.POWERUPS[type];
     pickups.push({
-      type, x: 60 + Math.random() * (W - 120), y: -30,
+      type,
+      x: atX !== undefined ? atX : 60 + Math.random() * (W - 120),
+      y: atY !== undefined ? atY : -30,
       vy: 1.2 + Math.random() * 0.8,
       size: 16, bobPhase: Math.random() * Math.PI * 2,
       color: def.color, icon: def.icon,
+    });
+  }
+
+  // ── LOOT OBJEKTY — neutrální cíle: neubližují, vyplatí se sestřelit ───────
+  function _baseLootFields() {
+    return {
+      rot: Math.random() * Math.PI * 2, rotSpeed: (Math.random() - 0.5) * 0.02,
+      burnTimer: 0, burnDps: 0, shootCooldown: 0, aimingTimer: 0,
+      regenLockout: 0, regenAccum: 0,
+    };
+  }
+
+  function spawnCrystalRock(W) {
+    const size = 22 + Math.random() * 8;
+    const nv = 7, vertices = [];
+    for (let i = 0; i < nv; i++) {
+      const a = (i / nv) * Math.PI * 2;
+      const r = size * (0.6 + Math.random() * 0.4);
+      vertices.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
+    }
+    const vx = (Math.random() - 0.5) * 0.4, vy = 0.7 + Math.random() * 0.4;
+    list.push({
+      x: 60 + Math.random() * (W - 120), y: -50,
+      vx, vy, baseVx: vx, baseVy: vy, initSpd: 1,
+      size, vertices, tier: 1, hue: 275, role: 'crystalRock',
+      hp: 4, maxHp: 4, _lastHp: 4,
+      ..._baseLootFields(),
+    });
+  }
+
+  function spawnCargoDrone(W, H) {
+    const fromLeft = Math.random() < 0.5;
+    const vx = (fromLeft ? 1 : -1) * 4.2;
+    list.push({
+      x: fromLeft ? -50 : W + 50, y: H * (0.15 + Math.random() * 0.35),
+      vx, vy: 0, baseVx: vx, baseVy: 0, initSpd: 4.2,
+      size: 16, vertices: [], tier: 1, hue: 180, role: 'cargo',
+      hp: 2, maxHp: 2, _lastHp: 2,
+      ..._baseLootFields(),
+    });
+  }
+
+  function spawnFuelTank(W) {
+    list.push({
+      x: 80 + Math.random() * (W - 160), y: -40,
+      vx: 0, vy: 0.55, baseVx: 0, baseVy: 0.55, initSpd: 0.55,
+      size: 15, vertices: [], tier: 1, hue: 30, role: 'fuel',
+      hp: 1, maxHp: 1, _lastHp: 1,
+      ..._baseLootFields(),
     });
   }
 
@@ -367,6 +422,37 @@ const Enemies = (() => {
       _spawnCrystals(o);
       Particles.spawn(o.x, o.y, o.tier === 3 ? '#ff8800' : '#ff3355', 8 + o.tier * 4);
 
+      // ── Loot objekty — odměny ──
+      if (o.role === 'crystalRock') {
+        // 3–6 krystalů ve dvou shlucích
+        const total = 3 + Math.floor(Math.random() * 4);
+        for (let k = 0; k < 2; k++) {
+          crystals.push({
+            x: o.x + (Math.random() - 0.5) * 24, y: o.y + (Math.random() - 0.5) * 24,
+            vy: 0.8 + Math.random() * 0.6, vx: (Math.random() - 0.5) * 1.4,
+            bobPhase: Math.random() * Math.PI * 2,
+            value: k === 0 ? Math.ceil(total / 2) : Math.floor(total / 2),
+            size: 10,
+          });
+        }
+        Particles.spawn(o.x, o.y, '#cc77ff', 18);
+      }
+      if (o.role === 'cargo') {
+        // Garantovaný power-up na místě sestřelu
+        spawnPickupItem(0, o.x, o.y);
+        Particles.spawn(o.x, o.y, '#00ffc8', 14);
+      }
+      if (o.role === 'fuel') {
+        // Exploze — AoE 4 dmg všemu okolo (taktika: nalákat vlnu k nádrži)
+        Particles.spawnExplosion(o.x, o.y, 90);
+        list.forEach(other => {
+          if (other !== o && other.hp > 0 && Utils.dist(o.x, o.y, other.x, other.y) < 90) {
+            other.hp -= 4;
+          }
+        });
+        if (typeof Audio !== 'undefined') Audio.sfx('explode');
+      }
+
       // Bomber: death explosion — registers for player collision check
       if (o.role === 'bomber') {
         deathExplosions.push({ x: o.x, y: o.y, radius: 85 });
@@ -411,6 +497,7 @@ const Enemies = (() => {
   function checkPlayerCollision(activePU) {
     if (Player.invincible > 0) return false;
     for (const o of list) {
+      if (_isLoot(o)) continue;   // loot objekty hráči neubližují
       const hitRadius = activePU.shield > 0
         ? o.size * 0.4 + Player.w * 0.3
         : o.size * 0.6 + Player.w * 0.5;
@@ -658,7 +745,12 @@ const Enemies = (() => {
 
     // Radial gradient — lit from top-left (matches BH light source)
     const grd = ctx.createRadialGradient(-o.size * 0.3, -o.size * 0.3, o.size * 0.05, 0, 0, o.size * 1.1);
-    if (o.tier === 1) {
+    if (o.role === 'crystalRock') {
+      // Krystalový asteroid — fialový, svítí (loot piñata)
+      grd.addColorStop(0,   '#9a6ad0');
+      grd.addColorStop(0.5, '#5a3088');
+      grd.addColorStop(1,   '#241040');
+    } else if (o.tier === 1) {
       // Small — cool blue-grey
       grd.addColorStop(0,   '#6a7a8a');
       grd.addColorStop(0.5, '#3a4550');
@@ -676,6 +768,28 @@ const Enemies = (() => {
     }
     ctx.fillStyle = grd;
     ctx.fill();
+
+    // Krystalový asteroid — pulzující jiskry + glow okraj
+    if (o.role === 'crystalRock') {
+      const sparkle = 0.5 + 0.5 * Math.sin(Date.now() * 0.005 + o.x);
+      ctx.strokeStyle = `rgba(200,130,255,${0.5 + 0.3 * sparkle})`;
+      ctx.lineWidth   = 1.5;
+      ctx.shadowColor = '#aa44ff';
+      ctx.shadowBlur  = 14 * sparkle;
+      ctx.stroke();
+      // Vystupující krystalky
+      ctx.fillStyle = `rgba(220,160,255,${0.6 + 0.4 * sparkle})`;
+      [[0.3, -0.2], [-0.25, 0.3], [0.05, 0.05]].forEach(([fx, fy]) => {
+        ctx.save();
+        ctx.translate(o.size * fx, o.size * fy);
+        ctx.rotate(Math.PI / 4);
+        ctx.fillRect(-2.5, -2.5, 5, 5);
+        ctx.restore();
+      });
+      ctx.shadowBlur = 0;
+      ctx.restore();
+      return;
+    }
 
     // Edge rim — thin highlight
     const rimAlpha = o.tier === 1 ? 0.55 : o.tier === 2 ? 0.45 : 0.35;
@@ -745,8 +859,10 @@ const Enemies = (() => {
     });
 
     list.forEach(o => {
-      if (o.tier === 1) _drawAsteroid(ctx, o);
-      else              _drawEnemyShip(ctx, o);
+      if (o.role === 'cargo')     _drawCargo(ctx, o);
+      else if (o.role === 'fuel') _drawFuel(ctx, o);
+      else if (o.tier === 1)      _drawAsteroid(ctx, o);
+      else                        _drawEnemyShip(ctx, o);
     });
     crystals.forEach(c => _drawCrystal(ctx, c));
 
@@ -844,9 +960,78 @@ const Enemies = (() => {
     ctx.restore();
   }
 
+  // ── Cargo dron — teal kontejner s blikajícím světlem ──────────────────────
+  function _drawCargo(ctx, o) {
+    const blink = Math.floor(Date.now() / 250) % 2;
+    ctx.save();
+    ctx.translate(o.x, o.y);
+    // Tělo
+    ctx.fillStyle   = '#0a2a28';
+    ctx.strokeStyle = '#00ddb8';
+    ctx.lineWidth   = 1.5;
+    ctx.shadowColor = '#00ffc8';
+    ctx.shadowBlur  = 12;
+    ctx.beginPath();
+    ctx.rect(-o.size, -o.size * 0.55, o.size * 2, o.size * 1.1);
+    ctx.fill(); ctx.stroke();
+    // Pruhy kontejneru
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(0,255,200,0.35)';
+    ctx.lineWidth = 1;
+    [-0.4, 0, 0.4].forEach(fx => {
+      ctx.beginPath();
+      ctx.moveTo(o.size * fx, -o.size * 0.55);
+      ctx.lineTo(o.size * fx,  o.size * 0.55);
+      ctx.stroke();
+    });
+    // Ikona nákladu
+    ctx.font = `${o.size * 0.8}px sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.globalAlpha = 0.9;
+    ctx.fillText('📦', 0, 1);
+    ctx.globalAlpha = 1;
+    // Blikající maják
+    ctx.fillStyle = blink ? '#00ffc8' : '#00ffc833';
+    ctx.shadowColor = '#00ffc8'; ctx.shadowBlur = blink ? 10 : 0;
+    ctx.beginPath(); ctx.arc(0, -o.size * 0.85, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.textBaseline = 'alphabetic';
+    ctx.restore();
+  }
+
+  // ── Palivová nádrž — oranžový barel s výstražným pruhem ───────────────────
+  function _drawFuel(ctx, o) {
+    const pulse = 0.6 + 0.4 * Math.sin(Date.now() * 0.006 + o.x);
+    ctx.save();
+    ctx.translate(o.x, o.y);
+    ctx.rotate(o.rot);
+    // Barel
+    ctx.fillStyle   = '#3a1c08';
+    ctx.strokeStyle = '#ff8822';
+    ctx.lineWidth   = 1.5;
+    ctx.shadowColor = '#ff8822';
+    ctx.shadowBlur  = 10 * pulse;
+    ctx.beginPath(); ctx.arc(0, 0, o.size, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+    // Výstražný pruh
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = `rgba(255,180,40,${0.5 + 0.3 * pulse})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(0, 0, o.size * 0.55, 0, Math.PI * 2); ctx.stroke();
+    // Symbol
+    ctx.fillStyle = `rgba(255,200,60,${0.7 + 0.3 * pulse})`;
+    ctx.font = `bold ${o.size * 0.9}px sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('!', 0, 1);
+    ctx.textBaseline = 'alphabetic';
+    ctx.restore();
+  }
+
+  // Jen hrozby — používá zaměřovací reticle a danger overlay (loot není nebezpečí)
   function nearest(px, py, maxDist) {
     let best = null, bestD = maxDist || Infinity;
     list.forEach(o => {
+      if (_isLoot(o)) return;
       const d = Math.hypot(o.x - px, o.y - py);
       if (d < bestD) { bestD = d; best = o; }
     });
@@ -858,6 +1043,7 @@ const Enemies = (() => {
     get recentKills()     { return recentKills; },
     get recentKillValue() { return recentKillValue; },
     clear, spawnObstacle, spawnPickupItem, triggerEMP,
+    spawnCrystalRock, spawnCargoDrone, spawnFuelTank,
     update, checkPlayerCollision, checkPickupCollision, checkCrystalCollision,
     checkEnemyBulletCollision, checkBomberExplosion,
     spawnBossCrystals, draw, nearest,

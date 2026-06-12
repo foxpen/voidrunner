@@ -7,7 +7,7 @@ const CFG = {
   // Player
   PLAYER: {
     W: 26, H: 36,
-    SPEED: 5,
+    SPEED: 5.4,
     ACCEL: 0.5,    // svižnější odezva řízení (0.4 bylo těstovité)
     FRICTION: 0.85,
     TRAIL_LEN: 20,
@@ -27,17 +27,18 @@ const CFG = {
   // scoreTarget = bonus cíl v rámci kola (~20s): pasivní skóre dá ~1200,
   // zbytek musí přijít z killů (T1 25 / T2 60 / T3 120, tank+bomber ×1.5).
   // Dosažitelné při agresivní hře, ne zadarmo.
+  // obstacleCount = velikost vlny (burst nájezdu každých ~7s), spawnRate = kapání mezi vlnami
   DIFFICULTY: [
-    { round: 1,  spawnRate: 38, speed: 1.0, obstacleCount: 1, scoreTarget: 1500 },
-    { round: 2,  spawnRate: 34, speed: 1.2, obstacleCount: 1, scoreTarget: 1900 },
-    { round: 3,  spawnRate: 31, speed: 1.4, obstacleCount: 2, scoreTarget: 2400 },
-    { round: 4,  spawnRate: 28, speed: 1.6, obstacleCount: 2, scoreTarget: 3000 },
-    { round: 5,  spawnRate: 25, speed: 1.8, obstacleCount: 2, scoreTarget: 3700 },
-    { round: 6,  spawnRate: 22, speed: 2.0, obstacleCount: 3, scoreTarget: 4500 },
-    { round: 7,  spawnRate: 19, speed: 2.2, obstacleCount: 3, scoreTarget: 5400 },
-    { round: 8,  spawnRate: 16, speed: 2.5, obstacleCount: 3, scoreTarget: 6400 },
-    { round: 9,  spawnRate: 13, speed: 2.8, obstacleCount: 4, scoreTarget: 7500 },
-    { round: 10, spawnRate: 10, speed: 3.2, obstacleCount: 4, scoreTarget: 0    },
+    { round: 1,  spawnRate: 38, speed: 1.15, obstacleCount: 1, scoreTarget: 1500 },
+    { round: 2,  spawnRate: 34, speed: 1.40, obstacleCount: 2, scoreTarget: 1900 },
+    { round: 3,  spawnRate: 31, speed: 1.65, obstacleCount: 2, scoreTarget: 2400 },
+    { round: 4,  spawnRate: 28, speed: 1.90, obstacleCount: 2, scoreTarget: 3000 },
+    { round: 5,  spawnRate: 25, speed: 2.15, obstacleCount: 3, scoreTarget: 3700 },
+    { round: 6,  spawnRate: 22, speed: 2.40, obstacleCount: 3, scoreTarget: 4500 },
+    { round: 7,  spawnRate: 19, speed: 2.65, obstacleCount: 3, scoreTarget: 5400 },
+    { round: 8,  spawnRate: 16, speed: 3.00, obstacleCount: 4, scoreTarget: 6400 },
+    { round: 9,  spawnRate: 13, speed: 3.40, obstacleCount: 4, scoreTarget: 7500 },
+    { round: 10, spawnRate: 10, speed: 3.80, obstacleCount: 4, scoreTarget: 0    },
   ],
 
   // Weapons
@@ -102,6 +103,43 @@ const CFG = {
       pattern: 'ring',
       unlocked: false,
     },
+    tesla: {
+      id: 'tesla',
+      name: 'TESLA OBLOUK',
+      icon: '⚡',
+      color: '#44aaff',
+      damage: 2,
+      fireRate: 45,       // auto-výboj ~1.3/s
+      speed: 0,
+      size: 0,
+      range: 260,         // dosah oblouku v px
+      pattern: 'tesla',
+      unlocked: false,
+    },
+    salvo: {
+      id: 'salvo',
+      name: 'RAKETOVÁ SALVA',
+      icon: '🚀',
+      color: '#ff6644',
+      damage: 2,
+      fireRate: 360,      // dávka každých 6s
+      speed: 7,
+      size: 4,
+      pattern: 'salvo',
+      unlocked: false,
+    },
+    rail: {
+      id: 'rail',
+      name: 'RAILGUN',
+      icon: '🎯',
+      color: '#aaffee',
+      damage: 6,
+      fireRate: 150,      // výstřel každé 2.5s
+      speed: 0,
+      size: 0,
+      pattern: 'rail',
+      unlocked: false,
+    },
   },
 
   // Upgrade cards — appear between rounds
@@ -130,6 +168,15 @@ const CFG = {
     { id: 'unlock_ring',    rarity: 'legendary', type: 'weapon',  minRound: 7, weight: 2,  price: 900,
       name: 'PLAZMOVÝ PRSTEN',   desc: 'Krátký nábojový pulz → výbušná vlna',  icon: '💥', color: '#ff44ff', weaponId: 'ring',
       tags: ['explosive'], category: 'risk' },
+    { id: 'unlock_tesla',   rarity: 'rare',      type: 'weapon',  minRound: 4, weight: 4,  price: 380,
+      name: 'TESLA OBLOUK',      desc: 'Auto-výboj na nejbližšího do 260 px', icon: '⚡', color: '#44aaff', weaponId: 'tesla',
+      tags: ['electric'], category: 'synergy' },
+    { id: 'unlock_salvo',   rarity: 'rare',      type: 'weapon',  minRound: 6, weight: 3,  price: 380,
+      name: 'RAKETOVÁ SALVA',    desc: 'Každých 6 s dávka 4 naváděcích raket', icon: '🚀', color: '#ff6644', weaponId: 'salvo',
+      tags: ['explosive'], category: 'risk' },
+    { id: 'unlock_rail',    rarity: 'legendary', type: 'weapon',  minRound: 7, weight: 2,  price: 900,
+      name: 'RAILGUN',           desc: 'Průrazný paprsek přes celou obrazovku', icon: '🎯', color: '#aaffee', weaponId: 'rail',
+      tags: ['kinetic'], category: 'risk' },
 
     // ── Common stat upgrady (kola 1–10) ──
     { id: 'dmg_up',    rarity: 'common',    type: 'stat', minRound: 1, weight: 8, price: 150,
@@ -199,13 +246,13 @@ const CFG = {
   CRYSTALS: {
     DROP_CHANCE: [0.45, 0.80, 1.0],   // chance per tier
     DROP_COUNT:  [[0,1], [1,2], [2,4]], // [min,max] per tier
-    BOSS_REWARD: 45,
+    BOSS_REWARD: 60,
   },
 
   // Hangár — persistent upgrades bought between runs
   HANGAR: [
     { id: 'hull',      name: 'ZÁLOŽNÍ REAKTOR', desc: 'Začínáš s +1 životem',        icon: '❤️',  costs: [30, 55],     maxLevel: 2, color: '#ff4466' },
-    { id: 'cannon',    name: 'ZÁKLADNÍ KANÓN',  desc: 'Začínáš s odemčeným laserem', icon: '🔫',  costs: [50],         maxLevel: 1, color: '#00ffc8' },
+    { id: 'cannon',    name: 'DVOJITÁ HLAVEŇ',  desc: 'Laser střílí ze dvou hlavní od startu', icon: '🔱', costs: [50], maxLevel: 1, color: '#00ffc8' },
     { id: 'engine',    name: 'LODNÍ MOTOR',     desc: '+9% rychlost startu / level',  icon: '💨',  costs: [25, 38, 55], maxLevel: 3, color: '#00ff88' },
     { id: 'armor',     name: 'PANCÍŘ',          desc: '+1 život navíc / level',       icon: '🛡',  costs: [40, 65],     maxLevel: 2, color: '#44aaff' },
     { id: 'scavenger', name: 'SBĚRAČ',          desc: '+17,5 % spawn power-upů / level',icon:'🧲', costs: [35, 58],     maxLevel: 2, color: '#ff8800' },

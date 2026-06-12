@@ -68,6 +68,13 @@ const Rounds = (() => {
     return d ? Math.max(6, Math.floor(d.spawnRate / over)) : 8;
   }
 
+  // Velikost vlny nájezdu (burst) pro aktuální kolo
+  function getObstacleCount() {
+    const idx = Math.min(current - 1, CFG.DIFFICULTY.length - 1);
+    const d = CFG.DIFFICULTY[idx];
+    return d ? (d.obstacleCount || 1) : 4;
+  }
+
   function tick(W, H) {
     frameCount++;
 
@@ -234,7 +241,7 @@ const Rounds = (() => {
   function isCountdown() { return phase === 'COUNTDOWN'; }
 
   return {
-    reset, tick, getDifficulty, getSpawnRate,
+    reset, tick, getDifficulty, getSpawnRate, getObstacleCount,
     shouldSpawnEnemies, isBossRound, isUpgradeScreen, isGameDone, isIntermission, isCountdown, isNarrative,
     progress, timeLeft, forceEndRound, getScoreTarget,
     get current()        { return current; },

@@ -45,7 +45,9 @@ const Hangar = (() => {
           Player.applyHangarBonus(item.id, lv);
           break;
         case 'cannon':
-          Weapons.unlockWeapon('basic');   // ensures basic starts equipped
+          // Basic je equipnutý od startu vždy — tenhle slot teď dává dual fire
+          Weapons.applyUpgrade({ stat: 'dualFire' });
+          Player.applyUpgrade({ stat: 'dualFire' });
           break;
       }
     });

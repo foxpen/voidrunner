@@ -2,9 +2,11 @@
 
 const Weapons = (() => {
   let equipped = [];
+  let weaponLevels = {};   // id → 1..3 (LVL 2: +1 dmg, LVL 3: rychlejší palba / orbit +2 kuličky)
   let stats = {};
   let projectiles = [];
   let orbitBalls = [];
+  let beams = [];          // krátkodobé paprsky (tesla / railgun), { x1,y1,x2,y2,ttl,maxTtl,color,rail }
   let fireCooldowns = {};
   let orbitCount = 2;
 
@@ -23,10 +25,14 @@ const Weapons = (() => {
   let explodeProcRadius = 0;   // volatile card: AoE radius on hit (0 = disabled)
 
   function reset() {
-    equipped = []; // zbraně jsou upgrade — hráč začíná bez střelby
+    // Hráč začíná se základním laserem — shooter loop (miř→střílej→zabij→sbírej)
+    // musí běžet od první sekundy, ne až od kola 2. Další zbraně jsou upgrade.
+    equipped = ['basic'];
+    weaponLevels = { basic: 1 };
     stats = {};
     projectiles = [];
     orbitBalls = [];
+    beams = [];
     fireCooldowns = {};
     orbitCount = 2;
     magCapacity = MAG_SIZE;
@@ -43,6 +49,7 @@ const Weapons = (() => {
   function unlockWeapon(id) {
     if (!equipped.includes(id)) {
       equipped.push(id);
+      weaponLevels[id] = 1;
       // Apply warhead hangar bonus on unlock
       const wb = (typeof Player !== 'undefined') ? Player.warheadBonus : 0;
       if (wb > 0) {
@@ -52,9 +59,29 @@ const Weapons = (() => {
     }
   }
 
+  // Level-up vlastněné zbraně: LVL 2 = +1 dmg, LVL 3 = −25 % cooldown (orbit: +2 kuličky)
+  function levelUp(id) {
+    const lv = (weaponLevels[id] || 1) + 1;
+    if (lv > 3) return;
+    weaponLevels[id] = lv;
+    stats[id] = stats[id] || {};
+    if (lv === 2) {
+      stats[id].damage = (stats[id].damage || CFG.WEAPONS[id]?.damage || 1) + 1;
+    } else if (lv === 3) {
+      if (id === 'orbit') {
+        orbitCount += 2;
+        _rebuildOrbits();
+      } else {
+        const base = stats[id].fireRate || CFG.WEAPONS[id]?.fireRate || 15;
+        stats[id].fireRate = Math.max(4, Math.round(base * 0.75));
+      }
+    }
+  }
+
   function applyUpgrade(card) {
     if (card.type === 'weapon') {
-      unlockWeapon(card.weaponId);
+      if (equipped.includes(card.weaponId)) levelUp(card.weaponId);
+      else unlockWeapon(card.weaponId);
       return;
     }
     switch (card.stat) {
@@ -267,6 +294,10 @@ const Weapons = (() => {
 
     // Remove dead ring projectiles when too large
     projectiles = projectiles.filter(p => !p.ring || p.radius < Math.max(W, H));
+
+    // Beams (tesla/rail) — krátký fade-out
+    beams.forEach(b => { b.ttl -= slowMult; });
+    beams = beams.filter(b => b.ttl > 0);
   }
 
   function _fireWeapon(id, px, py, enemies, W, H) {
@@ -310,6 +341,44 @@ const Weapons = (() => {
         const angle = Utils.angleTo(px, py, target.x, target.y);
         const proj = _addProj(px, py, Math.cos(angle)*speed, Math.sin(angle)*speed, damage, size, wCfg.color, id);
         proj.homing = true;
+        proj.speed  = speed;   // homing navigace čte proj.speed — bez něj NaN a raketa zmizí
+        break;
+      }
+      case 'salvo': {
+        // Dávka 4 mini-raket ve vějíři, všechny navádějí
+        const N = 4;
+        for (let i = 0; i < N; i++) {
+          const a = -Math.PI / 2 + (i - (N - 1) / 2) * 0.38;
+          const proj = _addProj(px, py, Math.cos(a) * speed, Math.sin(a) * speed, damage, size, wCfg.color, id);
+          proj.homing = true;
+          proj.speed  = speed;
+        }
+        break;
+      }
+      case 'tesla': {
+        // Instantní výboj na nejbližšího v dosahu
+        const target = _findNearest(px, py, enemies);
+        if (!target || Utils.dist(px, py, target.x, target.y) > (wCfg.range || 260)) return;
+        _applyHit({ damage, color: wCfg.color, weaponId: id, dead: false, ..._procFields() }, target, enemies);
+        beams.push({ x1: px, y1: py, x2: target.x, y2: target.y, ttl: 10, maxTtl: 10, color: wCfg.color, rail: false });
+        break;
+      }
+      case 'rail': {
+        // Průrazný paprsek přes celou obrazovku — zasáhne vše na přímce
+        const target = _findNearest(px, py, enemies);
+        const angle  = target ? Utils.angleTo(px, py, target.x, target.y) : -Math.PI / 2;
+        const nx2 = Math.cos(angle), ny2 = Math.sin(angle);
+        for (const e of enemies) {
+          const dx = e.x - px, dy = e.y - py;
+          const t = dx * nx2 + dy * ny2;
+          if (t < 0) continue;                       // jen před hlavní
+          const perp = Math.abs(dx * ny2 - dy * nx2);
+          if (perp < e.size * 0.6 + 8) {
+            _applyHit({ damage, color: wCfg.color, weaponId: id, dead: false, ..._procFields() }, e, enemies);
+          }
+        }
+        const len = Math.max(W, H) * 1.5;
+        beams.push({ x1: px, y1: py, x2: px + nx2 * len, y2: py + ny2 * len, ttl: 14, maxTtl: 14, color: wCfg.color, rail: true });
         break;
       }
       case 'ring': {
@@ -324,16 +393,23 @@ const Weapons = (() => {
     }
   }
 
-  function _addProj(x, y, vx, vy, damage, size, color, weaponId) {
-    // Pierce count = card upgrades + synergy bonus (computed at fire time)
+  // On-hit proc pole (pierce/burn/chain/aoe) — sdílí je projektily i instantní
+  // zbraně (tesla, railgun), počítají se v okamžiku výstřelu
+  function _procFields() {
     const synPierce = (typeof Synergies !== 'undefined' && Synergies.has('pierce')) ? 1 : 0;
-    const proj = {
-      x, y, vx, vy, damage, size, color, weaponId, dead: false,
+    return {
       pierceLeft:   pierceCount + synPierce,
       burnProc:     burnProcEnabled || (typeof Synergies !== 'undefined' && Synergies.has('burn')),
       chainProc:    chainProcChance + ((typeof Synergies !== 'undefined' && Synergies.has('chain')) ? 1.0 : 0),
       explodeProc:  explodeProcRadius > 0 ? explodeProcRadius
                   : (typeof Synergies !== 'undefined' && Synergies.has('aoe')) ? 50 : 0,
+    };
+  }
+
+  function _addProj(x, y, vx, vy, damage, size, color, weaponId) {
+    const proj = {
+      x, y, vx, vy, damage, size, color, weaponId, dead: false,
+      ..._procFields(),
     };
     projectiles.push(proj);
     return proj;
@@ -439,6 +515,47 @@ const Weapons = (() => {
   }
 
   function draw(ctx) {
+    // Beams — tesla (klikatý blesk) / railgun (rovný paprsek)
+    beams.forEach(b => {
+      const a = b.ttl / b.maxTtl;
+      ctx.save();
+      if (b.rail) {
+        // Railgun: tlustý glow + bílé jádro
+        ctx.strokeStyle = b.color;
+        ctx.globalAlpha = a * 0.55;
+        ctx.lineWidth   = 9;
+        ctx.shadowColor = b.color;
+        ctx.shadowBlur  = 22;
+        ctx.beginPath(); ctx.moveTo(b.x1, b.y1); ctx.lineTo(b.x2, b.y2); ctx.stroke();
+        ctx.strokeStyle = '#ffffff';
+        ctx.globalAlpha = a;
+        ctx.lineWidth   = 2.5;
+        ctx.shadowBlur  = 8;
+        ctx.beginPath(); ctx.moveTo(b.x1, b.y1); ctx.lineTo(b.x2, b.y2); ctx.stroke();
+      } else {
+        // Tesla: klikatá čára, každý frame jiný tvar (flicker)
+        const segs = 5;
+        const dx = b.x2 - b.x1, dy = b.y2 - b.y1;
+        const px2 = -dy, py2 = dx;
+        const plen = Math.hypot(px2, py2) || 1;
+        ctx.strokeStyle = b.color;
+        ctx.globalAlpha = a;
+        ctx.lineWidth   = 2;
+        ctx.shadowColor = b.color;
+        ctx.shadowBlur  = 12;
+        ctx.beginPath();
+        ctx.moveTo(b.x1, b.y1);
+        for (let i = 1; i < segs; i++) {
+          const t = i / segs;
+          const off = (Math.random() - 0.5) * 18;
+          ctx.lineTo(b.x1 + dx * t + (px2 / plen) * off, b.y1 + dy * t + (py2 / plen) * off);
+        }
+        ctx.lineTo(b.x2, b.y2);
+        ctx.stroke();
+      }
+      ctx.restore();
+    });
+
     // Orbit balls
     orbitBalls.forEach(b => {
       if (b.x === undefined) return;
@@ -571,6 +688,8 @@ const Weapons = (() => {
   return {
     reset, unlockWeapon, applyUpgrade, update, draw, drawMagHUD, clearProjectiles,
     get equipped()   { return equipped; },
+    get levels()     { return weaponLevels; },
+    get dualFire()   { return !!(stats.basic && stats.basic.dual); },
     get orbitBalls() { return orbitBalls; },
     get reloading()  { return reloading; },
     get magShots()    { return magShots; },

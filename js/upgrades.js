@@ -47,14 +47,36 @@ const Upgrades = (() => {
 
   // ── Pool building ───────────────────────────────────────────────────────────
   function _buildPool(round) {
-    return CFG.UPGRADE_CARDS.filter(c => {
-      if (c.type === 'weapon' && (applied.has(c.id) || Weapons.equipped.includes(c.weaponId))) return false;
-      if ((c.minRound || 1) > round) return false;
-      if (c.stat === 'dualFire'   && !Weapons.equipped.includes('basic'))  return false;
-      if (c.stat === 'orbitCount' && !Weapons.equipped.includes('orbit'))  return false;
-      if (c.stat === 'overdrive'  && Weapons.equipped.length < 2)          return false;
-      return true;
-    });
+    const pool = [];
+    for (const c of CFG.UPGRADE_CARDS) {
+      if (c.type === 'weapon') {
+        const lv = (Weapons.levels && Weapons.levels[c.weaponId]) || 0;
+        if (lv === 0) {
+          // Neodemčená zbraň — běžná unlock karta
+          if ((c.minRound || 1) <= round) pool.push(c);
+        } else if (lv < 3) {
+          // Vlastněná zbraň — nabídni level-up (eskalace každé kolo)
+          const next = lv + 1;
+          pool.push({
+            ...c,
+            id:     `${c.id}_lv${next}`,
+            name:   `${c.name} · LVL ${next}`,
+            desc:   next === 2 ? '+1 poškození'
+                  : (c.weaponId === 'orbit' ? '+2 orbit kuličky' : '−25 % čas mezi výstřely'),
+            rarity: next === 3 ? 'legendary' : 'rare',
+            weight: 3,
+            category: 'safe',
+          });
+        }
+        continue;
+      }
+      if ((c.minRound || 1) > round) continue;
+      if (c.stat === 'dualFire'   && (!Weapons.equipped.includes('basic') || Weapons.dualFire)) continue;
+      if (c.stat === 'orbitCount' && !Weapons.equipped.includes('orbit'))  continue;
+      if (c.stat === 'overdrive'  && Weapons.equipped.length < 2)          continue;
+      pool.push(c);
+    }
+    return pool;
   }
 
   function _weightedPick(pool, n) {
@@ -119,15 +141,14 @@ const Upgrades = (() => {
     legendaryFlash = 0;
 
     const round = (typeof Rounds !== 'undefined') ? Rounds.current : 1;
+    const pool = _buildPool(round);
+    cards = _categorySplit(pool);
 
-    if (!Weapons.equipped.includes('basic')) {
-      // Force basic laser as first card if player has no weapons
-      const basicCard = CFG.UPGRADE_CARDS.find(c => c.id === 'unlock_basic');
-      const rest = _buildPool(round).filter(c => c.id !== 'unlock_basic');
-      const remaining = _categorySplit(rest).slice(0, CARD_COUNT - 1);
-      cards = [basicCard, ...remaining];
-    } else {
-      cards = _categorySplit(_buildPool(round));
+    // Po sudých kolech (2/4/6/8) garantuj aspoň jednu zbraňovou kartu
+    // (nová zbraň nebo level-up) — build roste předvídatelně
+    if (round % 2 === 0 && !cards.some(c => c.type === 'weapon')) {
+      const wpns = pool.filter(c => c.type === 'weapon' && !cards.some(k => k.id === c.id));
+      if (wpns.length) cards[cards.length - 1] = _weightedPick(wpns, 1)[0];
     }
 
     _setupHandlers(W, H);

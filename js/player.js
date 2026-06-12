@@ -50,7 +50,7 @@ const Player = (() => {
     stats.ship = vr.ship || 'fighter';
     if (vr.ship === 'scout')   { stats.speed *= 1.35; stats.lives = 3; }
     if (vr.ship === 'fighter') { stats.speed *= 1.0;  stats.lives = 3; }
-    if (vr.ship === 'tank')    { stats.speed *= 0.65; stats.lives = 5; }
+    if (vr.ship === 'tank')    { stats.speed *= 0.7; stats.lives = 5; }
 
     // Apply mode
     if (vr.mode === 'hardcore') stats.lives = 1;
