@@ -71,14 +71,20 @@ const Player = (() => {
   }
 
   function update(W, H, moveVec, activePU) {
-    const speedMult = activePU.speed > 0 ? 1.6 : 1;
-    vx += moveVec.x * p.ACCEL;
-    vy += moveVec.y * p.ACCEL;
-    vx *= p.FRICTION;
-    vy *= p.FRICTION;
+    const speedMult = activePU.speed > 0 ? 1.5 : 1;
+    // Target-velocity model: cílová rychlost = vstup × max, k ní se velocity
+    // plynule blíží podle RESPONSE. Svižný rozjezd i dojezd, žádné klouzání.
+    const maxV = stats.speed * speedMult;
+    const desiredVx = moveVec.x * maxV;
+    const desiredVy = moveVec.y * maxV;
+    vx += (desiredVx - vx) * p.RESPONSE;
+    vy += (desiredVy - vy) * p.RESPONSE;
+    // Dorovnání drobných zbytků, ať loď úplně zastaví (ne mikro-drift)
+    if (moveVec.x === 0 && Math.abs(vx) < 0.05) vx = 0;
+    if (moveVec.y === 0 && Math.abs(vy) < 0.05) vy = 0;
 
-    x += vx * stats.speed * speedMult;
-    y += vy * stats.speed * speedMult;
+    x += vx;
+    y += vy;
 
     x = Utils.clamp(x, p.W, W - p.W);
     // Keep player above the bottom HUD zone (powerup icons 48px + bar 52px + gap)

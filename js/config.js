@@ -6,12 +6,11 @@ const CFG = {
 
   // Player
   PLAYER: {
-    W: 26, H: 36,
-    SPEED: 5.4,
-    ACCEL: 0.5,    // svižnější odezva řízení (0.4 bylo těstovité)
-    FRICTION: 0.85,
-    TRAIL_LEN: 20,
-    TRAIL_LEN_BOOST: 35,
+    W: 17, H: 23,            // menší loď — víc prostoru v poli, férovější hitbox
+    SPEED: 7.2,              // max rychlost v px/frame (target-velocity model)
+    RESPONSE: 0.32,          // jak rychle loď dosáhne cílové rychlosti (1 = okamžitě)
+    TRAIL_LEN: 18,
+    TRAIL_LEN_BOOST: 32,
     INVINCIBLE_START: 120,   // frames po spawnu
   },
 
