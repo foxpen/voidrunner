@@ -10,13 +10,9 @@ const Weapons = (() => {
   let fireCooldowns = {};
   let orbitCount = 2;
 
-  // ── ZÁSOBNÍK / RELOAD ──
-  const MAG_SIZE        = 12;   // základní velikost zásobníku (neměnné)
-  const RELOAD_FRAMES   = 120;  // 2s při 60fps (5s dávalo basic laseru jen 37% uptime)
-  let magCapacity = MAG_SIZE;   // efektivní kapacita (roste s mag_up upgradem)
-  let magShots    = MAG_SIZE;   // zbývající výstřely
-  let reloading   = false;
-  let reloadTimer = 0;
+  // BULLET-HEAVEN: žádný zásobník, žádný reload. Zbraně řežou nonstop.
+  // "Nabíjení" = vysoký fireRate cooldown těžkých zbraní (railgun/salva/prsten).
+  let fireRateMult = 1;        // globální násobič rychlosti palby (1 = base, <1 = rychleji)
 
   // ── Projectile behavior state (set via applyUpgrade) ──
   let pierceCount     = 0;     // extra enemies each shot pierces through
@@ -35,10 +31,7 @@ const Weapons = (() => {
     beams = [];
     fireCooldowns = {};
     orbitCount = 2;
-    magCapacity = MAG_SIZE;
-    magShots  = MAG_SIZE;
-    reloading = false;
-    reloadTimer = 0;
+    fireRateMult = 1;
     pierceCount = 0;
     burnProcEnabled = false;
     chainProcChance = 0;
@@ -106,9 +99,9 @@ const Weapons = (() => {
         stats['basic'] = stats['basic'] || {};
         stats['basic'].dual = true;
         break;
-      case 'magSize':
-        magCapacity += card.value;
-        magShots = Math.min(magShots + card.value, magCapacity);
+      case 'fireRateMult':
+        // Globální zrychlení palby (nahradilo zrušený zásobník)
+        fireRateMult = Math.max(0.4, fireRateMult * (1 + card.value));
         break;
       case 'pierce':
         pierceCount += card.value;
@@ -157,39 +150,19 @@ const Weapons = (() => {
   function update(px, py, enemies, W, H, frameCount, slowActive) {
     const slowMult = slowActive ? 0.5 : 1;
 
-    // ── Reload tick ──
-    if (reloading) {
-      reloadTimer--;
-      if (reloadTimer <= 0) {
-        reloading = false;
-        magShots  = magCapacity;
-        if (typeof Audio !== 'undefined') Audio.sfx('pickup'); // reload done sound
-      }
-    }
-
-    // Fire all equipped weapons
+    // Fire all equipped weapons — nonstop, žádný zásobník ani reload.
+    // Každá zbraň má jen svůj fireRate cooldown (těžké zbraně = dlouhý = "nabíjení").
     for (const id of equipped) {
       const wCfg = CFG.WEAPONS[id];
       if (wCfg.pattern === 'orbit') continue;
-      if (reloading) continue; // nelze střílet při nabíjení
 
       fireCooldowns[id] = (fireCooldowns[id] || 0);
-      if (fireCooldowns[id] > 0) { fireCooldowns[id]--; continue; }
+      if (fireCooldowns[id] > 0) { fireCooldowns[id] -= slowMult; continue; }
 
-      const fireRate = _getStat(id, 'fireRate');
+      const fireRate = Math.max(3, Math.round(_getStat(id, 'fireRate') * fireRateMult));
       fireCooldowns[id] = fireRate;
 
       _fireWeapon(id, px, py, enemies, W, H);
-
-      // Odečti náboj (jen pro 'basic' jako hlavní zbraň)
-      if (id === 'basic') {
-        magShots--;
-        if (magShots <= 0) {
-          reloading   = true;
-          reloadTimer = RELOAD_FRAMES;
-          if (typeof Audio !== 'undefined') Audio.sfx('shieldDown'); // prázdný zásobník — mag dump
-        }
-      }
     }
 
     // Orbit balls
@@ -640,47 +613,40 @@ const Weapons = (() => {
     });
   }
 
-  function drawMagHUD(ctx, W, H, frameCount) {
-    if (equipped.length === 0) return; // žádné zbraně, žádný HUD
-    const barW  = 120;
-    const barH  = 6;
-    const x     = W / 2 - barW / 2;
-    const y     = H - 72;
+  // Cooldown lišty těžkých zbraní (railgun/salva/prsten) = jejich "nabíjení".
+  // Základní zbraně střílejí nonstop, ty se tu nezobrazují.
+  const HEAVY = { rail: '#aaffee', salvo: '#ff6644', ring: '#ff44ff' };
 
-    if (reloading) {
-      // Reload progress bar
-      const pct = 1 - reloadTimer / RELOAD_FRAMES;
+  function drawMagHUD(ctx, W, H, frameCount) {
+    const heavies = equipped.filter(id => HEAVY[id]);
+    if (heavies.length === 0) return;
+
+    const barW = 86, barH = 5, gap = 10;
+    const totalW = heavies.length * barW + (heavies.length - 1) * gap;
+    let x = W / 2 - totalW / 2;
+    const y = H - 70;
+
+    heavies.forEach(id => {
+      const baseRate = Math.max(3, Math.round(_getStat(id, 'fireRate') * fireRateMult));
+      const cd  = fireCooldowns[id] || 0;
+      const pct = baseRate > 0 ? 1 - cd / baseRate : 1;   // 1 = připraveno
+      const col = HEAVY[id];
+      const ready = cd <= 0;
+
+      ctx.font      = '8px Orbitron, monospace';
+      ctx.fillStyle = ready ? col + 'cc' : '#ffffff33';
+      ctx.textAlign = 'center';
+      ctx.fillText((CFG.WEAPONS[id]?.name || id).split(' ')[0], x + barW / 2, y - 5);
+
       ctx.fillStyle = '#1a1a2e';
       ctx.fillRect(x, y, barW, barH);
-      ctx.fillStyle = '#ff6600';
-      ctx.shadowColor = '#ff6600'; ctx.shadowBlur = 8;
-      ctx.fillRect(x, y, barW * pct, barH);
+      ctx.fillStyle = col;
+      if (ready) { ctx.shadowColor = col; ctx.shadowBlur = 8; }
+      ctx.fillRect(x, y, barW * Math.min(1, pct), barH);
       ctx.shadowBlur = 0;
 
-      // NABÍJÍ text — bliká
-      ctx.globalAlpha = 0.6 + 0.4 * Math.sin(frameCount * 0.15);
-      ctx.font = 'bold 11px Orbitron, monospace';
-      ctx.fillStyle = '#ff6600';
-      ctx.textAlign = 'center';
-      ctx.fillText('NABÍJÍ...', W / 2, y - 6);
-      ctx.globalAlpha = 1;
-    } else {
-      // Label
-      ctx.font      = '9px Orbitron, monospace';
-      ctx.fillStyle = '#ffffff33';
-      ctx.textAlign = 'center';
-      ctx.fillText('ZÁSOBNÍK', W / 2, y - 6);
-      // Bullet pips
-      const pipW = Math.max(4, Math.floor(barW / magCapacity) - 2);
-      for (let i = 0; i < magCapacity; i++) {
-        const px = x + i * (pipW + 2);
-        ctx.fillStyle = i < magShots ? '#00ffc8' : '#1a1a2e';
-        ctx.shadowColor = i < magShots ? '#00ffc8' : 'transparent';
-        ctx.shadowBlur  = i < magShots ? 4 : 0;
-        ctx.fillRect(px, y, pipW, barH);
-      }
-      ctx.shadowBlur = 0;
-    }
+      x += barW + gap;
+    });
   }
 
   function clearProjectiles() { projectiles = []; }
@@ -691,8 +657,6 @@ const Weapons = (() => {
     get levels()     { return weaponLevels; },
     get dualFire()   { return !!(stats.basic && stats.basic.dual); },
     get orbitBalls() { return orbitBalls; },
-    get reloading()  { return reloading; },
-    get magShots()    { return magShots; },
-    get magSize()     { return magCapacity; },
+    get fireRateMult() { return fireRateMult; },
   };
 })();

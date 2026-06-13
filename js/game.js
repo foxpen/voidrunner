@@ -30,6 +30,7 @@ let score = 0;
 let highScore = parseInt(localStorage.getItem('vr_highscore') || '0');
 let pickupsCollected = 0;
 let crystalsThisRun = 0;
+let killsThisRun = 0;
 let shakeTime = 0;
 let shakeIntensity = 0;
 let slowmo = 0;
@@ -91,7 +92,7 @@ document.addEventListener('pointerdown', _initAudioOnGesture, { once: true });
 // ─── START GAME ────────────────────────────────────────────────────────────
 function startGame() {
   state = STATE.PLAYING;
-  score = 0; pickupsCollected = 0; frameCount = 0; crystalsThisRun = 0;
+  score = 0; pickupsCollected = 0; frameCount = 0; crystalsThisRun = 0; killsThisRun = 0;
   shakeTime = 0; slowmo = 0;
   activePU = { shield: 0, slow: 0, speed: 0, magnet: 0, double: 0, emp: 0 };
   empFlash = 0;
@@ -257,20 +258,20 @@ function update() {
   const move = Input.getMove();
   Player.update(W, H, move, activePU);
 
-  // Spawn enemies — stálé kapání + vlny nájezdů
+  // Spawn enemies — stálé kapání + vlny nájezdů (s FPS stropem)
   if (Rounds.shouldSpawnEnemies()) {
-    const spawnRate = Math.max(8, Rounds.getSpawnRate() - score * 0.01);
-    if (frameCount % Math.floor(spawnRate) === 0) {
+    const cap = CFG.MAX_ENEMIES || 70;
+    const spawnRate = Math.max(6, Rounds.getSpawnRate() - score * 0.01);
+    if (frameCount % Math.floor(spawnRate) === 0 && Enemies.list.length < cap) {
       Enemies.spawnObstacle(W, H, Rounds.getDifficulty(), activePU.slow > 0);
     }
-    // Vlna každých ~7s: obstacleCount nepřátel naráz — intenzita ve špičkách,
-    // mezi nimi nádech (flow), ne monotónní kapání
-    if (frameCount > 0 && frameCount % 420 === 0) {
-      const burst = Rounds.getObstacleCount();
+    // Vlna každých ~5s: obstacleCount nepřátel naráz — masakr ve špičkách
+    if (frameCount > 0 && frameCount % 300 === 0) {
+      const burst = Math.min(Rounds.getObstacleCount(), cap - Enemies.list.length);
       for (let i = 0; i < burst; i++) {
         Enemies.spawnObstacle(W, H, Rounds.getDifficulty(), activePU.slow > 0);
       }
-      if (burst >= 2) UI.showNotify('⚠ NÁJEZD', '#ff8800');
+      if (burst >= 3) UI.showNotify('⚠ NÁJEZD', '#ff8800');
     }
     const scavMult = 1 - Player.scavengerLevel * 0.175;  // -17.5% per level (up to -35%)
     const puRate = Math.max(70, (200 - score * 0.05) * scavMult);
@@ -299,6 +300,7 @@ function update() {
 
   // ── Kill score + combo ──
   if (Enemies.recentKills > 0) {
+    killsThisRun += Enemies.recentKills;
     comboCount += Enemies.recentKills;
     comboTimer  = 140;
     const cMult = comboMult(comboCount);
@@ -613,8 +615,7 @@ function draw() {
       ctx.fillText(value, cx2, valueY);
     }
 
-    const ammoVal   = Weapons.magShots;
-    _hudStat('AMMO',   ammoVal,        col * 0.5, ammoVal <= 3);
+    _hudStat('KILLŮ',  killsThisRun,   col * 0.5, false);
 
     // COMBO místo dřívějšího fake SPEED (score*4+400 nic neměřilo)
     const comboVal = comboCount >= 3 ? `${comboCount} ×${comboMult(comboCount)}` : '—';

@@ -27,19 +27,22 @@ const CFG = {
   // scoreTarget = bonus cíl v rámci kola (~20s): pasivní skóre dá ~1200,
   // zbytek musí přijít z killů (T1 25 / T2 60 / T3 120, tank+bomber ×1.5).
   // Dosažitelné při agresivní hře, ne zadarmo.
-  // obstacleCount = velikost vlny (burst nájezdu každých ~7s), spawnRate = kapání mezi vlnami
+  // BULLET-HEAVEN: hordy. obstacleCount = velikost vlny (burst ~5s), spawnRate = kapání mezi vlnami
   DIFFICULTY: [
-    { round: 1,  spawnRate: 38, speed: 1.15, obstacleCount: 1, scoreTarget: 1500 },
-    { round: 2,  spawnRate: 34, speed: 1.40, obstacleCount: 2, scoreTarget: 1900 },
-    { round: 3,  spawnRate: 31, speed: 1.65, obstacleCount: 2, scoreTarget: 2400 },
-    { round: 4,  spawnRate: 28, speed: 1.90, obstacleCount: 2, scoreTarget: 3000 },
-    { round: 5,  spawnRate: 25, speed: 2.15, obstacleCount: 3, scoreTarget: 3700 },
-    { round: 6,  spawnRate: 22, speed: 2.40, obstacleCount: 3, scoreTarget: 4500 },
-    { round: 7,  spawnRate: 19, speed: 2.65, obstacleCount: 3, scoreTarget: 5400 },
-    { round: 8,  spawnRate: 16, speed: 3.00, obstacleCount: 4, scoreTarget: 6400 },
-    { round: 9,  spawnRate: 13, speed: 3.40, obstacleCount: 4, scoreTarget: 7500 },
-    { round: 10, spawnRate: 10, speed: 3.80, obstacleCount: 4, scoreTarget: 0    },
+    { round: 1,  spawnRate: 26, speed: 1.15, obstacleCount: 3,  scoreTarget: 1500 },
+    { round: 2,  spawnRate: 23, speed: 1.40, obstacleCount: 4,  scoreTarget: 1900 },
+    { round: 3,  spawnRate: 21, speed: 1.65, obstacleCount: 5,  scoreTarget: 2400 },
+    { round: 4,  spawnRate: 19, speed: 1.90, obstacleCount: 6,  scoreTarget: 3000 },
+    { round: 5,  spawnRate: 17, speed: 2.15, obstacleCount: 7,  scoreTarget: 3700 },
+    { round: 6,  spawnRate: 15, speed: 2.40, obstacleCount: 8,  scoreTarget: 4500 },
+    { round: 7,  spawnRate: 13, speed: 2.65, obstacleCount: 9,  scoreTarget: 5400 },
+    { round: 8,  spawnRate: 11, speed: 3.00, obstacleCount: 10, scoreTarget: 6400 },
+    { round: 9,  spawnRate: 10, speed: 3.40, obstacleCount: 12, scoreTarget: 7500 },
+    { round: 10, spawnRate: 9,  speed: 3.80, obstacleCount: 14, scoreTarget: 0    },
   ],
+
+  // Strop počtu nepřátel na mapě — chrání FPS (žádný object pooling)
+  MAX_ENEMIES: 70,
 
   // Weapons
   WEAPONS: {
@@ -199,8 +202,8 @@ const CFG = {
     { id: 'orbit_cnt', rarity: 'rare',      type: 'stat', minRound: 5, weight: 3, price: 380,
       name: 'VÍCE BOLAS',         desc: '+2 orbit kuličky',                   icon: '🔵',  color: '#ff8800', stat: 'orbitCount',value: 2,
       tags: ['kinetic'], category: 'synergy' },
-    { id: 'mag_up',    rarity: 'rare',      type: 'stat', minRound: 3, weight: 4, price: 250,
-      name: 'VĚTŠÍ ZÁSOBNÍK',     desc: '+6 nábojů do zásobníku',             icon: '🔋',  color: '#44ffaa', stat: 'magSize',   value: 6,
+    { id: 'rapid_fire', rarity: 'rare',     type: 'stat', minRound: 2, weight: 5, price: 250,
+      name: 'RYCHLOPALBA',        desc: '−18 % čas mezi všemi výstřely',      icon: '🔥',  color: '#44ffaa', stat: 'fireRateMult', value: -0.18,
       tags: ['tech'], category: 'safe' },
 
     // ── Synergy karty — aktivují nebo zlepšují efekty ──

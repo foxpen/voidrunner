@@ -599,7 +599,7 @@ const Enemies = (() => {
     eg.addColorStop(0, 'rgba(255,40,0,0.9)');
     eg.addColorStop(1, 'rgba(255,0,0,0)');
     ctx.fillStyle = eg;
-    ctx.shadowColor = '#ff2200'; ctx.shadowBlur = 14;
+    ctx.shadowColor = '#ff2200'; _sb(ctx, 14);
     ctx.beginPath();
     ctx.moveTo(-5 * s, ph * 0.55); ctx.lineTo(0, ph * 0.55 + fl); ctx.lineTo(5 * s, ph * 0.55);
     ctx.closePath(); ctx.fill();
@@ -637,7 +637,7 @@ const Enemies = (() => {
     ctx.fillStyle = '#200808';
     ctx.strokeStyle = sc;
     ctx.lineWidth = 1.5;
-    ctx.shadowColor = sc; ctx.shadowBlur = o.tier === 3 ? 20 : 14;
+    ctx.shadowColor = sc; _sb(ctx, o.tier === 3 ? 20 : 14);
     ctx.beginPath();
     ctx.moveTo(0,           -ph);
     ctx.lineTo(-pw * 0.28, -ph * 0.38);
@@ -665,7 +665,7 @@ const Enemies = (() => {
     // Cockpit — dark with red glow
     ctx.fillStyle = '#100004';
     ctx.strokeStyle = sc + 'bb'; ctx.lineWidth = 1;
-    ctx.shadowColor = sc; ctx.shadowBlur = 8;
+    ctx.shadowColor = sc; _sb(ctx, 8);
     ctx.beginPath();
     ctx.moveTo(0,           -ph * 0.70);
     ctx.lineTo(-pw * 0.18, -ph * 0.15);
@@ -817,7 +817,7 @@ const Enemies = (() => {
     if (o.tier >= 2) {
       const glowAlpha = o.tier === 3 ? 0.22 : 0.12;
       ctx.shadowColor = o.tier === 3 ? '#ff8820' : '#ff4422';
-      ctx.shadowBlur  = o.tier === 3 ? 18 : 10;
+      _sb(ctx, o.tier === 3 ? 18 : 10);
       ctx.strokeStyle = 'transparent';
       ctx.stroke();
     }
@@ -840,7 +840,12 @@ const Enemies = (() => {
     ctx.restore();
   }
 
+  // Při husté mapě vypni drahý shadowBlur u nepřátel (chrání FPS v masakru)
+  let _dense = false;
+  function _sb(ctx, v) { ctx.shadowBlur = _dense ? 0 : v; }
+
   function draw(ctx) {
+    _dense = list.length > 38;
     // Enemy bullets
     enemyBullets.forEach(b => {
       ctx.save();
