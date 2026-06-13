@@ -31,6 +31,24 @@ let highScore = parseInt(localStorage.getItem('vr_highscore') || '0');
 let pickupsCollected = 0;
 let crystalsThisRun = 0;
 let killsThisRun = 0;
+
+// ─── XP / LEVEL-UP (Vampire Survivors smyčka) ──────────────────────────────
+// Killy dávají XP → lišta → level-up → výběr 1 ze 3 karet přímo v akci.
+let xp          = 0;
+let xpLevel     = 1;
+let xpToNext    = 8;
+let pendingLevelUps = 0;
+function _xpThreshold(level) { return 8 + level * 6; }   // 14, 20, 26, … roste s úrovní
+
+// Aplikace karty (stejně jako Rounds._applyCard — Synergie řeší Upgrades._pickCard)
+function applyUpgradeCard(card) {
+  if (card.type === 'weapon') {
+    Weapons.applyUpgrade(card);
+  } else {
+    Player.applyUpgrade(card);
+    Weapons.applyUpgrade(card);
+  }
+}
 let shakeTime = 0;
 let shakeIntensity = 0;
 let slowmo = 0;
@@ -93,6 +111,7 @@ document.addEventListener('pointerdown', _initAudioOnGesture, { once: true });
 function startGame() {
   state = STATE.PLAYING;
   score = 0; pickupsCollected = 0; frameCount = 0; crystalsThisRun = 0; killsThisRun = 0;
+  xp = 0; xpLevel = 1; xpToNext = _xpThreshold(1); pendingLevelUps = 0;
   shakeTime = 0; slowmo = 0;
   activePU = { shield: 0, slow: 0, speed: 0, magnet: 0, double: 0, emp: 0 };
   empFlash = 0;
@@ -310,6 +329,24 @@ function update() {
     if (typeof Ultimate !== 'undefined') {
       Ultimate.addCharge(Enemies.recentKills * (comboCount >= 5 ? 1.5 : 1));
     }
+    // XP — každý kill 1 XP, level-up se nakupí do fronty (vyřeší se v PLAYING fázi)
+    xp += Enemies.recentKills;
+    while (xp >= xpToNext) {
+      xp -= xpToNext;
+      xpLevel++;
+      pendingLevelUps++;
+      xpToNext = _xpThreshold(xpLevel);
+    }
+  }
+
+  // Vyřeš čekající level-up — otevři výběr karty přímo v akci (VS smyčka).
+  // Jen v aktivní hře, ne přes shop/narrativ/boss intro.
+  if (pendingLevelUps > 0 && !Upgrades.showing && !Hangar.showing
+      && !(typeof Narrative !== 'undefined' && Narrative.active)
+      && (Rounds.phase === 'PLAYING' || Rounds.isBossRound())) {
+    pendingLevelUps--;
+    Audio.sfx('rare');
+    Upgrades.show(W, H, card => applyUpgradeCard(card), `ÚROVEŇ ${xpLevel}`);
   }
 
   // NOVA — update vlny + odpal mezerníkem
@@ -522,6 +559,26 @@ function draw() {
     ctx.shadowBlur  = 0;
     ctx.fillText('V O I D R U N N E R', W / 2, 96);
     ctx.restore();
+
+    // ── XP lišta — tenký pruh přes celý horní okraj + číslo úrovně ──
+    {
+      const bh  = 4;
+      const pct = Math.min(1, xp / xpToNext);
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.fillRect(0, 0, W, bh);
+      const xg = ctx.createLinearGradient(0, 0, W, 0);
+      xg.addColorStop(0, '#7a3cff');
+      xg.addColorStop(1, '#c46bff');
+      ctx.fillStyle = xg;
+      ctx.shadowColor = '#aa44ff'; ctx.shadowBlur = 8;
+      ctx.fillRect(0, 0, W * pct, bh);
+      ctx.shadowBlur = 0;
+      // Číslo úrovně vlevo nahoře
+      ctx.font      = `900 ${Utils.clamp(W * 0.016, 9, 12)}px Orbitron, monospace`;
+      ctx.fillStyle = 'rgba(200,150,255,0.85)';
+      ctx.textAlign = 'left';
+      ctx.fillText(`LVL ${xpLevel}`, 8, bh + 16);
+    }
 
     // ── Targeting reticle — tracks nearest enemy ──
     const nearestEnemy = Enemies.nearest(Player.x, Player.y);
